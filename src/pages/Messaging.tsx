@@ -1,0 +1,680 @@
+import React, { useState, useEffect } from 'react';
+import { useAuth } from '../contexts/AuthContext';
+import { useLanguage } from '../contexts/LanguageContext';
+import { collection, query, where, getDocs, onSnapshot, addDoc, serverTimestamp, doc, getDoc, updateDoc, increment, setDoc } from 'firebase/firestore';
+import { db } from '../lib/firebase';
+import { Search, Users, User, Megaphone, Send, Clock, Image, Video, Paperclip, Smile, ChevronRight, MessageCircle } from 'lucide-react';
+import { format } from 'date-fns';
+import { fr } from 'date-fns/locale';
+import Chat from './Chat';
+
+interface Conversation {
+  id: string;
+  participants: string[];
+  lastMessage: string;
+  lastMessageTime: any;
+  isGroup: boolean;
+  groupName?: string;
+  unreadCounts?: Record<string, number>;
+}
+
+interface MessagingProps {
+  initialChatTargetId?: string;
+  onClearTarget?: () => void;
+}
+
+export default function Messaging({ initialChatTargetId, onClearTarget }: MessagingProps) {
+  const { currentUser } = useAuth();
+  const { t } = useLanguage();
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [usersInfo, setUsersInfo] = useState<Record<string, any>>({});
+  const [searchQuery, setSearchQuery] = useState('');
+  const [activeModal, setActiveModal] = useState<'newGroup' | 'groupMessage' | 'announcement' | null>(null);
+  const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
+  const [allUsers, setAllUsers] = useState<any[]>([]);
+  const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
+  const [groupName, setGroupName] = useState('');
+  const [groupMessageText, setGroupMessageText] = useState('');
+
+  // Fetch all users for main list and modals
+  useEffect(() => {
+    if (!currentUser) return;
+    const unsubscribe = onSnapshot(collection(db, 'users'), (snapshot) => {
+      const usersData: any[] = snapshot.docs
+        .map(doc => ({ id: doc.id, ...doc.data() }))
+        .filter(u => u.id !== currentUser.id);
+      
+      // Sort users: online first, then alphabetically
+      usersData.sort((a, b) => {
+        if (a.status === 'online' && b.status !== 'online') return -1;
+        if (a.status !== 'online' && b.status === 'online') return 1;
+        const nameA = `${a.prenom || ''} ${a.nom || ''}`.trim().toLowerCase() || a.email?.split('@')[0].toLowerCase() || 'utilisateur';
+        const nameB = `${b.prenom || ''} ${b.nom || ''}`.trim().toLowerCase() || b.email?.split('@')[0].toLowerCase() || 'utilisateur';
+        return nameA.localeCompare(nameB);
+      });
+      
+      setAllUsers(usersData);
+    });
+    return () => unsubscribe();
+  }, [currentUser]);
+
+  // Handle initialChatTargetId
+  useEffect(() => {
+    if (!initialChatTargetId || !currentUser) return;
+
+    const startChat = async () => {
+      // Check if conversation already exists in DB
+      const q = query(
+        collection(db, 'conversations'),
+        where('participants', 'array-contains', currentUser.id)
+      );
+      const snapshot = await getDocs(q);
+      const existingConv = snapshot.docs.find(doc => {
+        const data = doc.data();
+        return !data.isGroup && data.participants.includes(initialChatTargetId);
+      });
+
+      if (existingConv) {
+        setSelectedConversationId(existingConv.id);
+      } else {
+        // Create new conversation
+        try {
+          const newConvRef = await addDoc(collection(db, 'conversations'), {
+            participants: [currentUser.id, initialChatTargetId],
+            isGroup: false,
+            lastMessage: '',
+            lastMessageTime: serverTimestamp(),
+            createdAt: serverTimestamp(),
+            unreadCounts: {
+              [currentUser.id]: 0,
+              [initialChatTargetId]: 0
+            }
+          });
+          setSelectedConversationId(newConvRef.id);
+        } catch (error) {
+          console.error("Error creating conversation:", error);
+        }
+      }
+      if (onClearTarget) onClearTarget();
+    };
+
+    startChat();
+  }, [initialChatTargetId, currentUser, onClearTarget]);
+
+  useEffect(() => {
+    if (!currentUser) return;
+
+    // Fetch conversations where current user is a participant
+    const q = query(
+      collection(db, 'conversations'),
+      where('participants', 'array-contains', currentUser.id)
+    );
+
+    const unsubscribe = onSnapshot(q, async (snapshot) => {
+      const convos = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data({ serverTimestamps: 'estimate' })
+      })) as Conversation[];
+      
+      // Sort client-side to avoid requiring a composite index
+      convos.sort((a, b) => {
+        const timeA = a.lastMessageTime?.toMillis?.() || 0;
+        const timeB = b.lastMessageTime?.toMillis?.() || 0;
+        return timeB - timeA;
+      });
+      
+      setConversations(convos);
+
+      // Fetch user info for participants we don't know yet
+      setUsersInfo(prevUsersInfo => {
+        const newUsersInfo = { ...prevUsersInfo };
+        let hasNewUsers = false;
+
+        for (const conv of convos) {
+          if (!conv.isGroup) {
+            const otherId = conv.participants.find(id => id !== currentUser.id);
+            if (otherId && !newUsersInfo[otherId] && !newUsersInfo[`_fetching_${otherId}`]) {
+              // Mark as fetching to avoid duplicate requests
+              newUsersInfo[`_fetching_${otherId}`] = true;
+              hasNewUsers = true;
+              
+              getDoc(doc(db, 'users', otherId)).then(userDoc => {
+                if (userDoc.exists()) {
+                  setUsersInfo(prev => ({
+                    ...prev,
+                    [otherId]: { id: userDoc.id, ...userDoc.data() }
+                  }));
+                  
+                  // Set up real-time listener for this user's presence
+                  onSnapshot(doc(db, 'users', otherId), (docSnap) => {
+                    if (docSnap.exists()) {
+                      setUsersInfo(prev => ({
+                        ...prev,
+                        [otherId]: { id: docSnap.id, ...docSnap.data() }
+                      }));
+                    }
+                  });
+                }
+              }).catch(err => {
+                console.error("Error fetching user info:", err);
+              });
+            }
+          }
+        }
+        
+        return hasNewUsers ? newUsersInfo : prevUsersInfo;
+      });
+    });
+
+    return () => unsubscribe();
+  }, [currentUser]);
+
+  const filteredUsers = allUsers.filter(user => {
+    if (!searchQuery) return true;
+    const fullName = `${user.prenom || ''} ${user.nom || ''}`.trim().toLowerCase() || user.email?.split('@')[0].toLowerCase() || 'utilisateur';
+    return fullName.includes(searchQuery.toLowerCase());
+  }).sort((a, b) => {
+    const convA = conversations.find(c => !c.isGroup && c.participants.includes(a.id));
+    const convB = conversations.find(c => !c.isGroup && c.participants.includes(b.id));
+    
+    const timeA = convA?.lastMessageTime?.toMillis?.() || 0;
+    const timeB = convB?.lastMessageTime?.toMillis?.() || 0;
+    
+    if (timeA !== timeB) {
+      return timeB - timeA; // Most recent first
+    }
+    
+    if (a.status === 'online' && b.status !== 'online') return -1;
+    if (a.status !== 'online' && b.status === 'online') return 1;
+    
+    const nameA = `${a.prenom || ''} ${a.nom || ''}`.trim().toLowerCase() || a.email?.split('@')[0].toLowerCase() || 'utilisateur';
+    const nameB = `${b.prenom || ''} ${b.nom || ''}`.trim().toLowerCase() || b.email?.split('@')[0].toLowerCase() || 'utilisateur';
+    return nameA.localeCompare(nameB);
+  });
+
+  const groupConversations = conversations.filter(conv => conv.isGroup && (!searchQuery || conv.groupName?.toLowerCase().includes(searchQuery.toLowerCase())));
+
+  const handleStartDirectChat = async (userId: string) => {
+    if (!currentUser) return;
+    
+    // First check local state
+    let existingConv = conversations.find(c => 
+      !c.isGroup && c.participants.includes(userId)
+    );
+
+    // If not found locally, query the database to be absolutely sure
+    if (!existingConv) {
+      const q = query(
+        collection(db, 'conversations'),
+        where('participants', 'array-contains', currentUser.id)
+      );
+      const snapshot = await getDocs(q);
+      existingConv = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Conversation)).find(c => 
+        !c.isGroup && c.participants.includes(userId)
+      );
+    }
+
+    if (existingConv) {
+      setSelectedConversationId(existingConv.id);
+    } else {
+      try {
+        const newConvRef = await addDoc(collection(db, 'conversations'), {
+          participants: [currentUser.id, userId],
+          isGroup: false,
+          lastMessage: '',
+          lastMessageTime: serverTimestamp(),
+          createdAt: serverTimestamp(),
+          unreadCounts: {
+            [currentUser.id]: 0,
+            [userId]: 0
+          }
+        });
+        setSelectedConversationId(newConvRef.id);
+      } catch (error) {
+        console.error("Error creating conversation:", error);
+      }
+    }
+    setActiveModal(null);
+  };
+
+  const handleCreateGroup = async () => {
+    if (!currentUser || !groupName.trim() || selectedUsers.length === 0) return;
+    try {
+      const unreadCounts: Record<string, number> = {};
+      [currentUser.id, ...selectedUsers].forEach(id => {
+        unreadCounts[id] = 0;
+      });
+
+      const newConvRef = await addDoc(collection(db, 'conversations'), {
+        participants: [currentUser.id, ...selectedUsers],
+        isGroup: true,
+        groupName: groupName.trim(),
+        lastMessage: '',
+        lastMessageTime: serverTimestamp(),
+        createdAt: serverTimestamp(),
+        unreadCounts
+      });
+      setSelectedConversationId(newConvRef.id);
+      setActiveModal(null);
+      setGroupName('');
+      setSelectedUsers([]);
+    } catch (error) {
+      console.error("Error creating group:", error);
+    }
+  };
+
+  const handleSendBroadcast = async () => {
+    if (!currentUser || !groupMessageText.trim() || selectedUsers.length === 0) return;
+    
+    try {
+      for (const userId of selectedUsers) {
+        let convId;
+        let existingConv = conversations.find(c => 
+          !c.isGroup && c.participants.includes(userId)
+        );
+        
+        if (!existingConv) {
+          const q = query(
+            collection(db, 'conversations'),
+            where('participants', 'array-contains', currentUser.id)
+          );
+          const snapshot = await getDocs(q);
+          existingConv = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Conversation)).find(c => 
+            !c.isGroup && c.participants.includes(userId)
+          );
+        }
+        
+        if (existingConv) {
+          convId = existingConv.id;
+        } else {
+          const newConvRef = await addDoc(collection(db, 'conversations'), {
+            participants: [currentUser.id, userId],
+            isGroup: false,
+            lastMessage: '',
+            lastMessageTime: serverTimestamp(),
+            createdAt: serverTimestamp(),
+            unreadCounts: {
+              [currentUser.id]: 0,
+              [userId]: 0
+            }
+          });
+          convId = newConvRef.id;
+        }
+        
+        await addDoc(collection(db, `conversations/${convId}/messages`), {
+          senderId: currentUser.id,
+          text: groupMessageText.trim(),
+          createdAt: serverTimestamp()
+        });
+        
+        await setDoc(doc(db, 'conversations', convId), {
+          lastMessage: groupMessageText.trim(),
+          lastMessageTime: serverTimestamp(),
+          unreadCounts: {
+            [userId]: increment(1)
+          }
+        }, { merge: true });
+      }
+      
+      setActiveModal(null);
+      setGroupMessageText('');
+      setSelectedUsers([]);
+    } catch (error) {
+      console.error("Error sending broadcast:", error);
+    }
+  };
+
+  const toggleUserSelection = (userId: string) => {
+    setSelectedUsers(prev => 
+      prev.includes(userId) ? prev.filter(id => id !== userId) : [...prev, userId]
+    );
+  };
+
+  if (selectedConversationId) {
+    return <Chat conversationId={selectedConversationId} onBack={() => setSelectedConversationId(null)} />;
+  }
+
+  return (
+    <div className="max-w-5xl mx-auto h-[calc(100dvh-6rem)] sm:h-[calc(100vh-7rem)] flex flex-col">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4 shrink-0">
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Messagerie</h1>
+        
+        <div className="flex flex-wrap gap-2">
+          <button 
+            onClick={() => setActiveModal('newGroup')}
+            className="flex items-center gap-2 px-3 py-2 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors text-sm font-medium"
+          >
+            <Users size={16} />
+            <span className="hidden sm:inline">Nouveau groupe</span>
+          </button>
+          <button 
+            onClick={() => setActiveModal('groupMessage')}
+            className="flex items-center gap-2 px-3 py-2 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors text-sm font-medium"
+          >
+            <Send size={16} />
+            <span className="hidden sm:inline">Message groupé</span>
+          </button>
+          <button 
+            onClick={() => setActiveModal('announcement')}
+            className="flex items-center gap-2 px-3 py-2 bg-indigo-600 text-white rounded-lg shadow-sm hover:bg-indigo-700 transition-colors text-sm font-medium"
+          >
+            <Megaphone size={16} />
+            <span className="hidden sm:inline">Annonce</span>
+          </button>
+        </div>
+      </div>
+
+      <div className="flex-1 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden flex flex-col">
+        <div className="p-4 border-b border-gray-200 dark:border-gray-700 shrink-0">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+            <input
+              type="text"
+              placeholder="Rechercher un utilisateur ou un groupe..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500"
+            />
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-y-auto custom-scrollbar divide-y divide-gray-200 dark:divide-gray-700">
+          {groupConversations.length > 0 && (
+            <div className="bg-gray-50 dark:bg-gray-800/50">
+              <div className="px-4 py-2 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                Groupes
+              </div>
+              {groupConversations.map((conv) => (
+                <div 
+                  key={conv.id} 
+                  className="p-4 hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-colors cursor-pointer flex items-center justify-between group"
+                  onClick={() => setSelectedConversationId(conv.id)}
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="relative">
+                      <div className="w-12 h-12 rounded-full bg-indigo-100 dark:bg-indigo-900 flex items-center justify-center text-indigo-600 dark:text-indigo-300 font-bold text-lg shrink-0 overflow-hidden">
+                        <Users size={24} />
+                      </div>
+                    </div>
+                    <div>
+                      <h3 className="font-medium text-gray-900 dark:text-white">
+                        {conv.groupName}
+                      </h3>
+                      <p className="text-sm text-gray-500 dark:text-gray-400 line-clamp-1">
+                        {conv.lastMessage}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex flex-col items-end gap-1">
+                    <span className="text-xs text-gray-400">
+                      {conv.lastMessageTime ? format(conv.lastMessageTime.toDate(), 'HH:mm', { locale: fr }) : ''}
+                    </span>
+                    {conv.unreadCounts?.[currentUser.id] ? (
+                      <span className="bg-indigo-600 text-white text-xs font-bold px-2 py-0.5 rounded-full">
+                        {conv.unreadCounts[currentUser.id]}
+                      </span>
+                    ) : null}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div className="px-4 py-2 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider bg-gray-50 dark:bg-gray-800/50">
+            Utilisateurs
+          </div>
+          {filteredUsers.length > 0 ? (
+            filteredUsers.map((user) => {
+              // Find if there is an existing conversation to show last message
+              const existingConv = conversations.find(c => !c.isGroup && c.participants.includes(user.id));
+              
+              return (
+                <div 
+                  key={user.id} 
+                  className="p-4 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors cursor-pointer flex items-center justify-between group"
+                  onClick={() => handleStartDirectChat(user.id)}
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="relative">
+                      <div className="w-12 h-12 rounded-full bg-indigo-100 dark:bg-indigo-900 flex items-center justify-center text-indigo-600 dark:text-indigo-300 font-bold text-lg shrink-0 overflow-hidden">
+                        {user.photo ? (
+                          <img src={user.photo} alt={user.nom} className="w-full h-full object-cover" />
+                        ) : (
+                          user.prenom || user.nom ? `${user.prenom?.[0] || ''}${user.nom?.[0] || ''}` : user.email?.[0] || 'U'
+                        )}
+                      </div>
+                      {user.status === 'online' && (
+                        <div className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-green-500 border-2 border-white dark:border-gray-800 rounded-full"></div>
+                      )}
+                    </div>
+                    <div>
+                      <h3 className="font-medium text-gray-900 dark:text-white">
+                        {user.prenom || user.nom ? `${user.prenom || ''} ${user.nom || ''}`.trim() : user.email?.split('@')[0] || 'Utilisateur'}
+                      </h3>
+                      <p className="text-sm text-gray-500 dark:text-gray-400 line-clamp-1">
+                        {existingConv?.lastMessage || <span className="italic">Nouvelle conversation</span>}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex flex-col items-end gap-1">
+                    {existingConv?.lastMessageTime && (
+                      <span className="text-xs text-gray-400">
+                        {format(existingConv.lastMessageTime.toDate(), 'HH:mm', { locale: fr })}
+                      </span>
+                    )}
+                    {existingConv?.unreadCounts?.[currentUser.id] ? (
+                      <span className="bg-indigo-600 text-white text-xs font-bold px-2 py-0.5 rounded-full">
+                        {existingConv.unreadCounts[currentUser.id]}
+                      </span>
+                    ) : null}
+                  </div>
+                </div>
+              );
+            })
+          ) : (
+            <div className="p-8 text-center text-gray-500 dark:text-gray-400 flex flex-col items-center justify-center h-full">
+              <MessageCircle size={48} className="text-gray-300 dark:text-gray-600 mb-4" />
+              <p>Aucun utilisateur trouvé.</p>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Modals */}
+      {activeModal === 'newGroup' && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-md overflow-hidden flex flex-col max-h-[90vh]">
+            <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center shrink-0">
+              <h2 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                <Users size={20} className="text-indigo-600" />
+                Nouveau groupe
+              </h2>
+              <button onClick={() => { setActiveModal(null); setSelectedUsers([]); setGroupName(''); }} className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300">
+                &times;
+              </button>
+            </div>
+            <div className="p-4 overflow-y-auto flex-1 custom-scrollbar">
+              <input
+                type="text"
+                placeholder="Nom du groupe"
+                value={groupName}
+                onChange={(e) => setGroupName(e.target.value)}
+                className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 mb-4"
+              />
+              <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Sélectionner les participants</p>
+              <div className="space-y-2">
+                {allUsers.map(user => (
+                  <label 
+                    key={user.id}
+                    className="flex items-center gap-3 p-3 hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-lg cursor-pointer transition-colors"
+                  >
+                    <input 
+                      type="checkbox" 
+                      checked={selectedUsers.includes(user.id)}
+                      onChange={() => toggleUserSelection(user.id)}
+                      className="rounded text-indigo-600 focus:ring-indigo-500"
+                    />
+                    <div className="w-10 h-10 rounded-full bg-indigo-100 dark:bg-indigo-900 flex items-center justify-center text-indigo-600 dark:text-indigo-300 font-bold overflow-hidden shrink-0 uppercase">
+                      {user.photo ? (
+                        <img src={user.photo} alt={user.nom} className="w-full h-full object-cover" />
+                      ) : (
+                        user.prenom || user.nom ? `${user.prenom?.[0] || ''}${user.nom?.[0] || ''}` : user.email?.[0] || 'U'
+                      )}
+                    </div>
+                    <div>
+                      <p className="font-medium text-gray-900 dark:text-white">
+                        {user.prenom || user.nom ? `${user.prenom || ''} ${user.nom || ''}`.trim() : user.email?.split('@')[0] || 'Utilisateur'}
+                      </p>
+                      <p className="text-xs text-gray-500 capitalize">{user.role}</p>
+                    </div>
+                  </label>
+                ))}
+              </div>
+            </div>
+            <div className="p-4 border-t border-gray-200 dark:border-gray-700 flex justify-end gap-3 shrink-0">
+              <button 
+                onClick={() => { setActiveModal(null); setSelectedUsers([]); setGroupName(''); }}
+                className="px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg font-medium transition-colors"
+              >
+                Annuler
+              </button>
+              <button 
+                onClick={handleCreateGroup}
+                disabled={!groupName.trim() || selectedUsers.length === 0}
+                className="px-4 py-2 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 disabled:opacity-50 transition-colors"
+              >
+                Créer le groupe
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {activeModal === 'groupMessage' && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh]">
+            <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center shrink-0">
+              <h2 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                <Send size={20} className="text-indigo-600" />
+                Message groupé (Diffusion)
+              </h2>
+              <button onClick={() => { setActiveModal(null); setSelectedUsers([]); setGroupMessageText(''); }} className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300">
+                &times;
+              </button>
+            </div>
+            <div className="p-4 overflow-y-auto flex-1 custom-scrollbar">
+              <textarea
+                placeholder="Rédigez votre message..."
+                value={groupMessageText}
+                onChange={(e) => setGroupMessageText(e.target.value)}
+                className="w-full h-32 p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 resize-none mb-4"
+              />
+              <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Sélectionner les destinataires</p>
+              <div className="space-y-2 max-h-60 overflow-y-auto custom-scrollbar border border-gray-200 dark:border-gray-700 rounded-lg p-2">
+                {allUsers.map(user => (
+                  <label 
+                    key={user.id}
+                    className="flex items-center gap-3 p-2 hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-lg cursor-pointer transition-colors"
+                  >
+                    <input 
+                      type="checkbox" 
+                      checked={selectedUsers.includes(user.id)}
+                      onChange={() => toggleUserSelection(user.id)}
+                      className="rounded text-indigo-600 focus:ring-indigo-500"
+                    />
+                    <div className="w-8 h-8 rounded-full bg-indigo-100 dark:bg-indigo-900 flex items-center justify-center text-indigo-600 dark:text-indigo-300 font-bold overflow-hidden shrink-0 text-xs uppercase">
+                      {user.photo ? (
+                        <img src={user.photo} alt={user.nom} className="w-full h-full object-cover" />
+                      ) : (
+                        user.prenom || user.nom ? `${user.prenom?.[0] || ''}${user.nom?.[0] || ''}` : user.email?.[0] || 'U'
+                      )}
+                    </div>
+                    <div>
+                      <p className="font-medium text-sm text-gray-900 dark:text-white">
+                        {user.prenom || user.nom ? `${user.prenom || ''} ${user.nom || ''}`.trim() : user.email?.split('@')[0] || 'Utilisateur'}
+                      </p>
+                    </div>
+                  </label>
+                ))}
+              </div>
+            </div>
+            <div className="p-4 border-t border-gray-200 dark:border-gray-700 flex justify-end gap-3 shrink-0">
+              <button 
+                onClick={() => { setActiveModal(null); setSelectedUsers([]); setGroupMessageText(''); }}
+                className="px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg font-medium transition-colors"
+              >
+                Annuler
+              </button>
+              <button 
+                onClick={handleSendBroadcast}
+                disabled={!groupMessageText.trim() || selectedUsers.length === 0}
+                className="px-4 py-2 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 disabled:opacity-50 transition-colors flex items-center gap-2"
+              >
+                <Send size={18} />
+                Envoyer à {selectedUsers.length} personne(s)
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {activeModal === 'announcement' && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh]">
+            <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center shrink-0">
+              <h2 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                <Megaphone size={20} className="text-indigo-600" />
+                Faire une annonce
+              </h2>
+              <button onClick={() => setActiveModal(null)} className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300">
+                &times;
+              </button>
+            </div>
+            <div className="p-4 overflow-y-auto flex-1">
+              <textarea
+                placeholder="Rédigez votre annonce ici..."
+                className="w-full h-32 p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 resize-none mb-4"
+              />
+              <div className="flex items-center gap-2 mb-4">
+                <button type="button" className="p-2 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors" title="Image">
+                  <Image size={20} />
+                </button>
+                <button type="button" className="p-2 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors" title="Vidéo">
+                  <Video size={20} />
+                </button>
+                <button type="button" className="p-2 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors" title="Fichier">
+                  <Paperclip size={20} />
+                </button>
+                <button type="button" className="p-2 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors" title="Emojis">
+                  <Smile size={20} />
+                </button>
+                <div className="flex-1"></div>
+                <button type="button" className="flex items-center gap-2 p-2 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors text-sm font-medium" title="Programmer">
+                  <Clock size={18} />
+                  <span>Programmer</span>
+                </button>
+              </div>
+              <div className="bg-amber-50 dark:bg-amber-900/20 text-amber-800 dark:text-amber-300 p-3 rounded-lg text-sm">
+                Cette annonce sera visible par tous les utilisateurs de l'établissement.
+              </div>
+            </div>
+            <div className="p-4 border-t border-gray-200 dark:border-gray-700 flex justify-end gap-3 shrink-0">
+              <button 
+                onClick={() => setActiveModal(null)}
+                className="px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg font-medium transition-colors"
+              >
+                Annuler
+              </button>
+              <button 
+                className="px-4 py-2 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 transition-colors flex items-center gap-2"
+              >
+                <Send size={18} />
+                Envoyer l'annonce
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

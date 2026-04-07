@@ -1,0 +1,715 @@
+import React, { useState, useEffect } from 'react';
+import { useAuth } from '../contexts/AuthContext';
+import { useLanguage } from '../contexts/LanguageContext';
+import { collection, query, where, getDocs, addDoc, deleteDoc, doc, onSnapshot, orderBy } from 'firebase/firestore';
+import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
+import { db, storage, isFirebaseConfigured } from '../lib/firebase';
+import { Award, BookOpen, Link as LinkIcon, FileText, Video, Plus, ThumbsUp, ThumbsDown, Trash2, ExternalLink, X, Image as ImageIcon } from 'lucide-react';
+
+interface Student {
+  id: string;
+  nom: string;
+  prenom: string;
+  photo?: string;
+  classe: string;
+}
+
+interface BehaviorPoint {
+  id: string;
+  student_id: string;
+  teacher_id: string;
+  points: number;
+  reason: string;
+  type: 'positive' | 'negative';
+  timestamp: string;
+}
+
+interface Resource {
+  id: string;
+  class_name: string;
+  teacher_id: string;
+  title: string;
+  description: string;
+  url: string;
+  type: 'document' | 'link' | 'video' | 'image';
+  timestamp: string;
+}
+
+export default function Classroom() {
+  const { currentUser } = useAuth();
+  const { t } = useLanguage();
+  const [loading, setLoading] = useState(true);
+  
+  // Data
+  const [students, setStudents] = useState<Student[]>([]);
+  const [points, setPoints] = useState<BehaviorPoint[]>([]);
+  const [resources, setResources] = useState<Resource[]>([]);
+  const [teacherClasses, setTeacherClasses] = useState<string[]>([]);
+  const [selectedClass, setSelectedClass] = useState<string>('');
+
+  // Modals
+  const [showPointModal, setShowPointModal] = useState(false);
+  const [showResourceModal, setShowResourceModal] = useState(false);
+  const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
+
+  // Forms
+  const [pointData, setPointData] = useState({ points: 1, reason: '', type: 'positive' as 'positive' | 'negative' });
+  const [resourceData, setResourceData] = useState({ title: '', description: '', url: '', type: 'document' as 'document' | 'link' | 'video' | 'image' });
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [selectedPublishClasses, setSelectedPublishClasses] = useState<string[]>([]);
+  const [actionLoading, setActionLoading] = useState(false);
+
+  useEffect(() => {
+    if (!isFirebaseConfigured || !currentUser) return;
+
+    const fetchData = async () => {
+      try {
+        if (currentUser.role === 'enseignant') {
+          // Get classes taught by this teacher
+          const classesQuery = query(collection(db, 'classes'), where('professeur_principal_id', '==', currentUser.id));
+          const classesSnap = await getDocs(classesQuery);
+          const tClasses = classesSnap.docs.map(d => d.data().nom);
+          setTeacherClasses(tClasses);
+          if (tClasses.length > 0) {
+            setSelectedClass(tClasses[0]);
+          }
+        } else if (currentUser.role === 'élève') {
+          setSelectedClass(currentUser.classe || '');
+        }
+      } catch (error) {
+        console.error("Error fetching classes:", error);
+      }
+    };
+
+    fetchData();
+  }, [currentUser]);
+
+  useEffect(() => {
+    if (!selectedClass || !currentUser) {
+      setLoading(false);
+      return;
+    }
+
+    // Fetch students for the selected class
+    const studentsQuery = query(collection(db, 'users'), where('role', '==', 'élève'), where('classe', '==', selectedClass));
+    const unsubscribeStudents = onSnapshot(studentsQuery, (snap) => {
+      setStudents(snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Student)));
+    });
+
+    // Fetch resources for the selected class
+    const resourcesQuery = query(collection(db, 'resources'), where('class_name', '==', selectedClass));
+    const unsubscribeResources = onSnapshot(resourcesQuery, (snap) => {
+      const resData = snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Resource));
+      resData.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+      setResources(resData);
+    });
+
+    // Fetch points
+    let pointsQuery;
+    if (currentUser.role === 'élève') {
+      pointsQuery = query(collection(db, 'behavior_points'), where('student_id', '==', currentUser.id));
+    } else {
+      // For teachers, we fetch points for all students in the class
+      // Since we can't easily do an 'in' query with a dynamic list of students if it's > 10,
+      // we'll fetch all points given by this teacher and filter in memory, or just fetch all points.
+      // For simplicity, we fetch points given by this teacher.
+      pointsQuery = query(collection(db, 'behavior_points'), where('teacher_id', '==', currentUser.id));
+    }
+
+    const unsubscribePoints = onSnapshot(pointsQuery, (snap) => {
+      const ptsData = snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as BehaviorPoint));
+      ptsData.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+      setPoints(ptsData);
+      setLoading(false);
+    });
+
+    return () => {
+      unsubscribeStudents();
+      unsubscribeResources();
+      unsubscribePoints();
+    };
+  }, [selectedClass, currentUser]);
+
+  const handleGivePoints = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedStudent || !currentUser) return;
+    
+    setActionLoading(true);
+    try {
+      const pointsValue = pointData.type === 'positive' ? Math.abs(pointData.points) : -Math.abs(pointData.points);
+      
+      await addDoc(collection(db, 'behavior_points'), {
+        student_id: selectedStudent.id,
+        teacher_id: currentUser.id,
+        points: pointsValue,
+        reason: pointData.reason,
+        type: pointData.type,
+        timestamp: new Date().toISOString()
+      });
+
+      // Create a notification for the student
+      await addDoc(collection(db, 'notifications'), {
+        user_id: selectedStudent.id,
+        title: pointData.type === 'positive' ? t('behavior_points_added') : t('behavior_warning'),
+        message: `${pointsValue > 0 ? '+' : ''}${pointsValue} points : ${pointData.reason}`,
+        type: pointData.type === 'positive' ? 'success' : 'warning',
+        timestamp: new Date().toISOString(),
+        read: false
+      });
+
+      setShowPointModal(false);
+      setPointData({ points: 1, reason: '', type: 'positive' });
+    } catch (error) {
+      console.error("Error adding points:", error);
+      alert("Erreur lors de l'ajout des points");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleAddResource = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!currentUser) return;
+    
+    const classesToPublish = selectedPublishClasses.length > 0 ? selectedPublishClasses : [selectedClass];
+    if (classesToPublish.length === 0) return;
+
+    setActionLoading(true);
+    try {
+      let fileUrl = resourceData.url;
+
+      if ((resourceData.type === 'document' || resourceData.type === 'image') && selectedFile) {
+        const fileRef = ref(storage, `resources/${Date.now()}_${selectedFile.name}`);
+        await uploadBytes(fileRef, selectedFile);
+        fileUrl = await getDownloadURL(fileRef);
+      }
+
+      for (const cls of classesToPublish) {
+        await addDoc(collection(db, 'resources'), {
+          class_name: cls,
+          teacher_id: currentUser.id,
+          title: resourceData.title,
+          description: resourceData.description,
+          url: fileUrl,
+          type: resourceData.type,
+          timestamp: new Date().toISOString()
+        });
+      }
+      
+      setShowResourceModal(false);
+      setResourceData({ title: '', description: '', url: '', type: 'document' });
+      setSelectedFile(null);
+      setSelectedPublishClasses([]);
+    } catch (error) {
+      console.error("Error adding resource:", error);
+      alert("Erreur lors de l'ajout de la ressource");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleDeletePoint = async (pointId: string) => {
+    if (!window.confirm(t('delete_user_confirm'))) return;
+    try {
+      await deleteDoc(doc(db, 'behavior_points', pointId));
+    } catch (error) {
+      console.error("Error deleting point:", error);
+    }
+  };
+
+  const handleDeleteResource = async (resourceId: string, resourceUrl: string, type: string) => {
+    if (!window.confirm(t('delete_user_confirm'))) return;
+    try {
+      await deleteDoc(doc(db, 'resources', resourceId));
+      if ((type === 'document' || type === 'image') && resourceUrl.includes('firebasestorage.googleapis.com')) {
+        const fileRef = ref(storage, resourceUrl);
+        await deleteObject(fileRef).catch(console.error);
+      }
+    } catch (error) {
+      console.error("Error deleting resource:", error);
+    }
+  };
+
+  const getStudentTotalPoints = (studentId: string) => {
+    return points.filter(p => p.student_id === studentId).reduce((sum, p) => sum + p.points, 0);
+  };
+
+  const getResourceIcon = (type: string) => {
+    switch (type) {
+      case 'video': return <Video size={20} className="text-pink-500" />;
+      case 'link': return <LinkIcon size={20} className="text-blue-500" />;
+      case 'image': return <ImageIcon size={20} className="text-purple-500" />;
+      default: return <FileText size={20} className="text-amber-500" />;
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6 max-w-7xl mx-auto">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 tracking-tight">{t('classroom')}</h1>
+          <p className="text-sm text-gray-500 mt-1">
+            {currentUser?.role === 'enseignant' ? t('classroom_subtitle_teacher') : t('classroom_subtitle_student')}
+          </p>
+        </div>
+
+        {currentUser?.role === 'enseignant' && teacherClasses.length > 0 && (
+          <select
+            value={selectedClass}
+            onChange={(e) => setSelectedClass(e.target.value)}
+            className="px-4 py-2 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
+          >
+            {teacherClasses.map(cls => (
+              <option key={cls} value={cls}>{cls}</option>
+            ))}
+          </select>
+        )}
+      </div>
+
+      {(!selectedClass && currentUser?.role === 'enseignant') ? (
+        <div className="bg-amber-50 text-amber-800 p-4 rounded-xl text-center">
+          {t('no_class_assigned')}
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          
+          {/* Left Column: Students & Points */}
+          <div className="lg:col-span-2 space-y-6">
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+              <div className="p-6 border-b border-gray-100 flex justify-between items-center">
+                <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                  <Award className="text-indigo-600" size={20} />
+                  {currentUser?.role === 'enseignant' ? t('students_behavior') : t('my_behavior_points')}
+                </h2>
+              </div>
+              
+              <div className="p-6">
+                {currentUser?.role === 'enseignant' ? (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                    {students.map(student => {
+                      const totalPoints = getStudentTotalPoints(student.id);
+                      return (
+                        <div 
+                          key={student.id}
+                          onClick={() => {
+                            setSelectedStudent(student);
+                            setShowPointModal(true);
+                          }}
+                          className="bg-gray-50 rounded-xl p-4 flex flex-col items-center text-center cursor-pointer hover:bg-indigo-50 hover:ring-2 hover:ring-indigo-500 transition-all group"
+                        >
+                          <div className="relative mb-3">
+                            {student.photo ? (
+                              <img src={student.photo} alt="" className="w-16 h-16 rounded-full object-cover border-2 border-white shadow-sm" />
+                            ) : (
+                              <div className="w-16 h-16 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center text-xl font-bold border-2 border-white shadow-sm">
+                                {student.prenom?.[0]}{student.nom?.[0]}
+                              </div>
+                            )}
+                            <div className={`absolute -top-2 -right-2 w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white shadow-sm ${
+                              totalPoints > 0 ? 'bg-emerald-500' : totalPoints < 0 ? 'bg-red-500' : 'bg-gray-400'
+                            }`}>
+                              {totalPoints > 0 ? '+' : ''}{totalPoints}
+                            </div>
+                          </div>
+                          <p className="font-medium text-gray-900 text-sm line-clamp-1">{student.prenom}</p>
+                          <p className="text-xs text-gray-500 line-clamp-1">{student.nom}</p>
+                        </div>
+                      );
+                    })}
+                    {students.length === 0 && (
+                      <div className="col-span-full text-center py-8 text-gray-500">
+                        {t('no_student_in_class')}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="space-y-6">
+                    <div className="flex items-center justify-center p-8 bg-indigo-50 rounded-2xl">
+                      <div className="text-center">
+                        <p className="text-sm font-medium text-indigo-600 mb-2">{t('total_points')}</p>
+                        <div className={`text-5xl font-black ${getStudentTotalPoints(currentUser.id) >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                          {getStudentTotalPoints(currentUser.id) > 0 ? '+' : ''}{getStudentTotalPoints(currentUser.id)}
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="space-y-3">
+                      <h3 className="font-semibold text-gray-900">{t('history')}</h3>
+                      {points.length === 0 ? (
+                        <p className="text-sm text-gray-500">{t('no_points_recorded')}</p>
+                      ) : (
+                        <div className="divide-y divide-gray-100">
+                          {points.map(pt => (
+                            <div key={pt.id} className="py-3 flex items-center justify-between group">
+                              <div className="flex items-center gap-3">
+                                <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                                  pt.type === 'positive' ? 'bg-emerald-100 text-emerald-600' : 'bg-red-100 text-red-600'
+                                }`}>
+                                  {pt.type === 'positive' ? <ThumbsUp size={14} /> : <ThumbsDown size={14} />}
+                                </div>
+                                <div>
+                                  <p className="text-sm font-medium text-gray-900">{pt.reason}</p>
+                                  <p className="text-xs text-gray-500">
+                                    {new Date(pt.timestamp).toLocaleDateString()}
+                                  </p>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-3">
+                                <span className={`font-bold ${pt.type === 'positive' ? 'text-emerald-600' : 'text-red-600'}`}>
+                                  {pt.points > 0 ? '+' : ''}{pt.points}
+                                </span>
+                                {currentUser?.role === 'enseignant' && (
+                                  <button 
+                                    onClick={() => handleDeletePoint(pt.id)}
+                                    className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg opacity-0 group-hover:opacity-100 transition-all"
+                                  >
+                                    <Trash2 size={16} />
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Right Column: Resources */}
+          <div className="space-y-6">
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+              <div className="p-6 border-b border-gray-100 flex justify-between items-center">
+                <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                  <BookOpen className="text-indigo-600" size={20} />
+                  {t('class_story')}
+                </h2>
+                {currentUser?.role === 'enseignant' && (
+                  <button 
+                    onClick={() => {
+                      setSelectedPublishClasses([selectedClass]);
+                      setShowResourceModal(true);
+                    }}
+                    className="p-2 bg-indigo-50 text-indigo-600 rounded-lg hover:bg-indigo-100 transition-colors"
+                  >
+                    <Plus size={18} />
+                  </button>
+                )}
+              </div>
+              
+              <div className="p-6">
+                {resources.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500">
+                    <BookOpen size={32} className="mx-auto text-gray-300 mb-3" />
+                    <p className="text-sm">{t('no_resources_shared')}</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {resources.map(resource => (
+                        <div className="block p-4 rounded-xl border border-gray-100 hover:border-indigo-200 hover:shadow-md transition-all group relative">
+                          <a 
+                            href={resource.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-start gap-3"
+                          >
+                            <div className="p-2 bg-gray-50 rounded-lg group-hover:bg-indigo-50 transition-colors">
+                              {getResourceIcon(resource.type)}
+                            </div>
+                            <div className="flex-1 pr-8">
+                              <div className="flex items-center gap-2 mb-1">
+                                <h3 className="font-medium text-gray-900 group-hover:text-indigo-600 transition-colors flex items-center gap-1">
+                                  {resource.title}
+                                  <ExternalLink size={12} className="opacity-0 group-hover:opacity-100 transition-opacity" />
+                                </h3>
+                                <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-indigo-100 text-indigo-800">
+                                  {resource.class_name}
+                                </span>
+                              </div>
+                              {resource.description && (
+                                <p className="text-sm text-gray-500 mt-1 line-clamp-2">{resource.description}</p>
+                              )}
+                              {resource.type === 'image' && (
+                                <div className="mt-3 rounded-lg overflow-hidden border border-gray-100">
+                                  <img src={resource.url} alt={resource.title} className="w-full max-h-64 object-cover" />
+                                </div>
+                              )}
+                              <p className="text-xs text-gray-400 mt-2">
+                                {new Date(resource.timestamp).toLocaleDateString()}
+                              </p>
+                            </div>
+                          </a>
+                          {currentUser?.role === 'enseignant' && (
+                            <button 
+                              onClick={(e) => {
+                                e.preventDefault();
+                                handleDeleteResource(resource.id, resource.url, resource.type);
+                              }}
+                              className="absolute top-4 right-4 p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg opacity-0 group-hover:opacity-100 transition-all"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          )}
+                        </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+        </div>
+      )}
+
+      {/* Give Points Modal */}
+      {showPointModal && selectedStudent && (
+        <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden">
+            <div className="p-6 border-b border-gray-100 flex justify-between items-center">
+              <h3 className="text-lg font-bold text-gray-900">
+                {t('evaluate')} {selectedStudent.prenom} {selectedStudent.nom}
+              </h3>
+              <button onClick={() => setShowPointModal(false)} className="text-gray-400 hover:text-gray-600">
+                <X size={20} />
+              </button>
+            </div>
+            
+            <div className="p-6 border-b border-gray-100 bg-gray-50 max-h-48 overflow-y-auto">
+              <h4 className="text-sm font-semibold text-gray-900 mb-3">{t('history')}</h4>
+              {points.filter(p => p.student_id === selectedStudent.id).length === 0 ? (
+                <p className="text-sm text-gray-500">{t('no_points_recorded')}</p>
+              ) : (
+                <div className="space-y-2">
+                  {points.filter(p => p.student_id === selectedStudent.id).map(pt => (
+                    <div key={pt.id} className="flex items-center justify-between bg-white p-2 rounded-lg border border-gray-100 group">
+                      <div className="flex items-center gap-2">
+                        <div className={`w-6 h-6 rounded-full flex items-center justify-center ${
+                          pt.type === 'positive' ? 'bg-emerald-100 text-emerald-600' : 'bg-red-100 text-red-600'
+                        }`}>
+                          {pt.type === 'positive' ? <ThumbsUp size={12} /> : <ThumbsDown size={12} />}
+                        </div>
+                        <div>
+                          <p className="text-xs font-medium text-gray-900">{pt.reason}</p>
+                          <p className="text-[10px] text-gray-500">{new Date(pt.timestamp).toLocaleDateString()}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className={`text-xs font-bold ${pt.type === 'positive' ? 'text-emerald-600' : 'text-red-600'}`}>
+                          {pt.points > 0 ? '+' : ''}{pt.points}
+                        </span>
+                        <button 
+                          onClick={() => handleDeletePoint(pt.id)}
+                          className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded opacity-0 group-hover:opacity-100 transition-all"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <form onSubmit={handleGivePoints} className="p-6 space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setPointData({ ...pointData, type: 'positive' })}
+                  className={`p-4 rounded-xl border-2 flex flex-col items-center gap-2 transition-all ${
+                    pointData.type === 'positive' ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-gray-100 text-gray-500 hover:bg-gray-50'
+                  }`}
+                >
+                  <ThumbsUp size={24} />
+                  <span className="font-medium">{t('positive')}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPointData({ ...pointData, type: 'negative' })}
+                  className={`p-4 rounded-xl border-2 flex flex-col items-center gap-2 transition-all ${
+                    pointData.type === 'negative' ? 'border-red-500 bg-red-50 text-red-700' : 'border-gray-100 text-gray-500 hover:bg-gray-50'
+                  }`}
+                >
+                  <ThumbsDown size={24} />
+                  <span className="font-medium">{t('needs_improvement')}</span>
+                </button>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t('number_of_points')}</label>
+                <input 
+                  type="number" 
+                  min="1"
+                  max="10"
+                  required
+                  value={pointData.points}
+                  onChange={(e) => setPointData({...pointData, points: parseInt(e.target.value) || 1})}
+                  className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t('reason_comment')}</label>
+                <input 
+                  type="text" 
+                  required
+                  placeholder={t('reason_placeholder')}
+                  value={pointData.reason}
+                  onChange={(e) => setPointData({...pointData, reason: e.target.value})}
+                  className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+
+              <div className="pt-4 flex gap-3">
+                <button 
+                  type="button"
+                  onClick={() => setShowPointModal(false)}
+                  className="flex-1 px-4 py-2 border border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 font-medium"
+                >
+                  {t('cancel')}
+                </button>
+                <button 
+                  type="submit"
+                  disabled={actionLoading}
+                  className={`flex-1 px-4 py-2 text-white rounded-xl font-medium disabled:opacity-50 ${
+                    pointData.type === 'positive' ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-red-600 hover:bg-red-700'
+                  }`}
+                >
+                  {actionLoading ? t('save') + '...' : t('save')}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Add Resource Modal */}
+      {showResourceModal && (
+        <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden">
+            <div className="p-6 border-b border-gray-100 flex justify-between items-center">
+              <h3 className="text-lg font-bold text-gray-900">{t('share_resource')}</h3>
+              <button onClick={() => setShowResourceModal(false)} className="text-gray-400 hover:text-gray-600">
+                <X size={20} />
+              </button>
+            </div>
+            <form onSubmit={handleAddResource} className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t('resource_type')}</label>
+                <select 
+                  value={resourceData.type}
+                  onChange={(e) => setResourceData({...resourceData, type: e.target.value as any})}
+                  className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500"
+                >
+                  <option value="document">{t('document_pdf_word')}</option>
+                  <option value="image">{t('image_photo')}</option>
+                  <option value="link">{t('web_link')}</option>
+                  <option value="video">{t('video')}</option>
+                </select>
+              </div>
+
+              {currentUser?.role === 'enseignant' && teacherClasses.length > 0 && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">{t('publish_to')}</label>
+                  <div className="space-y-2 max-h-32 overflow-y-auto p-3 border border-gray-200 rounded-xl bg-gray-50">
+                    {teacherClasses.map(cls => (
+                      <label key={cls} className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={selectedPublishClasses.includes(cls)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedPublishClasses([...selectedPublishClasses, cls]);
+                            } else {
+                              setSelectedPublishClasses(selectedPublishClasses.filter(c => c !== cls));
+                            }
+                          }}
+                          className="rounded text-indigo-600 focus:ring-indigo-500 w-4 h-4"
+                        />
+                        <span className="text-sm text-gray-700">{cls}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t('title')}</label>
+                <input 
+                  type="text" 
+                  required
+                  value={resourceData.title}
+                  onChange={(e) => setResourceData({...resourceData, title: e.target.value})}
+                  className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500"
+                  placeholder={t('title_placeholder')}
+                />
+              </div>
+
+              {resourceData.type === 'document' || resourceData.type === 'image' ? (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('file_upload')}</label>
+                  <input 
+                    type="file" 
+                    accept={resourceData.type === 'image' ? 'image/*' : undefined}
+                    required
+                    onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
+                    className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+              ) : (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('url_link')}</label>
+                  <input 
+                    type="url" 
+                    required
+                    value={resourceData.url}
+                    onChange={(e) => setResourceData({...resourceData, url: e.target.value})}
+                    className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500"
+                    placeholder="https://..."
+                  />
+                </div>
+              )}
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t('description_optional')}</label>
+                <textarea 
+                  rows={3}
+                  value={resourceData.description}
+                  onChange={(e) => setResourceData({...resourceData, description: e.target.value})}
+                  className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 resize-none"
+                  placeholder={t('description_placeholder')}
+                />
+              </div>
+
+              <div className="pt-4 flex gap-3">
+                <button 
+                  type="button"
+                  onClick={() => setShowResourceModal(false)}
+                  className="flex-1 px-4 py-2 border border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 font-medium"
+                >
+                  {t('cancel')}
+                </button>
+                <button 
+                  type="submit"
+                  disabled={actionLoading}
+                  className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 font-medium disabled:opacity-50"
+                >
+                  {actionLoading ? t('sharing') : t('share')}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

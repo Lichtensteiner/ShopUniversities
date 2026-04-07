@@ -1,0 +1,11 @@
+{
+  "name": "Remix: ShopUniversities Attendance",
+  "description": "Système de gestion de présence biométrique pour l\u0027école internationale ShopUniversities.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone",
+    "geolocation",
+    "publickey-credentials-get",
+    "publickey-credentials-create"
+  ]
+}
