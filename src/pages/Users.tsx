@@ -12,6 +12,7 @@ export default function Users() {
   const [filterRole, setFilterRole] = useState('Tous');
   const [users, setUsers] = useState<any[]>([]);
   const [houses, setHouses] = useState<any[]>([]);
+  const [classes, setClasses] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Modals state
@@ -29,6 +30,9 @@ export default function Users() {
     password: '',
     role: 'élève',
     classe: '',
+    classes: [] as string[],
+    matiere: '',
+    matieres: [] as string[],
     matricule: '',
     house_id: ''
   });
@@ -56,9 +60,15 @@ export default function Users() {
       setHouses(housesData);
     });
 
+    const unsubscribeClasses = onSnapshot(collection(db, 'classes'), (snapshot) => {
+      const classesData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      setClasses(classesData);
+    });
+
     return () => {
       unsubscribe();
       unsubscribeHouses();
+      unsubscribeClasses();
     };
   }, []);
 
@@ -95,6 +105,9 @@ export default function Users() {
         email: newUser.email,
         role: newUser.role,
         classe: newUser.role === 'élève' ? newUser.classe : null,
+        classes: newUser.role === 'enseignant' ? newUser.classes : null,
+        matiere: newUser.role === 'enseignant' ? (newUser.matieres[0] || null) : null,
+        matieres: newUser.role === 'enseignant' ? newUser.matieres : null,
         matricule: newUser.matricule || null,
         house_id: newUser.role === 'élève' && newUser.house_id ? newUser.house_id : null,
         date_creation: new Date().toISOString()
@@ -105,7 +118,7 @@ export default function Users() {
       await deleteApp(secondaryApp);
       
       setShowAddUserModal(false);
-      setNewUser({ nom: '', prenom: '', email: '', password: '', role: 'élève', classe: '', matricule: '', house_id: '' });
+      setNewUser({ nom: '', prenom: '', email: '', password: '', role: 'élève', classe: '', classes: [], matiere: '', matieres: [], matricule: '', house_id: '' });
     } catch (err: any) {
       console.error(err);
       if (err.code === 'auth/email-already-in-use') {
@@ -131,6 +144,9 @@ export default function Users() {
         prenom: editUser.prenom,
         role: editUser.role,
         classe: editUser.role === 'élève' ? editUser.classe : null,
+        classes: editUser.role === 'enseignant' ? (editUser.classes || []) : null,
+        matiere: editUser.role === 'enseignant' ? (editUser.matieres?.[0] || null) : null,
+        matieres: editUser.role === 'enseignant' ? (editUser.matieres || []) : null,
         matricule: editUser.matricule || null,
         house_id: editUser.role === 'élève' && editUser.house_id ? editUser.house_id : null
       });
@@ -261,6 +277,7 @@ export default function Users() {
                 <th scope="col" className="px-6 py-4 font-semibold">{t('name')} & {t('firstname')}</th>
                 <th scope="col" className="px-6 py-4 font-semibold">{t('id_number')}</th>
                 <th scope="col" className="px-6 py-4 font-semibold">{t('role')}</th>
+                <th scope="col" className="px-6 py-4 font-semibold">{t('subject')}</th>
                 <th scope="col" className="px-6 py-4 font-semibold">{t('class')}</th>
                 <th scope="col" className="px-6 py-4 font-semibold">{t('house')}</th>
                 <th scope="col" className="px-6 py-4 font-semibold">{t('biometrics')}</th>
@@ -313,6 +330,9 @@ export default function Users() {
                       }`}>
                         {tData(user.role)}
                       </span>
+                    </td>
+                    <td className="px-6 py-4 text-gray-600">
+                      {user.role === 'enseignant' ? (user.matieres?.join(', ') || user.matiere || '-') : '-'}
                     </td>
                     <td className="px-6 py-4 text-gray-600">
                       {user.classe || '-'}
@@ -405,6 +425,12 @@ export default function Users() {
                   <span className="block text-gray-500 mb-1">{t('role')}</span>
                   <span className="font-medium text-gray-900 capitalize">{tData(viewUser.role)}</span>
                 </div>
+                {viewUser.role === 'enseignant' && (
+                  <div>
+                    <span className="block text-gray-500 mb-1">{t('subjects')}</span>
+                    <span className="font-medium text-gray-900">{viewUser.matieres?.join(', ') || viewUser.matiere || '-'}</span>
+                  </div>
+                )}
                 <div>
                   <span className="block text-gray-500 mb-1">{t('id_number')}</span>
                   <span className="font-mono text-gray-900">{viewUser.matricule || t('not_defined')}</span>
@@ -431,6 +457,22 @@ export default function Users() {
                       </span>
                     </div>
                   </>
+                )}
+                {viewUser.role === 'enseignant' && (
+                  <div className="col-span-2">
+                    <span className="block text-gray-500 mb-1">Classes assignées</span>
+                    <div className="flex flex-wrap gap-2">
+                      {viewUser.classes && viewUser.classes.length > 0 ? (
+                        viewUser.classes.map((c: string) => (
+                          <span key={c} className="px-2 py-1 bg-indigo-50 text-indigo-700 rounded-lg text-xs font-medium border border-indigo-100">
+                            {c}
+                          </span>
+                        ))
+                      ) : (
+                        <span className="text-gray-400 italic text-xs">Aucune classe assignée</span>
+                      )}
+                    </div>
+                  </div>
                 )}
                 <div>
                   <span className="block text-gray-500 mb-1">{t('registration_date')}</span>
@@ -532,13 +574,17 @@ export default function Users() {
                   <>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">{t('class')}</label>
-                      <input
-                        type="text"
+                      <select
                         required
                         value={editUser.classe || ''}
                         onChange={(e) => setEditUser({...editUser, classe: e.target.value})}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                      />
+                        className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm bg-white"
+                      >
+                        <option value="">Sélectionner une classe</option>
+                        {classes.map(cls => (
+                          <option key={cls.id} value={cls.nom}>{cls.nom}</option>
+                        ))}
+                      </select>
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">{t('house_optional')}</label>
@@ -555,6 +601,45 @@ export default function Users() {
                     </div>
                   </>
                 )}
+
+                {editUser.role === 'enseignant' && (
+                  <>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">{t('subjects')} (séparés par des virgules)</label>
+                      <input
+                        type="text"
+                        value={editUser.matieres?.join(', ') || editUser.matiere || ''}
+                        onChange={(e) => setEditUser({...editUser, matieres: e.target.value.split(',').map(s => s.trim()).filter(s => s !== '')})}
+                        placeholder="Ex: Mathématiques, Français..."
+                        className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Classes assignées</label>
+                    <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto p-3 border border-gray-200 rounded-xl bg-gray-50">
+                      {classes.map(cls => (
+                        <label key={cls.id} className="flex items-center gap-2 p-2 hover:bg-white rounded-lg cursor-pointer transition-colors">
+                          <input
+                            type="checkbox"
+                            checked={(editUser.classes || []).includes(cls.nom)}
+                            onChange={(e) => {
+                              const currentClasses = editUser.classes || [];
+                              if (e.target.checked) {
+                                setEditUser({...editUser, classes: [...currentClasses, cls.nom]});
+                              } else {
+                                setEditUser({...editUser, classes: currentClasses.filter((c: string) => c !== cls.nom)});
+                              }
+                            }}
+                            className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                          />
+                          <span className="text-sm text-gray-700">{cls.nom}</span>
+                        </label>
+                      ))}
+                    </div>
+                    <p className="text-[10px] text-gray-500 mt-1 italic">Cochez les classes où cet enseignant intervient.</p>
+                  </div>
+                </>
+              )}
               </div>
               <div className="p-4 bg-gray-50 border-t border-gray-100 flex justify-end gap-3">
                 <button 
@@ -793,7 +878,7 @@ export default function Users() {
                   <select
                     value={newUser.role}
                     onChange={(e) => setNewUser({...newUser, role: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm bg-white"
                   >
                     <option value="élève">{tData('élève')}</option>
                     <option value="enseignant">{tData('enseignant')}</option>
@@ -806,13 +891,17 @@ export default function Users() {
                   <>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">{t('class')}</label>
-                      <input
-                        type="text"
+                      <select
+                        required
                         value={newUser.classe}
                         onChange={(e) => setNewUser({...newUser, classe: e.target.value})}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                        placeholder="Ex: 3ème A"
-                      />
+                        className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm bg-white"
+                      >
+                        <option value="">Sélectionner une classe</option>
+                        {classes.map(cls => (
+                          <option key={cls.id} value={cls.nom}>{cls.nom}</option>
+                        ))}
+                      </select>
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">{t('house_optional')}</label>
@@ -829,6 +918,44 @@ export default function Users() {
                     </div>
                   </>
                 )}
+
+                {newUser.role === 'enseignant' && (
+                  <>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">{t('subjects')} (séparés par des virgules)</label>
+                      <input
+                        type="text"
+                        value={newUser.matieres?.join(', ') || newUser.matiere || ''}
+                        onChange={(e) => setNewUser({...newUser, matieres: e.target.value.split(',').map(s => s.trim()).filter(s => s !== '')})}
+                        placeholder="Ex: Mathématiques, Français..."
+                        className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Classes assignées</label>
+                    <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto p-3 border border-gray-200 rounded-xl bg-gray-50">
+                      {classes.map(cls => (
+                        <label key={cls.id} className="flex items-center gap-2 p-2 hover:bg-white rounded-lg cursor-pointer transition-colors">
+                          <input
+                            type="checkbox"
+                            checked={(newUser.classes || []).includes(cls.nom)}
+                            onChange={(e) => {
+                              const currentClasses = newUser.classes || [];
+                              if (e.target.checked) {
+                                setNewUser({...newUser, classes: [...currentClasses, cls.nom]});
+                              } else {
+                                setNewUser({...newUser, classes: currentClasses.filter((c: string) => c !== cls.nom)});
+                              }
+                            }}
+                            className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                          />
+                          <span className="text-sm text-gray-700">{cls.nom}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              )}
               </div>
               <div className="p-4 bg-gray-50 border-t border-gray-100 flex justify-end gap-3">
                 <button 

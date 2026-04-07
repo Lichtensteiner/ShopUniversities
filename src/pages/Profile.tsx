@@ -5,7 +5,7 @@ import { auth, db, storage } from '../lib/firebase';
 import { updatePassword, EmailAuthProvider, reauthenticateWithCredential } from 'firebase/auth';
 import { doc, updateDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { User, Lock, Mail, Shield, BookOpen, Fingerprint, AlertCircle, CheckCircle2, RefreshCw, Briefcase, Target, Calendar, Edit2, Save, Camera } from 'lucide-react';
+import { User, Lock, Mail, Shield, BookOpen, Fingerprint, AlertCircle, CheckCircle2, RefreshCw, Briefcase, Target, Calendar, Edit2, Save, Camera, Plus, X } from 'lucide-react';
 import { resizeImage } from '../lib/imageUtils';
 
 export default function Profile() {
@@ -17,8 +17,12 @@ export default function Profile() {
   const [confirmPassword, setConfirmPassword] = useState('');
   
   const [biographie, setBiographie] = useState(currentUser?.biographie || '');
+  const [matieres, setMatieres] = useState<string[]>(currentUser?.matieres || (currentUser?.matiere ? [currentUser.matiere] : []));
+  const [newMatiere, setNewMatiere] = useState('');
   const [isEditingBio, setIsEditingBio] = useState(false);
+  const [isEditingMatieres, setIsEditingMatieres] = useState(false);
   const [savingBio, setSavingBio] = useState(false);
+  const [savingMatieres, setSavingMatieres] = useState(false);
   
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -94,6 +98,35 @@ export default function Profile() {
     } finally {
       setSavingBio(false);
     }
+  };
+
+  const handleSaveMatieres = async () => {
+    if (!currentUser) return;
+    setSavingMatieres(true);
+    try {
+      const userRef = doc(db, 'users', currentUser.id);
+      await updateDoc(userRef, {
+        matieres: matieres,
+        matiere: matieres.length > 0 ? matieres[0] : null // Keep for backward compatibility
+      });
+      setIsEditingMatieres(false);
+    } catch (err) {
+      console.error("Erreur lors de la mise à jour des matières:", err);
+      alert("Erreur lors de la mise à jour des matières.");
+    } finally {
+      setSavingMatieres(false);
+    }
+  };
+
+  const addMatiere = () => {
+    if (newMatiere.trim() && !matieres.includes(newMatiere.trim())) {
+      setMatieres([...matieres, newMatiere.trim()]);
+      setNewMatiere('');
+    }
+  };
+
+  const removeMatiere = (matiere: string) => {
+    setMatieres(matieres.filter(m => m !== matiere));
   };
 
   const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>, type: 'photo' | 'cover') => {
@@ -351,6 +384,87 @@ export default function Profile() {
                   </div>
                 )}
               </div>
+
+              {currentUser.role === 'enseignant' && (
+                <div className="pt-4 border-t border-gray-100">
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="text-md font-semibold text-gray-900">{t('subjects')}</h3>
+                    {!isEditingMatieres ? (
+                      <button 
+                        onClick={() => setIsEditingMatieres(true)}
+                        className="text-indigo-600 hover:text-indigo-800 text-sm flex items-center gap-1"
+                      >
+                        <Edit2 size={14} /> Modifier
+                      </button>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <button 
+                          onClick={() => {
+                            setIsEditingMatieres(false);
+                            setMatieres(currentUser.matieres || (currentUser.matiere ? [currentUser.matiere] : []));
+                          }}
+                          className="text-gray-500 hover:text-gray-700 text-sm"
+                          disabled={savingMatieres}
+                        >
+                          Annuler
+                        </button>
+                        <button 
+                          onClick={handleSaveMatieres}
+                          disabled={savingMatieres}
+                          className="bg-indigo-600 text-white px-3 py-1 rounded-md text-sm flex items-center gap-1 hover:bg-indigo-700 disabled:opacity-50"
+                        >
+                          {savingMatieres ? <RefreshCw size={14} className="animate-spin" /> : <Save size={14} />}
+                          Enregistrer
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  {isEditingMatieres ? (
+                    <div className="space-y-3">
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={newMatiere}
+                          onChange={(e) => setNewMatiere(e.target.value)}
+                          onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addMatiere())}
+                          placeholder="Ajouter une matière (ex: Mathématiques)"
+                          className="flex-1 px-3 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 text-sm"
+                        />
+                        <button
+                          type="button"
+                          onClick={addMatiere}
+                          className="px-3 py-2 bg-indigo-50 text-indigo-600 rounded-xl hover:bg-indigo-100"
+                        >
+                          <Plus size={18} />
+                        </button>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {matieres.map(m => (
+                          <span key={m} className="inline-flex items-center gap-1 px-3 py-1 bg-indigo-50 text-indigo-700 rounded-full text-sm">
+                            {m}
+                            <button onClick={() => removeMatiere(m)} className="text-indigo-400 hover:text-indigo-600">
+                              <X size={14} />
+                            </button>
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex flex-wrap gap-2">
+                      {(currentUser.matieres || (currentUser.matiere ? [currentUser.matiere] : [])).length > 0 ? (
+                        (currentUser.matieres || (currentUser.matiere ? [currentUser.matiere] : [])).map((m: string) => (
+                          <span key={m} className="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-sm">
+                            {m}
+                          </span>
+                        ))
+                      ) : (
+                        <p className="text-gray-400 text-sm italic">Aucune matière renseignée.</p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
 
               <div className="pt-4 border-t border-gray-100">
                 <h3 className="text-md font-semibold text-gray-900 mb-2">{currentRoleInfo.title}</h3>

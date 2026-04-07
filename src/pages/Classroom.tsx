@@ -30,6 +30,7 @@ interface Resource {
   teacher_id: string;
   title: string;
   description: string;
+  subject?: string;
   url: string;
   type: 'document' | 'link' | 'video' | 'image';
   timestamp: string;
@@ -54,7 +55,7 @@ export default function Classroom() {
 
   // Forms
   const [pointData, setPointData] = useState({ points: 1, reason: '', type: 'positive' as 'positive' | 'negative' });
-  const [resourceData, setResourceData] = useState({ title: '', description: '', url: '', type: 'document' as 'document' | 'link' | 'video' | 'image' });
+  const [resourceData, setResourceData] = useState({ title: '', description: '', subject: '', url: '', type: 'document' as 'document' | 'link' | 'video' | 'image' });
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [selectedPublishClasses, setSelectedPublishClasses] = useState<string[]>([]);
   const [actionLoading, setActionLoading] = useState(false);
@@ -65,13 +66,20 @@ export default function Classroom() {
     const fetchData = async () => {
       try {
         if (currentUser.role === 'enseignant') {
-          // Get classes taught by this teacher
-          const classesQuery = query(collection(db, 'classes'), where('professeur_principal_id', '==', currentUser.id));
-          const classesSnap = await getDocs(classesQuery);
-          const tClasses = classesSnap.docs.map(d => d.data().nom);
-          setTeacherClasses(tClasses);
-          if (tClasses.length > 0) {
-            setSelectedClass(tClasses[0]);
+          // Get classes where teacher is principal
+          const principalQuery = query(collection(db, 'classes'), where('professeur_principal_id', '==', currentUser.id));
+          const principalSnap = await getDocs(principalQuery);
+          const principalClasses = principalSnap.docs.map(d => d.data().nom);
+          
+          // Get classes assigned in the teacher's profile
+          const profileClasses = currentUser.classes || [];
+          
+          // Combine and remove duplicates
+          const allTeacherClasses = Array.from(new Set([...principalClasses, ...profileClasses]));
+          
+          setTeacherClasses(allTeacherClasses);
+          if (allTeacherClasses.length > 0) {
+            setSelectedClass(allTeacherClasses[0]);
           }
         } else if (currentUser.role === 'élève') {
           setSelectedClass(currentUser.classe || '');
@@ -190,6 +198,7 @@ export default function Classroom() {
           teacher_id: currentUser.id,
           title: resourceData.title,
           description: resourceData.description,
+          subject: resourceData.subject || (currentUser.matieres?.[0] || currentUser.matiere || ''),
           url: fileUrl,
           type: resourceData.type,
           timestamp: new Date().toISOString()
@@ -197,7 +206,7 @@ export default function Classroom() {
       }
       
       setShowResourceModal(false);
-      setResourceData({ title: '', description: '', url: '', type: 'document' });
+      setResourceData({ title: '', description: '', subject: '', url: '', type: 'document' });
       setSelectedFile(null);
       setSelectedPublishClasses([]);
     } catch (error) {
@@ -435,6 +444,11 @@ export default function Classroom() {
                                 <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-indigo-100 text-indigo-800">
                                   {resource.class_name}
                                 </span>
+                                {resource.subject && (
+                                  <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-purple-100 text-purple-800">
+                                    {resource.subject}
+                                  </span>
+                                )}
                               </div>
                               {resource.description && (
                                 <p className="text-sm text-gray-500 mt-1 line-clamp-2">{resource.description}</p>
@@ -653,6 +667,22 @@ export default function Classroom() {
                   placeholder={t('title_placeholder')}
                 />
               </div>
+
+              {currentUser.role === 'enseignant' && (currentUser.matieres || (currentUser.matiere ? [currentUser.matiere] : [])).length > 0 && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('subject')}</label>
+                  <select 
+                    value={resourceData.subject}
+                    onChange={(e) => setResourceData({...resourceData, subject: e.target.value})}
+                    className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500"
+                  >
+                    <option value="">Sélectionner une matière</option>
+                    {(currentUser.matieres || (currentUser.matiere ? [currentUser.matiere] : [])).map((m: string) => (
+                      <option key={m} value={m}>{m}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
 
               {resourceData.type === 'document' || resourceData.type === 'image' ? (
                 <div>

@@ -5,6 +5,7 @@ import { collection, query, where, onSnapshot, addDoc, serverTimestamp, doc, get
 import { db } from '../lib/firebase';
 import { 
   Users, 
+  User,
   History, 
   MessageCircle, 
   Calendar as CalendarIcon, 
@@ -27,7 +28,8 @@ import {
   ArrowLeft,
   Award,
   Shield,
-  UserCheck
+  UserCheck,
+  GraduationCap
 } from 'lucide-react';
 import { format, parse, startOfWeek, getDay } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -79,6 +81,7 @@ export default function ClassDetailsView({ classId, className, onClose }: ClassD
   const { t, language } = useLanguage();
   const [activeTab, setActiveTab] = useState<'classroom' | 'history' | 'messaging' | 'calendar'>('classroom');
   const [students, setStudents] = useState<Student[]>([]);
+  const [classTeachers, setClassTeachers] = useState<any[]>([]);
   const [events, setEvents] = useState<ClassEvent[]>([]);
   const [resources, setResources] = useState<any[]>([]);
   const [conversations, setConversations] = useState<any[]>([]);
@@ -89,6 +92,7 @@ export default function ClassDetailsView({ classId, className, onClose }: ClassD
   const [allAvailableStudents, setAllAvailableStudents] = useState<Student[]>([]);
   const [selectedStudentToAdd, setSelectedStudentToAdd] = useState('');
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
+  const [principalTeacher, setPrincipalTeacher] = useState<any>(null);
   const [isStudentDetailsModalOpen, setIsStudentDetailsModalOpen] = useState(false);
   const [studentModalView, setStudentModalView] = useState<'feedback' | 'report'>('feedback');
   const [studentFeedbackTab, setStudentFeedbackTab] = useState<'positive' | 'needs-work'>('positive');
@@ -165,6 +169,32 @@ export default function ClassDetailsView({ classId, className, onClose }: ClassD
     const unsubscribeAllStudents = onSnapshot(allStudentsQuery, (snapshot) => {
       const all = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Student));
       setAllAvailableStudents(all.filter(s => (s as any).classeId !== classId));
+    });
+
+    // Fetch class document to get teachers
+    const unsubscribeClass = onSnapshot(doc(db, 'classes', classId), async (snapshot) => {
+      if (snapshot.exists()) {
+        const classData = snapshot.data();
+        const teacherIds = [
+          classData.professeur_principal_id,
+          ...(classData.enseignants_ids || [])
+        ].filter(Boolean);
+        
+        const teachersQuery = query(collection(db, 'users'), where('role', '==', 'enseignant'));
+        const teachersSnapshot = await getDocs(teachersQuery);
+        const allTeachers = teachersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as any[];
+        
+        const filtered = allTeachers.filter(t => 
+          teacherIds.includes(t.id) || 
+          (t.classes && Array.isArray(t.classes) && t.classes.includes(classData.nom))
+        );
+        
+        setClassTeachers(filtered);
+        
+        const principal = filtered.find(t => t.id === classData.professeur_principal_id) || 
+                         (filtered.length > 0 ? filtered[0] : null);
+        setPrincipalTeacher(principal);
+      }
     });
 
     // Fetch conversations related to this class (if any) or general for the teacher
@@ -324,78 +354,111 @@ export default function ClassDetailsView({ classId, className, onClose }: ClassD
   };
 
   const renderClassroom = () => (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h3 className="text-lg font-bold text-gray-900 dark:text-white">Élèves ({students.length})</h3>
-        {currentUser?.role === 'enseignant' && (
-          <button 
-            onClick={() => setIsAddStudentModalOpen(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-colors shadow-sm text-sm font-medium"
-          >
-            <UserPlus size={18} />
-            Ajouter un élève
-          </button>
-        )}
-      </div>
-
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6">
-        {students.map(student => (
-          <div 
-            key={student.id} 
-            onClick={() => {
-              setSelectedStudent(student);
-              setIsStudentDetailsModalOpen(true);
-            }}
-            className="bg-white dark:bg-gray-800 p-5 rounded-3xl border border-gray-100 dark:border-gray-700 flex flex-col items-center text-center group hover:shadow-xl hover:-translate-y-1 transition-all duration-300 relative cursor-pointer"
-          >
-            <div className="relative mb-4">
-              <div className="w-20 h-20 rounded-full bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20 flex items-center justify-center text-indigo-600 dark:text-indigo-400 text-2xl font-bold overflow-hidden border-4 border-white dark:border-gray-800 shadow-sm">
-                {student.photo ? (
-                  <img src={student.photo} alt={student.prenom} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+    <div className="space-y-8">
+      {/* Teachers Section */}
+      <div className="space-y-4">
+        <h3 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
+          <GraduationCap className="text-indigo-600" size={20} />
+          Enseignants ({classTeachers.length})
+        </h3>
+        <div className="flex flex-wrap gap-4">
+          {classTeachers.map(teacher => (
+            <div key={teacher.id} className="flex items-center gap-3 bg-white dark:bg-gray-800 p-3 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm">
+              <div className="w-10 h-10 rounded-full bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center text-indigo-600 dark:text-indigo-400 font-bold text-sm">
+                {teacher.photo ? (
+                  <img src={teacher.photo} alt="" className="w-full h-full object-cover rounded-full" referrerPolicy="no-referrer" />
                 ) : (
-                  <img 
-                    src={`https://robohash.org/${student.id}?set=set2&size=150x150`} 
-                    alt={student.prenom} 
-                    className="w-full h-full object-contain p-1" 
-                    referrerPolicy="no-referrer"
-                  />
+                  teacher.prenom?.[0] || teacher.nom?.[0] || 'T'
                 )}
               </div>
-              <div className="absolute -top-1 -right-1 w-8 h-8 bg-green-500 text-white text-xs font-black rounded-full flex items-center justify-center border-4 border-white dark:border-gray-800 shadow-md">
-                {student.points || 0}
+              <div>
+                <p className="text-sm font-bold text-gray-900 dark:text-white">{teacher.prenom} {teacher.nom}</p>
+                <p className="text-[10px] text-gray-500 uppercase font-medium">Enseignant</p>
               </div>
             </div>
-            
-            <h4 className="font-bold text-gray-900 dark:text-white truncate w-full text-sm mb-3">
-              {student.prenom} {student.nom}
-            </h4>
-            
-            {currentUser?.role === 'enseignant' && (
-              <div className="flex items-center gap-2 mt-auto">
-                <button 
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleGivePoint(student.id);
-                  }}
-                  className="p-2 bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 hover:bg-green-100 dark:hover:bg-green-900/40 rounded-xl transition-colors"
-                  title="Donner un point"
-                >
-                  <Plus size={18} />
-                </button>
-                <button 
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleStartChatWithStudent(student.id);
-                  }}
-                  className="p-2 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-900/40 rounded-xl transition-colors"
-                  title="Message"
-                >
-                  <MessageCircle size={18} />
-                </button>
+          ))}
+          {classTeachers.length === 0 && (
+            <p className="text-sm text-gray-400 italic">Aucun enseignant assigné</p>
+          )}
+        </div>
+      </div>
+
+      <div className="space-y-4">
+        <div className="flex justify-between items-center">
+          <h3 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
+            <Users className="text-indigo-600" size={20} />
+            Élèves ({students.length})
+          </h3>
+          {currentUser?.role === 'enseignant' && (
+            <button 
+              onClick={() => setIsAddStudentModalOpen(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-colors shadow-sm text-sm font-medium"
+            >
+              <UserPlus size={18} />
+              Ajouter un élève
+            </button>
+          )}
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6">
+          {students.map(student => (
+            <div 
+              key={student.id} 
+              onClick={() => {
+                setSelectedStudent(student);
+                setIsStudentDetailsModalOpen(true);
+              }}
+              className="bg-white dark:bg-gray-800 p-5 rounded-3xl border border-gray-100 dark:border-gray-700 flex flex-col items-center text-center group hover:shadow-xl hover:-translate-y-1 transition-all duration-300 relative cursor-pointer"
+            >
+              <div className="relative mb-4">
+                <div className="w-20 h-20 rounded-full bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20 flex items-center justify-center text-indigo-600 dark:text-indigo-400 text-2xl font-bold overflow-hidden border-4 border-white dark:border-gray-800 shadow-sm">
+                  {student.photo ? (
+                    <img src={student.photo} alt={student.prenom} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                  ) : (
+                    <img 
+                      src={`https://robohash.org/${student.id}?set=set2&size=150x150`} 
+                      alt={student.prenom} 
+                      className="w-full h-full object-contain p-1" 
+                      referrerPolicy="no-referrer"
+                    />
+                  )}
+                </div>
+                <div className="absolute -top-1 -right-1 w-8 h-8 bg-green-500 text-white text-xs font-black rounded-full flex items-center justify-center border-4 border-white dark:border-gray-800 shadow-md">
+                  {student.points || 0}
+                </div>
               </div>
-            )}
-          </div>
-        ))}
+              
+              <h4 className="font-bold text-gray-900 dark:text-white truncate w-full text-sm mb-3">
+                {student.prenom} {student.nom}
+              </h4>
+              
+              {currentUser?.role === 'enseignant' && (
+                <div className="flex items-center gap-2 mt-auto">
+                  <button 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleGivePoint(student.id);
+                    }}
+                    className="p-2 bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 hover:bg-green-100 dark:hover:bg-green-900/40 rounded-xl transition-colors"
+                    title="Donner un point"
+                  >
+                    <Plus size={18} />
+                  </button>
+                  <button 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleStartChatWithStudent(student.id);
+                    }}
+                    className="p-2 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-900/40 rounded-xl transition-colors"
+                    title="Message"
+                  >
+                    <MessageCircle size={18} />
+                  </button>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );
@@ -625,7 +688,16 @@ export default function ClassDetailsView({ classId, className, onClose }: ClassD
             </div>
             <div>
               <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white truncate max-w-[200px] sm:max-w-none">{className}</h2>
-              <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">Détails et gestion de la classe</p>
+              <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">
+                {principalTeacher ? (
+                  <span className="flex items-center gap-1">
+                    <User size={14} className="text-indigo-600" />
+                    Prof. Principal: <span className="font-medium text-gray-900 dark:text-gray-200">{principalTeacher.prenom} {principalTeacher.nom}</span>
+                  </span>
+                ) : (
+                  'Détails et gestion de la classe'
+                )}
+              </p>
             </div>
           </div>
           <button 

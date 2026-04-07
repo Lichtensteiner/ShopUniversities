@@ -18,6 +18,7 @@ export default function Classes() {
     nom: '',
     niveau: '',
     professeur_principal_id: '',
+    enseignants_ids: [] as string[],
     heure_debut: '08:00'
   });
   const [actionLoading, setActionLoading] = useState(false);
@@ -70,10 +71,11 @@ export default function Classes() {
         nom: classItem.nom || '',
         niveau: classItem.niveau || '',
         professeur_principal_id: classItem.professeur_principal_id || '',
+        enseignants_ids: classItem.enseignants_ids || [],
         heure_debut: classItem.heure_debut || '08:00'
       });
     } else {
-      setFormData({ nom: '', niveau: '', professeur_principal_id: '', heure_debut: '08:00' });
+      setFormData({ nom: '', niveau: '', professeur_principal_id: '', enseignants_ids: [], heure_debut: '08:00' });
     }
     setIsModalOpen(true);
     if (mode === 'view') {
@@ -124,8 +126,14 @@ export default function Classes() {
     }
   };
 
-  const getTeacherName = (teacherId: string) => {
-    const teacher = teachers.find(t => t.id === teacherId);
+  const getTeacherName = (teacherId: string, className?: string) => {
+    let teacher = teachers.find(t => t.id === teacherId);
+    
+    // If not found by ID, try to find a teacher who has this class name in their 'classes' array
+    if (!teacher && className) {
+      teacher = teachers.find(t => t.classes && t.classes.includes(className));
+    }
+
     return teacher ? (teacher.prenom || teacher.nom ? `${teacher.prenom || ''} ${teacher.nom || ''}`.trim() : teacher.email?.split('@')[0] || 'Utilisateur') : 'Non assigné';
   };
 
@@ -201,12 +209,16 @@ export default function Classes() {
                   </div>
                   
                   <h3 className="text-xl font-bold text-gray-900 mb-1">{cls.nom}</h3>
+                  <div className="flex items-center gap-2 text-sm text-indigo-600 font-semibold mb-2">
+                    <User size={14} />
+                    <span>{getTeacherName(cls.professeur_principal_id, cls.nom)}</span>
+                  </div>
                   <p className="text-sm text-gray-500 mb-6">{cls.niveau || 'Niveau non spécifié'}</p>
                   
                   <div className="space-y-3">
                     <div className="flex items-center gap-3 text-sm text-gray-600">
-                      <User size={16} className="text-gray-400" />
-                      <span>Prof. Principal: <span className="font-medium text-gray-900">{getTeacherName(cls.professeur_principal_id)}</span></span>
+                      <GraduationCap size={16} className="text-gray-400" />
+                      <span><span className="font-medium text-gray-900">{(cls.enseignants_ids?.length || 0) + (cls.professeur_principal_id ? 1 : 0)}</span> enseignants assignés</span>
                     </div>
                     <div className="flex items-center gap-3 text-sm text-gray-600">
                       <Users size={16} className="text-gray-400" />
@@ -279,6 +291,32 @@ export default function Classes() {
                     </option>
                   ))}
                 </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Enseignants de la classe</label>
+                <div className="grid grid-cols-1 gap-2 max-h-32 overflow-y-auto p-3 border border-gray-200 rounded-xl bg-gray-50">
+                  {teachers.map(t => (
+                    <label key={t.id} className="flex items-center gap-2 p-2 hover:bg-white rounded-lg cursor-pointer transition-colors">
+                      <input
+                        type="checkbox"
+                        checked={(formData.enseignants_ids || []).includes(t.id)}
+                        onChange={(e) => {
+                          const currentIds = formData.enseignants_ids || [];
+                          if (e.target.checked) {
+                            setFormData({...formData, enseignants_ids: [...currentIds, t.id]});
+                          } else {
+                            setFormData({...formData, enseignants_ids: currentIds.filter(id => id !== t.id)});
+                          }
+                        }}
+                        className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                      />
+                      <span className="text-sm text-gray-700">
+                        {t.prenom || t.nom ? `${t.prenom || ''} ${t.nom || ''}`.trim() : t.email?.split('@')[0] || 'Utilisateur'}
+                      </span>
+                    </label>
+                  ))}
+                </div>
               </div>
 
               <div>

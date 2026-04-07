@@ -91,35 +91,49 @@ function AppContent() {
     return <BiometricRegistration />;
   }
 
-  // Mode Borne (Kiosk)
-  if (activeTab === 'kiosk') {
-    return <KioskMode onExit={() => setActiveTab('users')} />;
-  }
-
   const renderContent = () => {
+    const role = currentUser?.role || '';
+    
     switch (activeTab) {
-      case 'dashboard': return <Dashboard />;
-      case 'student_dashboard': return <StudentDashboard />;
-      case 'student_card': return <StudentCard />;
-      case 'users': return <Users />;
-      case 'attendance': return <Attendance />;
-      case 'reports': return <Reports />;
-      case 'classes': return <Classes />;
-      case 'settings': return <Settings />;
-      case 'scanner': return <Scanner />;
-      case 'mobile_app': return <MobileApp />;
-      case 'integration': return <IntegrationCode />;
+      case 'kiosk':
+        return role === 'admin' ? <KioskMode onExit={() => setActiveTab('users')} /> : <Dashboard />;
+      case 'dashboard': 
+        return ['admin', 'enseignant', 'personnel administratif'].includes(role) ? <Dashboard /> : <StudentDashboard />;
+      case 'student_dashboard': 
+        return role === 'élève' ? <StudentDashboard /> : <Dashboard />;
+      case 'student_card': 
+        return role === 'élève' ? <StudentCard /> : <Dashboard />;
+      case 'users': 
+        return role === 'admin' ? <Users /> : <Dashboard />;
+      case 'attendance': 
+        return ['admin', 'enseignant', 'personnel administratif'].includes(role) ? <Attendance /> : <StudentDashboard />;
+      case 'reports': 
+        return ['admin', 'enseignant', 'personnel administratif'].includes(role) ? <Reports /> : <StudentDashboard />;
+      case 'classes': 
+        return role === 'admin' ? <Classes /> : <Dashboard />;
+      case 'settings': 
+        return role === 'admin' ? <Settings /> : <Dashboard />;
+      case 'scanner': 
+        return role === 'admin' ? <Scanner /> : <Dashboard />;
+      case 'mobile_app': 
+        return role === 'admin' ? <MobileApp /> : <Dashboard />;
+      case 'integration': 
+        return role === 'admin' ? <IntegrationCode /> : <Dashboard />;
       case 'leaderboard': return <Leaderboard />;
       case 'houses': return <Houses />;
-      case 'classroom': return <Classroom />;
-      case 'calendar': return <Calendar />;
+      case 'classroom': 
+        return ['enseignant', 'élève'].includes(role) ? <Classroom /> : <Dashboard />;
+      case 'calendar': 
+        return ['admin', 'enseignant', 'personnel administratif'].includes(role) ? <Calendar /> : <StudentDashboard />;
       case 'newsfeed': return <NewsFeed />;
-      case 'directory': return <Directory onNavigate={handleNavigate} />;
+      case 'directory': 
+        return ['admin', 'enseignant', 'personnel administratif'].includes(role) ? <Directory onNavigate={handleNavigate} /> : <StudentDashboard />;
       case 'messaging': return <Messaging initialChatTargetId={tabParams?.userId} onClearTarget={() => setTabParams(null)} />;
-      case 'recent_connections': return <RecentConnections />;
+      case 'recent_connections': 
+        return role === 'admin' ? <RecentConnections /> : <Dashboard />;
       case 'profile': return <Profile />;
       case 'about': return <About />;
-      default: return <Dashboard />;
+      default: return role === 'élève' ? <StudentDashboard /> : <Dashboard />;
     }
   };
 

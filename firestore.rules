@@ -1,0 +1,108 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+    
+    function isAdmin() {
+      return isAuthenticated() && 
+        (getUserData().role == 'admin' || 
+         (request.auth.token.email == "ludo.consulting3@gmail.com" && request.auth.token.email_verified == true));
+    }
+    
+    function isTeacher() {
+      return isAuthenticated() && getUserData().role == 'enseignant';
+    }
+    
+    function isStaff() {
+      return isAuthenticated() && getUserData().role == 'personnel administratif';
+    }
+
+    // ===============================================================
+    // Collections
+    // ===============================================================
+
+    // Users Collection
+    match /users/{userId} {
+      // Anyone can create their own profile during registration, 
+      // but they MUST NOT be able to set their role to 'admin' 
+      // unless they are already an admin.
+      allow create: if isAuthenticated() && 
+        (request.resource.data.role in ['élève', 'enseignant', 'personnel administratif'] || isAdmin());
+      
+      // Users can read their own profile, admins, teachers and staff can read all
+      allow read: if isOwner(userId) || isAdmin() || isTeacher() || isStaff();
+      
+      // Only admins can update roles or other sensitive data
+      // Users can update their own bio/profile pic but not their role
+      allow update: if isAdmin() || 
+        (isOwner(userId) && request.resource.data.role == resource.data.role);
+        
+      allow delete: if isAdmin();
+    }
+
+    // Classes Collection
+    match /classes/{classId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // Attendance Collection
+    match /attendance/{attendanceId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated(); // Students can clock in
+      allow update, delete: if isAdmin() || isTeacher() || isStaff();
+    }
+
+    // Feedback Collection
+    match /feedback/{feedbackId} {
+      allow read: if isAuthenticated();
+      allow create: if isAdmin() || isTeacher() || isStaff();
+      allow update, delete: if isAdmin() || isStaff();
+    }
+
+    // Houses Collection
+    match /houses/{houseId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // Events Collection
+    match /events/{eventId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin() || isTeacher() || isStaff();
+    }
+
+    // NewsFeed Collection
+    match /newsfeed/{postId} {
+      allow read: if isAuthenticated();
+      allow create: if isAdmin() || isTeacher() || isStaff();
+      allow update, delete: if isAdmin() || isStaff() || (isAuthenticated() && request.auth.uid == resource.data.authorId);
+    }
+
+    // Conversations Collection
+    match /conversations/{conversationId} {
+      allow read: if isAuthenticated() && request.auth.uid in resource.data.participants;
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated() && request.auth.uid in resource.data.participants;
+    }
+
+    // Messages Collection (subcollection of conversations)
+    match /conversations/{conversationId}/messages/{messageId} {
+      allow read: if isAuthenticated() && request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participants;
+      allow create: if isAuthenticated() && request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participants;
+    }
+  }
+}

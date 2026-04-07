@@ -163,7 +163,9 @@ export default function Sidebar({ activeTab, setActiveTab, isMobileOpen, setIsMo
         
         <div className="flex-1 py-4 px-4 overflow-y-auto custom-scrollbar">
           {categories.map((category, idx) => {
-            const filteredItems = category.items;
+            const filteredItems = category.items.filter(item => 
+              item.roles.includes(currentUser?.role || '')
+            );
             if (filteredItems.length === 0) return null;
 
             return (

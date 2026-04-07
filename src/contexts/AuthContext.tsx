@@ -15,6 +15,9 @@ export interface User {
   email: string;
   role: 'admin' | 'enseignant' | 'élève' | 'personnel administratif';
   classe?: string;
+  classes?: string[];
+  matiere?: string;
+  matieres?: string[];
   matricule?: string;
   photo?: string;
   cover?: string;

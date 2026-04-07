@@ -169,7 +169,7 @@ export default function Login() {
                   >
                     <option value="élève">{t('student')}</option>
                     <option value="enseignant">{t('teacher')}</option>
-                    <option value="personnel administratif">{t('administrative_staff')}</option>
+                    <option value="personnel administratif">{t('admin_staff')}</option>
                     <option value="admin">{t('admin')}</option>
                   </select>
                 </div>
