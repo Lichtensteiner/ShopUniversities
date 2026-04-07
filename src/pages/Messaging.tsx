@@ -7,6 +7,7 @@ import { Search, Users, User, Megaphone, Send, Clock, Image, Video, Paperclip, S
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import Chat from './Chat';
+import { createNotification, notifyAllUsers } from '../services/NotificationService';
 
 interface Conversation {
   id: string;
@@ -35,6 +36,8 @@ export default function Messaging({ initialChatTargetId, onClearTarget }: Messag
   const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
   const [groupName, setGroupName] = useState('');
   const [groupMessageText, setGroupMessageText] = useState('');
+  const [announcementText, setAnnouncementText] = useState('');
+  const [isSubmittingAnnouncement, setIsSubmittingAnnouncement] = useState(false);
 
   // Fetch all users for main list and modals
   useEffect(() => {
@@ -339,6 +342,16 @@ export default function Messaging({ initialChatTargetId, onClearTarget }: Messag
             [userId]: increment(1)
           }
         }, { merge: true });
+
+        // Notify recipient
+        const senderName = currentUser.prenom || currentUser.nom ? `${currentUser.prenom || ''} ${currentUser.nom || ''}`.trim() : currentUser.email?.split('@')[0] || 'Utilisateur';
+        await createNotification({
+          user_id: userId,
+          title: `Nouveau message de ${senderName}`,
+          message: groupMessageText.trim(),
+          type: 'info',
+          targetTab: 'messaging'
+        });
       }
       
       setActiveModal(null);
@@ -346,6 +359,38 @@ export default function Messaging({ initialChatTargetId, onClearTarget }: Messag
       setSelectedUsers([]);
     } catch (error) {
       console.error("Error sending broadcast:", error);
+    }
+  };
+
+  const handleSendAnnouncement = async () => {
+    if (!currentUser || !announcementText.trim()) return;
+    
+    setIsSubmittingAnnouncement(true);
+    try {
+      const senderName = currentUser.prenom || currentUser.nom ? `${currentUser.prenom || ''} ${currentUser.nom || ''}`.trim() : currentUser.email?.split('@')[0] || 'Utilisateur';
+      
+      // Add announcement to a global collection
+      await addDoc(collection(db, 'announcements'), {
+        authorId: currentUser.id,
+        authorName: senderName,
+        text: announcementText.trim(),
+        createdAt: serverTimestamp()
+      });
+
+      // Notify all users
+      await notifyAllUsers(
+        "Nouvelle annonce",
+        announcementText.trim(),
+        'info',
+        'dashboard' // Or wherever announcements are shown
+      );
+
+      setActiveModal(null);
+      setAnnouncementText('');
+    } catch (error) {
+      console.error("Error sending announcement:", error);
+    } finally {
+      setIsSubmittingAnnouncement(false);
     }
   };
 
@@ -661,6 +706,8 @@ export default function Messaging({ initialChatTargetId, onClearTarget }: Messag
             <div className="p-4 overflow-y-auto flex-1">
               <textarea
                 placeholder="Rédigez votre annonce ici..."
+                value={announcementText}
+                onChange={(e) => setAnnouncementText(e.target.value)}
                 className="w-full h-32 p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 resize-none mb-4"
               />
               <div className="flex items-center gap-2 mb-4">
@@ -694,10 +741,12 @@ export default function Messaging({ initialChatTargetId, onClearTarget }: Messag
                 Annuler
               </button>
               <button 
-                className="px-4 py-2 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 transition-colors flex items-center gap-2"
+                onClick={handleSendAnnouncement}
+                disabled={!announcementText.trim() || isSubmittingAnnouncement}
+                className="px-4 py-2 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 transition-colors flex items-center gap-2 disabled:opacity-50"
               >
                 <Send size={18} />
-                Envoyer l'annonce
+                {isSubmittingAnnouncement ? 'Envoi...' : "Envoyer l'annonce"}
               </button>
             </div>
           </div>

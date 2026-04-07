@@ -9,9 +9,11 @@ interface Notification {
   id: string;
   title: string;
   message: string;
+  content?: string;
   read: boolean;
   timestamp: string;
   type?: 'info' | 'warning' | 'success';
+  targetTab?: string;
 }
 
 interface HeaderProps {
@@ -202,6 +204,25 @@ export default function Header({ activeTab, setActiveTab, onMenuClick }: HeaderP
   }, [searchQuery, currentUser]);
 
   const handleNotificationClick = (notif: Notification) => {
+    // If there is long content, always show the modal first
+    if (notif.content) {
+      setSelectedNotification(notif);
+      if (!notif.read) {
+        markAsRead(notif.id);
+      }
+      setShowNotifications(false);
+      return;
+    }
+
+    if (notif.targetTab && setActiveTab) {
+      setActiveTab(notif.targetTab);
+      setShowNotifications(false);
+      if (!notif.read) {
+        markAsRead(notif.id);
+      }
+      return;
+    }
+    
     setSelectedNotification(notif);
     if (!notif.read) {
       markAsRead(notif.id);
@@ -477,7 +498,9 @@ export default function Header({ activeTab, setActiveTab, onMenuClick }: HeaderP
             </button>
           </div>
           <div className="p-6 overflow-y-auto flex-1">
-            <p className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap leading-relaxed text-base break-words">{selectedNotification.message}</p>
+            <p className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap leading-relaxed text-base break-words">
+              {selectedNotification.content || selectedNotification.message}
+            </p>
             <p className="text-sm text-gray-400 dark:text-gray-500 mt-6 flex items-center gap-1.5">
               <Clock size={14} />
               {new Date(selectedNotification.timestamp).toLocaleString(undefined, {
@@ -493,12 +516,25 @@ export default function Header({ activeTab, setActiveTab, onMenuClick }: HeaderP
               <Trash2 size={18} />
               {t('delete')}
             </button>
-            <button 
-              onClick={() => setSelectedNotification(null)}
-              className="px-6 py-2 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 font-medium text-sm transition-colors"
-            >
-              {t('close')}
-            </button>
+            <div className="flex items-center gap-3">
+              {selectedNotification.targetTab && setActiveTab && (
+                <button 
+                  onClick={() => {
+                    setActiveTab(selectedNotification.targetTab!);
+                    setSelectedNotification(null);
+                  }}
+                  className="px-4 py-2 bg-indigo-50 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 rounded-xl hover:bg-indigo-100 dark:hover:bg-indigo-900/70 font-medium text-sm transition-colors"
+                >
+                  Accéder
+                </button>
+              )}
+              <button 
+                onClick={() => setSelectedNotification(null)}
+                className="px-6 py-2 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 font-medium text-sm transition-colors"
+              >
+                {t('close')}
+              </button>
+            </div>
           </div>
         </div>
       </div>

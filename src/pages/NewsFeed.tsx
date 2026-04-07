@@ -1,12 +1,22 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
-import { collection, addDoc, query, orderBy, onSnapshot, doc, updateDoc, deleteDoc, serverTimestamp, arrayUnion, arrayRemove, increment } from 'firebase/firestore';
+import { collection, addDoc, query, orderBy, onSnapshot, doc, updateDoc, deleteDoc, serverTimestamp, arrayUnion, arrayRemove, increment, getDocs } from 'firebase/firestore';
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '../lib/firebase';
 import { Image, Camera, Video, Paperclip, Smile, Send, Heart, MessageCircle, MoreVertical, Edit, Trash2, Eye, MessageSquare, X } from 'lucide-react';
 import { format } from 'date-fns';
 import { fr, enUS, es } from 'date-fns/locale';
+import { notifyAllUsers } from '../services/NotificationService';
+
+interface Comment {
+  id: string;
+  authorId: string;
+  authorName: string;
+  authorPhotoUrl?: string;
+  text: string;
+  createdAt: any;
+}
 
 interface Post {
   id: string;
@@ -19,6 +29,7 @@ interface Post {
   createdAt: any;
   likes: string[];
   views: number;
+  commentsCount?: number;
 }
 
 export default function NewsFeed() {
@@ -33,6 +44,12 @@ export default function NewsFeed() {
   const [filePreview, setFilePreview] = useState<string | null>(null);
   const [fileType, setFileType] = useState<'image' | 'video' | 'file' | null>(null);
   const [uploadProgress, setUploadProgress] = useState(0);
+  
+  // Commenting state
+  const [showCommentsFor, setShowCommentsFor] = useState<string | null>(null);
+  const [comments, setComments] = useState<Record<string, Comment[]>>({});
+  const [newCommentText, setNewCommentText] = useState('');
+  const [isSubmittingComment, setIsSubmittingComment] = useState(false);
 
   const locales = { fr, en: enUS, es };
   const currentLocale = locales[language as keyof typeof locales] || fr;
@@ -49,6 +66,30 @@ export default function NewsFeed() {
 
     return () => unsubscribe();
   }, []);
+
+  // Listen for comments when a post's comments are shown
+  useEffect(() => {
+    if (!showCommentsFor) return;
+
+    const q = query(
+      collection(db, `posts/${showCommentsFor}/comments`),
+      orderBy('createdAt', 'asc')
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const commentsData = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })) as Comment[];
+      
+      setComments(prev => ({
+        ...prev,
+        [showCommentsFor]: commentsData
+      }));
+    });
+
+    return () => unsubscribe();
+  }, [showCommentsFor]);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>, type: 'image' | 'video' | 'file') => {
     const file = e.target.files?.[0];
@@ -108,18 +149,29 @@ export default function NewsFeed() {
         finalMediaType = fileType;
       }
 
+      const authorName = currentUser.prenom || currentUser.nom ? `${currentUser.prenom || ''} ${currentUser.nom || ''}`.trim() : currentUser.email?.split('@')[0] || 'Utilisateur';
+
       await addDoc(collection(db, 'posts'), {
         authorId: currentUser.id,
-        authorName: currentUser.prenom || currentUser.nom ? `${currentUser.prenom || ''} ${currentUser.nom || ''}`.trim() : currentUser.email?.split('@')[0] || 'Utilisateur',
+        authorName,
         authorPhotoUrl: currentUser.photo || null,
         content: newPostContent.trim(),
         mediaUrl,
         mediaType: finalMediaType,
         createdAt: serverTimestamp(),
         likes: [],
-        views: 0
+        views: 0,
+        commentsCount: 0
       });
       
+      // Notify all users about the new post
+      await notifyAllUsers(
+        "Nouvelle publication",
+        `${authorName} a partagé une nouvelle publication dans le fil d'actualité.`,
+        'info',
+        'newsfeed'
+      );
+
       setNewPostContent('');
       clearFile();
     } catch (error) {
@@ -128,6 +180,33 @@ export default function NewsFeed() {
     } finally {
       setIsSubmitting(false);
       setUploadProgress(0);
+    }
+  };
+
+  const handleAddComment = async (postId: string) => {
+    if (!newCommentText.trim() || !currentUser) return;
+
+    setIsSubmittingComment(true);
+    try {
+      const authorName = currentUser.prenom || currentUser.nom ? `${currentUser.prenom || ''} ${currentUser.nom || ''}`.trim() : currentUser.email?.split('@')[0] || 'Utilisateur';
+
+      await addDoc(collection(db, `posts/${postId}/comments`), {
+        authorId: currentUser.id,
+        authorName,
+        authorPhotoUrl: currentUser.photo || null,
+        text: newCommentText.trim(),
+        createdAt: serverTimestamp()
+      });
+
+      await updateDoc(doc(db, 'posts', postId), {
+        commentsCount: increment(1)
+      });
+
+      setNewCommentText('');
+    } catch (error) {
+      console.error('Error adding comment:', error);
+    } finally {
+      setIsSubmittingComment(false);
     }
   };
 
@@ -173,8 +252,6 @@ export default function NewsFeed() {
   };
 
   const incrementViews = async (postId: string) => {
-    // In a real app, we'd track which users viewed to avoid spamming increments
-    // For now, we'll just increment when the component mounts or becomes visible
     try {
        await updateDoc(doc(db, 'posts', postId), {
           views: increment(1)
@@ -197,7 +274,7 @@ export default function NewsFeed() {
               value={newPostContent}
               onChange={(e) => setNewPostContent(e.target.value)}
               placeholder="Partagez quelque chose avec l'établissement..."
-              className="w-full bg-gray-50 dark:bg-gray-900 border-none rounded-lg resize-none focus:ring-0 p-3 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400"
+              className="w-full bg-gray-50 dark:bg-gray-900 border-none rounded-lg resize-none focus:ring-0 p-3 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
               rows={3}
             />
 
@@ -267,6 +344,7 @@ export default function NewsFeed() {
         {posts.map((post) => {
           const hasLiked = currentUser ? post.likes?.includes(currentUser.id) : false;
           const isAuthor = currentUser?.id === post.authorId;
+          const postComments = comments[post.id] || [];
 
           return (
             <div key={post.id} className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
@@ -368,7 +446,12 @@ export default function NewsFeed() {
                   <span>{post.likes?.length || 0}</span>
                 </div>
                 <div className="flex items-center gap-4">
-                  <span>0 commentaires</span>
+                  <button 
+                    onClick={() => setShowCommentsFor(showCommentsFor === post.id ? null : post.id)}
+                    className="hover:underline"
+                  >
+                    {post.commentsCount || 0} commentaires
+                  </button>
                   <div className="flex items-center gap-1">
                     <Eye size={14} />
                     <span>{post.views || 0} vues</span>
@@ -389,11 +472,78 @@ export default function NewsFeed() {
                   <Heart size={20} className={hasLiked ? "fill-current" : ""} />
                   <span className="font-medium">J'aime</span>
                 </button>
-                <button className="flex-1 flex items-center justify-center gap-2 py-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">
+                <button 
+                  onClick={() => setShowCommentsFor(showCommentsFor === post.id ? null : post.id)}
+                  className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg transition-colors ${
+                    showCommentsFor === post.id 
+                      ? 'text-indigo-600 bg-indigo-50 dark:bg-indigo-900/20' 
+                      : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
+                  }`}
+                >
                   <MessageCircle size={20} />
                   <span className="font-medium">Commenter</span>
                 </button>
               </div>
+
+              {/* Comments Section */}
+              {showCommentsFor === post.id && (
+                <div className="px-4 py-4 bg-gray-50 dark:bg-gray-900/50 border-t border-gray-100 dark:border-gray-700">
+                  <div className="space-y-4 mb-4">
+                    {postComments.map((comment) => (
+                      <div key={comment.id} className="flex gap-3">
+                        {comment.authorPhotoUrl ? (
+                          <img src={comment.authorPhotoUrl} alt={comment.authorName} className="w-8 h-8 rounded-full object-cover shrink-0" />
+                        ) : (
+                          <div className="w-8 h-8 rounded-full bg-indigo-100 dark:bg-indigo-900 flex items-center justify-center text-indigo-600 dark:text-indigo-300 font-bold text-xs shrink-0">
+                            {comment.authorName.split(' ').map(n => n[0]).join('').substring(0, 2)}
+                          </div>
+                        )}
+                        <div className="flex-1 bg-white dark:bg-gray-800 p-3 rounded-2xl rounded-tl-none shadow-sm border border-gray-100 dark:border-gray-700">
+                          <div className="flex justify-between items-start mb-1">
+                            <span className="font-semibold text-sm text-gray-900 dark:text-white">{comment.authorName}</span>
+                            <span className="text-[10px] text-gray-400">
+                              {comment.createdAt ? format(comment.createdAt.toDate(), "HH:mm", { locale: currentLocale }) : ''}
+                            </span>
+                          </div>
+                          <p className="text-sm text-gray-700 dark:text-gray-300">{comment.text}</p>
+                        </div>
+                      </div>
+                    ))}
+                    {postComments.length === 0 && (
+                      <p className="text-center text-sm text-gray-500 py-2">Aucun commentaire pour le moment.</p>
+                    )}
+                  </div>
+
+                  {/* Add Comment Input */}
+                  <div className="flex gap-3">
+                    <div className="w-8 h-8 rounded-full bg-indigo-100 dark:bg-indigo-900 flex items-center justify-center text-indigo-600 dark:text-indigo-300 font-bold text-xs shrink-0 uppercase">
+                      {currentUser?.prenom?.[0] || currentUser?.email?.[0] || 'U'}
+                    </div>
+                    <div className="flex-1 flex gap-2">
+                      <input
+                        type="text"
+                        value={newCommentText}
+                        onChange={(e) => setNewCommentText(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' && !e.shiftKey) {
+                            e.preventDefault();
+                            handleAddComment(post.id);
+                          }
+                        }}
+                        placeholder="Écrivez un commentaire..."
+                        className="flex-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-full px-4 py-1.5 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent dark:text-white"
+                      />
+                      <button
+                        onClick={() => handleAddComment(post.id)}
+                        disabled={!newCommentText.trim() || isSubmittingComment}
+                        className="p-2 text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-full transition-colors disabled:opacity-50"
+                      >
+                        <Send size={18} />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           );
         })}

@@ -8,6 +8,7 @@ import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { ArrowLeft, Image, Video, Paperclip, Smile, Send, Clock, Camera, MoreVertical, X, Users, User, ChevronDown, Trash2, Ban } from 'lucide-react';
 import EmojiPicker, { Theme } from 'emoji-picker-react';
+import { createNotification } from '../services/NotificationService';
 
 interface Message {
   id: string;
@@ -330,6 +331,23 @@ export default function Chat({ conversationId, onBack }: ChatProps) {
         }
 
         await setDoc(doc(db, 'conversations', conversationId), updateData, { merge: true });
+        
+        // Notify other participants
+        if (conversationData && conversationData.participants) {
+          const senderName = currentUser.prenom || currentUser.nom ? `${currentUser.prenom || ''} ${currentUser.nom || ''}`.trim() : currentUser.email?.split('@')[0] || 'Utilisateur';
+          
+          const notificationPromises = conversationData.participants
+            .filter((pId: string) => pId !== currentUser.id)
+            .map((pId: string) => createNotification({
+              user_id: pId,
+              title: conversationData.isGroup ? `Nouveau message dans ${conversationData.groupName}` : `Nouveau message de ${senderName}`,
+              message: lastMsgText,
+              type: 'info',
+              targetTab: 'messaging'
+            }));
+          
+          await Promise.all(notificationPromises);
+        }
       }
       
       setNewMessage('');

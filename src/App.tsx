@@ -25,6 +25,7 @@ import NewsFeed from './pages/NewsFeed';
 import Directory from './pages/Directory';
 import Messaging from './pages/Messaging';
 import About from './pages/About';
+import AIAssistant from './pages/AIAssistant';
 import { runMaintenance } from './services/MaintenanceService';
 import { isFirebaseConfigured } from './lib/firebase';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
@@ -126,6 +127,8 @@ function AppContent() {
       case 'calendar': 
         return ['admin', 'enseignant', 'personnel administratif'].includes(role) ? <Calendar /> : <StudentDashboard />;
       case 'newsfeed': return <NewsFeed />;
+      case 'ai_assistant': 
+        return ['admin', 'enseignant'].includes(role) ? <AIAssistant /> : <Dashboard />;
       case 'directory': 
         return ['admin', 'enseignant', 'personnel administratif'].includes(role) ? <Directory onNavigate={handleNavigate} /> : <StudentDashboard />;
       case 'messaging': return <Messaging initialChatTargetId={tabParams?.userId} onClearTarget={() => setTabParams(null)} />;

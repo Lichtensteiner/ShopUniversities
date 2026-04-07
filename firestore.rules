@@ -85,11 +85,34 @@ service cloud.firestore {
       allow write: if isAdmin() || isTeacher() || isStaff();
     }
 
-    // NewsFeed Collection
-    match /newsfeed/{postId} {
+    // Posts Collection (NewsFeed)
+    match /posts/{postId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated();
+      allow delete: if isAdmin() || (isAuthenticated() && request.auth.uid == resource.data.authorId);
+      
+      // Comments subcollection
+      match /comments/{commentId} {
+        allow read: if isAuthenticated();
+        allow create: if isAuthenticated();
+        allow update, delete: if isAdmin() || (isAuthenticated() && request.auth.uid == resource.data.authorId);
+      }
+    }
+
+    // Notifications Collection
+    match /notifications/{notificationId} {
+      allow read: if isAuthenticated() && request.auth.uid == resource.data.user_id;
+      allow create: if isAuthenticated(); // Users can notify others
+      allow update: if isAuthenticated() && request.auth.uid == resource.data.user_id;
+      allow delete: if isAuthenticated() && request.auth.uid == resource.data.user_id;
+    }
+
+    // Announcements Collection
+    match /announcements/{announcementId} {
       allow read: if isAuthenticated();
       allow create: if isAdmin() || isTeacher() || isStaff();
-      allow update, delete: if isAdmin() || isStaff() || (isAuthenticated() && request.auth.uid == resource.data.authorId);
+      allow update, delete: if isAdmin() || isStaff();
     }
 
     // Conversations Collection
@@ -103,6 +126,7 @@ service cloud.firestore {
     match /conversations/{conversationId}/messages/{messageId} {
       allow read: if isAuthenticated() && request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participants;
       allow create: if isAuthenticated() && request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participants;
+      allow update: if isAuthenticated() && request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participants;
     }
   }
 }

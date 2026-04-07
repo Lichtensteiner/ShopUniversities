@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { LayoutDashboard, Users, CalendarCheck, FileText, Settings, BookOpen, Code, LogOut, ScanLine, Smartphone, IdCard, Trophy, ScanFace, Activity, GraduationCap, UserCircle, Castle, X, Download, Calendar as CalendarIcon, MessageSquare, BookUser, MessageCircle, Info } from 'lucide-react';
+import { LayoutDashboard, Users, CalendarCheck, FileText, Settings, BookOpen, Code, LogOut, ScanLine, Smartphone, IdCard, Trophy, ScanFace, Activity, GraduationCap, UserCircle, Castle, X, Download, Calendar as CalendarIcon, MessageSquare, BookUser, MessageCircle, Info, Sparkles } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
@@ -102,6 +102,7 @@ export default function Sidebar({ activeTab, setActiveTab, isMobileOpen, setIsMo
       title: t('schooling_category'),
       items: [
         { id: 'classroom', labelKey: 'classroom', icon: GraduationCap, roles: ['enseignant', 'élève'] },
+        { id: 'ai_assistant', labelKey: 'ai_assistant', icon: Sparkles, roles: ['enseignant', 'admin'] },
         { id: 'classes', labelKey: 'classes', icon: BookOpen, roles: ['admin'] },
         { id: 'calendar', labelKey: 'calendar', icon: CalendarIcon, roles: ['admin', 'enseignant', 'personnel administratif'] },
         { id: 'attendance', labelKey: 'attendance', icon: CalendarCheck, roles: ['admin', 'enseignant', 'personnel administratif'] },

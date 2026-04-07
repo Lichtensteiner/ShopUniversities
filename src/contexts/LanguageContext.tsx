@@ -68,6 +68,15 @@ const translations: Translations = {
   'profile': { fr: 'Mon Profil', en: 'My Profile', es: 'Mi Perfil', zh: '我的个人资料', ja: 'マイプロフィール' },
   'logout': { fr: 'Déconnexion', en: 'Logout', es: 'Cerrar sesión', zh: '登出', ja: 'ログアウト' },
   'about': { fr: 'À propos', en: 'About', es: 'Acerca de', zh: '关于', ja: 'アバウト' },
+  'ai_assistant': { fr: 'Assistant IA', en: 'AI Assistant', es: 'Asistente IA', zh: 'AI 助手', ja: 'AIアシスタント' },
+  'ai_grading_title': { fr: 'Correction Automatique par IA', en: 'AI Automated Grading', es: 'Corrección Automática por IA', zh: 'AI 自动评分', ja: 'AI自動採点' },
+  'ai_grading_desc': { fr: 'Analysez les travaux des élèves et générez des feedbacks personnalisés instantanément.', en: 'Analyze student work and generate instant personalized feedback.', es: 'Analiza el trabajo de los estudiantes y genera comentarios personalizados al instante.', zh: '分析学生作业并立即生成个性化反馈。', ja: '学生の課題を分析し、即座にパーソナライズされたフィードバックを生成します。' },
+  'upload_work': { fr: 'Télécharger un travail', en: 'Upload work', es: 'Subir trabajo', zh: '上传作业', ja: '課題をアップロード' },
+  'analyze_with_gemini': { fr: 'Analyser avec Gemini', en: 'Analyze with Gemini', es: 'Analizar con Gemini', zh: '使用 Gemini 分析', ja: 'Geminiで分析' },
+  'ai_feedback': { fr: 'Feedback de l\'IA', en: 'AI Feedback', es: 'Feedback de la IA', zh: 'AI 反馈', ja: 'AIフィードバック' },
+  'ai_score': { fr: 'Score suggéré', en: 'Suggested Score', es: 'Puntuación sugerida', zh: '建议分数', ja: '提案されたスコア' },
+  'analyzing': { fr: 'Analyse en cours...', en: 'Analyzing...', es: 'Analizando...', zh: '分析中...', ja: '分析中...' },
+  'send_to_student': { fr: 'Envoyer à l\'élève', en: 'Send to student', es: 'Enviar al estudiante', zh: '发送给学生', ja: '学生に送信' },
   
   // Header
   'search_placeholder': { fr: 'Rechercher un élève, un professeur...', en: 'Search for a student, a teacher...', es: 'Buscar un estudiante, un profesor...', zh: '搜索学生，老师...', ja: '学生、先生を検索...' },
