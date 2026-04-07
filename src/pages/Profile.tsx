@@ -5,7 +5,7 @@ import { auth, db, storage } from '../lib/firebase';
 import { updatePassword, EmailAuthProvider, reauthenticateWithCredential } from 'firebase/auth';
 import { doc, updateDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { User, Lock, Mail, Shield, BookOpen, Fingerprint, AlertCircle, CheckCircle2, RefreshCw, Briefcase, Target, Calendar, Edit2, Save, Camera, Plus, X } from 'lucide-react';
+import { User, Lock, Mail, Shield, BookOpen, Fingerprint, AlertCircle, CheckCircle2, RefreshCw, Briefcase, Target, Calendar, Edit2, Save, Camera, Plus, X, Phone, MapPin, User2, GraduationCap, History, UserCircle } from 'lucide-react';
 import { resizeImage } from '../lib/imageUtils';
 
 export default function Profile() {
@@ -19,10 +19,20 @@ export default function Profile() {
   const [biographie, setBiographie] = useState(currentUser?.biographie || '');
   const [matieres, setMatieres] = useState<string[]>(currentUser?.matieres || (currentUser?.matiere ? [currentUser.matiere] : []));
   const [newMatiere, setNewMatiere] = useState('');
+  
+  const [contact, setContact] = useState(currentUser?.contact || '');
+  const [address, setAddress] = useState(currentUser?.address || '');
+  const [gender, setGender] = useState(currentUser?.gender || 'not_specified');
+  const [diploma, setDiploma] = useState(currentUser?.diploma || '');
+  const [experienceYears, setExperienceYears] = useState(currentUser?.experience_years?.toString() || '');
+  const [age, setAge] = useState(currentUser?.age?.toString() || '');
+
   const [isEditingBio, setIsEditingBio] = useState(false);
   const [isEditingMatieres, setIsEditingMatieres] = useState(false);
+  const [isEditingInfo, setIsEditingInfo] = useState(false);
   const [savingBio, setSavingBio] = useState(false);
   const [savingMatieres, setSavingMatieres] = useState(false);
+  const [savingInfo, setSavingInfo] = useState(false);
   
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -97,6 +107,28 @@ export default function Profile() {
       alert("Erreur lors de la mise à jour de la biographie.");
     } finally {
       setSavingBio(false);
+    }
+  };
+
+  const handleSaveInfo = async () => {
+    if (!currentUser) return;
+    setSavingInfo(true);
+    try {
+      const userRef = doc(db, 'users', currentUser.id);
+      await updateDoc(userRef, {
+        contact: contact,
+        address: address,
+        gender: gender,
+        diploma: diploma,
+        experience_years: experienceYears ? parseInt(experienceYears) : null,
+        age: age ? parseInt(age) : null
+      });
+      setIsEditingInfo(false);
+    } catch (err) {
+      console.error("Erreur lors de la mise à jour des informations:", err);
+      alert("Erreur lors de la mise à jour des informations.");
+    } finally {
+      setSavingInfo(false);
     }
   };
 
@@ -267,6 +299,22 @@ export default function Profile() {
                 </div>
               </div>
               
+              <div className="flex items-center gap-3 text-sm">
+                <Phone className="text-gray-400" size={18} />
+                <div className="flex-1 overflow-hidden">
+                  <p className="text-gray-500 text-xs">{t('contact')}</p>
+                  <p className="font-medium text-gray-900 truncate">{currentUser.contact || '-'}</p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3 text-sm">
+                <MapPin className="text-gray-400" size={18} />
+                <div className="flex-1 overflow-hidden">
+                  <p className="text-gray-500 text-xs">{t('address')}</p>
+                  <p className="font-medium text-gray-900 truncate">{currentUser.address || '-'}</p>
+                </div>
+              </div>
+
               {currentUser.matricule && (
                 <div className="flex items-center gap-3 text-sm">
                   <Shield className="text-gray-400" size={18} />
@@ -323,6 +371,166 @@ export default function Profile() {
 
         {/* Security / Password Change and Role Info */}
         <div className="md:col-span-2 space-y-6">
+          {/* Personal Info Grid Section */}
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-indigo-50 text-indigo-600 rounded-lg">
+                  <UserCircle size={20} />
+                </div>
+                <h2 className="text-lg font-bold text-gray-900">Informations Complémentaires</h2>
+              </div>
+              {!isEditingInfo ? (
+                <button 
+                  onClick={() => setIsEditingInfo(true)}
+                  className="text-indigo-600 hover:text-indigo-800 text-sm flex items-center gap-1"
+                >
+                  <Edit2 size={14} /> Modifier
+                </button>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <button 
+                    onClick={() => {
+                      setIsEditingInfo(false);
+                      setContact(currentUser.contact || '');
+                      setAddress(currentUser.address || '');
+                      setGender(currentUser.gender || 'not_specified');
+                      setDiploma(currentUser.diploma || '');
+                      setExperienceYears(currentUser.experience_years?.toString() || '');
+                      setAge(currentUser.age?.toString() || '');
+                    }}
+                    className="text-gray-500 hover:text-gray-700 text-sm"
+                    disabled={savingInfo}
+                  >
+                    Annuler
+                  </button>
+                  <button 
+                    onClick={handleSaveInfo}
+                    disabled={savingInfo}
+                    className="bg-indigo-600 text-white px-3 py-1 rounded-md text-sm flex items-center gap-1 hover:bg-indigo-700 disabled:opacity-50"
+                  >
+                    {savingInfo ? <RefreshCw size={14} className="animate-spin" /> : <Save size={14} />}
+                    Enregistrer
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {isEditingInfo ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">{t('contact')}</label>
+                  <div className="relative">
+                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={14} />
+                    <input
+                      type="text"
+                      value={contact}
+                      onChange={(e) => setContact(e.target.value)}
+                      className="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">{t('address')}</label>
+                  <div className="relative">
+                    <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={14} />
+                    <input
+                      type="text"
+                      value={address}
+                      onChange={(e) => setAddress(e.target.value)}
+                      className="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">{t('gender')}</label>
+                  <div className="relative">
+                    <User2 className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={14} />
+                    <select
+                      value={gender}
+                      onChange={(e) => setGender(e.target.value as any)}
+                      className="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 bg-white"
+                    >
+                      <option value="not_specified">{t('not_specified')}</option>
+                      <option value="male">{t('male')}</option>
+                      <option value="female">{t('female')}</option>
+                      <option value="other">{t('other')}</option>
+                    </select>
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">{t('age')}</label>
+                  <div className="relative">
+                    <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={14} />
+                    <input
+                      type="number"
+                      value={age}
+                      onChange={(e) => setAge(e.target.value)}
+                      className="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">{t('diploma')}</label>
+                  <div className="relative">
+                    <GraduationCap className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={14} />
+                    <input
+                      type="text"
+                      value={diploma}
+                      onChange={(e) => setDiploma(e.target.value)}
+                      className="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">{t('experience_years')}</label>
+                  <div className="relative">
+                    <History className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={14} />
+                    <input
+                      type="number"
+                      value={experienceYears}
+                      onChange={(e) => setExperienceYears(e.target.value)}
+                      className="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500"
+                    />
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-6">
+                <div className="flex flex-col items-center p-4 bg-gray-50 rounded-2xl border border-gray-100 text-center">
+                  <Phone className="text-indigo-500 mb-2" size={20} />
+                  <span className="text-[10px] text-gray-500 uppercase font-semibold tracking-wider">{t('contact')}</span>
+                  <span className="text-sm font-medium text-gray-900 mt-1">{currentUser.contact || '-'}</span>
+                </div>
+                <div className="flex flex-col items-center p-4 bg-gray-50 rounded-2xl border border-gray-100 text-center">
+                  <MapPin className="text-indigo-500 mb-2" size={20} />
+                  <span className="text-[10px] text-gray-500 uppercase font-semibold tracking-wider">{t('address')}</span>
+                  <span className="text-sm font-medium text-gray-900 mt-1 truncate w-full px-2">{currentUser.address || '-'}</span>
+                </div>
+                <div className="flex flex-col items-center p-4 bg-gray-50 rounded-2xl border border-gray-100 text-center">
+                  <User2 className="text-indigo-500 mb-2" size={20} />
+                  <span className="text-[10px] text-gray-500 uppercase font-semibold tracking-wider">{t('gender')}</span>
+                  <span className="text-sm font-medium text-gray-900 mt-1">{currentUser.gender ? t(currentUser.gender) : '-'}</span>
+                </div>
+                <div className="flex flex-col items-center p-4 bg-gray-50 rounded-2xl border border-gray-100 text-center">
+                  <Calendar className="text-indigo-500 mb-2" size={20} />
+                  <span className="text-[10px] text-gray-500 uppercase font-semibold tracking-wider">{t('age')}</span>
+                  <span className="text-sm font-medium text-gray-900 mt-1">{currentUser.age || '-'}</span>
+                </div>
+                <div className="flex flex-col items-center p-4 bg-gray-50 rounded-2xl border border-gray-100 text-center">
+                  <GraduationCap className="text-indigo-500 mb-2" size={20} />
+                  <span className="text-[10px] text-gray-500 uppercase font-semibold tracking-wider">{t('diploma')}</span>
+                  <span className="text-sm font-medium text-gray-900 mt-1 truncate w-full px-2">{currentUser.diploma || '-'}</span>
+                </div>
+                <div className="flex flex-col items-center p-4 bg-gray-50 rounded-2xl border border-gray-100 text-center">
+                  <History className="text-indigo-500 mb-2" size={20} />
+                  <span className="text-[10px] text-gray-500 uppercase font-semibold tracking-wider">{t('experience_years')}</span>
+                  <span className="text-sm font-medium text-gray-900 mt-1">{currentUser.experience_years || '-'}</span>
+                </div>
+              </div>
+            )}
+          </div>
+
           {/* Role & Missions Section */}
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
             <div className="flex items-center gap-3 mb-6">

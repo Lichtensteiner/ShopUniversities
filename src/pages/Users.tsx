@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Filter, Plus, Fingerprint, RefreshCw, Eye, EyeOff, Edit2, Trash2, X, AlertCircle, BellRing, Key } from 'lucide-react';
+import { Search, Filter, Plus, Fingerprint, RefreshCw, Eye, EyeOff, Edit2, Trash2, X, AlertCircle, BellRing, Key, Phone, MapPin, User2, Calendar, GraduationCap, History as HistoryIcon } from 'lucide-react';
 import { collection, getDocs, doc, updateDoc, deleteDoc, setDoc, addDoc, onSnapshot } from 'firebase/firestore';
 import { initializeApp, getApp, getApps, deleteApp } from 'firebase/app';
 import { getAuth, createUserWithEmailAndPassword, signOut } from 'firebase/auth';
@@ -34,6 +34,12 @@ export default function Users() {
     matiere: '',
     matieres: [] as string[],
     matricule: '',
+    contact: '',
+    address: '',
+    gender: 'not_specified' as 'male' | 'female' | 'other' | 'not_specified',
+    diploma: '',
+    experience_years: '',
+    age: '',
     house_id: ''
   });
   const [actionLoading, setActionLoading] = useState(false);
@@ -109,6 +115,12 @@ export default function Users() {
         matiere: newUser.role === 'enseignant' ? (newUser.matieres[0] || null) : null,
         matieres: newUser.role === 'enseignant' ? newUser.matieres : null,
         matricule: newUser.matricule || null,
+        contact: newUser.contact || null,
+        address: newUser.address || null,
+        gender: newUser.gender || 'not_specified',
+        diploma: newUser.diploma || null,
+        experience_years: newUser.experience_years ? parseInt(newUser.experience_years as string) : null,
+        age: newUser.age ? parseInt(newUser.age as string) : null,
         house_id: newUser.role === 'élève' && newUser.house_id ? newUser.house_id : null,
         date_creation: new Date().toISOString()
       }, { merge: true });
@@ -118,7 +130,7 @@ export default function Users() {
       await deleteApp(secondaryApp);
       
       setShowAddUserModal(false);
-      setNewUser({ nom: '', prenom: '', email: '', password: '', role: 'élève', classe: '', classes: [], matiere: '', matieres: [], matricule: '', house_id: '' });
+      setNewUser({ nom: '', prenom: '', email: '', password: '', role: 'élève', classe: '', classes: [], matiere: '', matieres: [], matricule: '', contact: '', address: '', gender: 'not_specified', diploma: '', experience_years: '', age: '', house_id: '' });
     } catch (err: any) {
       console.error(err);
       if (err.code === 'auth/email-already-in-use') {
@@ -148,6 +160,12 @@ export default function Users() {
         matiere: editUser.role === 'enseignant' ? (editUser.matieres?.[0] || null) : null,
         matieres: editUser.role === 'enseignant' ? (editUser.matieres || []) : null,
         matricule: editUser.matricule || null,
+        contact: editUser.contact || null,
+        address: editUser.address || null,
+        gender: editUser.gender || 'not_specified',
+        diploma: editUser.diploma || null,
+        experience_years: editUser.experience_years ? parseInt(editUser.experience_years.toString()) : null,
+        age: editUser.age ? parseInt(editUser.age.toString()) : null,
         house_id: editUser.role === 'élève' && editUser.house_id ? editUser.house_id : null
       });
       setEditUser(null);
@@ -277,6 +295,12 @@ export default function Users() {
                 <th scope="col" className="px-6 py-4 font-semibold">{t('name')} & {t('firstname')}</th>
                 <th scope="col" className="px-6 py-4 font-semibold">{t('id_number')}</th>
                 <th scope="col" className="px-6 py-4 font-semibold">{t('role')}</th>
+                <th scope="col" className="px-6 py-4 font-semibold">{t('contact')}</th>
+                <th scope="col" className="px-6 py-4 font-semibold">{t('address')}</th>
+                <th scope="col" className="px-6 py-4 font-semibold">{t('gender')}</th>
+                <th scope="col" className="px-6 py-4 font-semibold">{t('age')}</th>
+                <th scope="col" className="px-6 py-4 font-semibold">{t('diploma')}</th>
+                <th scope="col" className="px-6 py-4 font-semibold">{t('experience_years')}</th>
                 <th scope="col" className="px-6 py-4 font-semibold">{t('subject')}</th>
                 <th scope="col" className="px-6 py-4 font-semibold">{t('class')}</th>
                 <th scope="col" className="px-6 py-4 font-semibold">{t('house')}</th>
@@ -287,14 +311,14 @@ export default function Users() {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={7} className="px-6 py-12 text-center">
+                  <td colSpan={13} className="px-6 py-12 text-center">
                     <RefreshCw className="animate-spin mx-auto text-indigo-600 mb-2" size={24} />
                     <p className="text-gray-500">{t('loading_users')}</p>
                   </td>
                 </tr>
               ) : filteredUsers.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-6 py-12 text-center text-gray-500">
+                  <td colSpan={13} className="px-6 py-12 text-center text-gray-500">
                     {t('no_users_found')} {!isFirebaseConfigured && t('configure_firebase')}
                   </td>
                 </tr>
@@ -330,6 +354,42 @@ export default function Users() {
                       }`}>
                         {tData(user.role)}
                       </span>
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-600">
+                      <div className="flex items-center gap-1.5">
+                        <Phone size={14} className="text-gray-400" />
+                        {user.contact || '-'}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-600">
+                      <div className="flex items-center gap-1.5">
+                        <MapPin size={14} className="text-gray-400" />
+                        <span className="truncate max-w-[120px]" title={user.address}>{user.address || '-'}</span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-600">
+                      <div className="flex items-center gap-1.5">
+                        <User2 size={14} className="text-gray-400" />
+                        {user.gender ? t(user.gender) : '-'}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-600">
+                      <div className="flex items-center gap-1.5">
+                        <Calendar size={14} className="text-gray-400" />
+                        {user.age || '-'}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-600">
+                      <div className="flex items-center gap-1.5">
+                        <GraduationCap size={14} className="text-gray-400" />
+                        <span className="truncate max-w-[100px]" title={user.diploma}>{user.diploma || '-'}</span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-600">
+                      <div className="flex items-center gap-1.5">
+                        <HistoryIcon size={14} className="text-gray-400" />
+                        {user.experience_years || '-'}
+                      </div>
                     </td>
                     <td className="px-6 py-4 text-gray-600">
                       {user.role === 'enseignant' ? (user.matieres?.join(', ') || user.matiere || '-') : '-'}
@@ -434,6 +494,30 @@ export default function Users() {
                 <div>
                   <span className="block text-gray-500 mb-1">{t('id_number')}</span>
                   <span className="font-mono text-gray-900">{viewUser.matricule || t('not_defined')}</span>
+                </div>
+                <div>
+                  <span className="block text-gray-500 mb-1">{t('contact')}</span>
+                  <span className="font-medium text-gray-900">{viewUser.contact || '-'}</span>
+                </div>
+                <div>
+                  <span className="block text-gray-500 mb-1">{t('address')}</span>
+                  <span className="font-medium text-gray-900">{viewUser.address || '-'}</span>
+                </div>
+                <div>
+                  <span className="block text-gray-500 mb-1">{t('gender')}</span>
+                  <span className="font-medium text-gray-900">{viewUser.gender ? t(viewUser.gender) : '-'}</span>
+                </div>
+                <div>
+                  <span className="block text-gray-500 mb-1">{t('age')}</span>
+                  <span className="font-medium text-gray-900">{viewUser.age || '-'}</span>
+                </div>
+                <div>
+                  <span className="block text-gray-500 mb-1">{t('diploma')}</span>
+                  <span className="font-medium text-gray-900">{viewUser.diploma || '-'}</span>
+                </div>
+                <div>
+                  <span className="block text-gray-500 mb-1">{t('experience_years')}</span>
+                  <span className="font-medium text-gray-900">{viewUser.experience_years || '-'}</span>
                 </div>
                 {viewUser.role === 'élève' && (
                   <>
@@ -554,6 +638,73 @@ export default function Users() {
                     onChange={(e) => setEditUser({...editUser, matricule: e.target.value})}
                     className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                   />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">{t('contact')}</label>
+                    <input
+                      type="text"
+                      value={editUser.contact || ''}
+                      onChange={(e) => setEditUser({...editUser, contact: e.target.value})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">{t('address')}</label>
+                    <input
+                      type="text"
+                      value={editUser.address || ''}
+                      onChange={(e) => setEditUser({...editUser, address: e.target.value})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">{t('gender')}</label>
+                    <select
+                      value={editUser.gender || 'not_specified'}
+                      onChange={(e) => setEditUser({...editUser, gender: e.target.value as any})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm bg-white"
+                    >
+                      <option value="not_specified">{t('not_specified')}</option>
+                      <option value="male">{t('male')}</option>
+                      <option value="female">{t('female')}</option>
+                      <option value="other">{t('other')}</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">{t('age')}</label>
+                    <input
+                      type="number"
+                      value={editUser.age || ''}
+                      onChange={(e) => setEditUser({...editUser, age: e.target.value})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">{t('diploma')}</label>
+                    <input
+                      type="text"
+                      value={editUser.diploma || ''}
+                      onChange={(e) => setEditUser({...editUser, diploma: e.target.value})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">{t('experience_years')}</label>
+                    <input
+                      type="number"
+                      value={editUser.experience_years || ''}
+                      onChange={(e) => setEditUser({...editUser, experience_years: e.target.value})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                    />
+                  </div>
                 </div>
 
                 <div>
@@ -871,6 +1022,73 @@ export default function Users() {
                     onChange={(e) => setNewUser({...newUser, matricule: e.target.value})}
                     className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                   />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">{t('contact')}</label>
+                    <input
+                      type="text"
+                      value={newUser.contact}
+                      onChange={(e) => setNewUser({...newUser, contact: e.target.value})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">{t('address')}</label>
+                    <input
+                      type="text"
+                      value={newUser.address}
+                      onChange={(e) => setNewUser({...newUser, address: e.target.value})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">{t('gender')}</label>
+                    <select
+                      value={newUser.gender}
+                      onChange={(e) => setNewUser({...newUser, gender: e.target.value as any})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm bg-white"
+                    >
+                      <option value="not_specified">{t('not_specified')}</option>
+                      <option value="male">{t('male')}</option>
+                      <option value="female">{t('female')}</option>
+                      <option value="other">{t('other')}</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">{t('age')}</label>
+                    <input
+                      type="number"
+                      value={newUser.age}
+                      onChange={(e) => setNewUser({...newUser, age: e.target.value})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">{t('diploma')}</label>
+                    <input
+                      type="text"
+                      value={newUser.diploma}
+                      onChange={(e) => setNewUser({...newUser, diploma: e.target.value})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">{t('experience_years')}</label>
+                    <input
+                      type="number"
+                      value={newUser.experience_years}
+                      onChange={(e) => setNewUser({...newUser, experience_years: e.target.value})}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                    />
+                  </div>
                 </div>
 
                 <div>

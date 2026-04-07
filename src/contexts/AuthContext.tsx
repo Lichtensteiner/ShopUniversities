@@ -19,6 +19,12 @@ export interface User {
   matiere?: string;
   matieres?: string[];
   matricule?: string;
+  contact?: string;
+  address?: string;
+  gender?: 'male' | 'female' | 'other' | 'not_specified';
+  diploma?: string;
+  experience_years?: number;
+  age?: number;
   photo?: string;
   cover?: string;
   date_creation?: string;

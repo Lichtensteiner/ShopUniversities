@@ -290,6 +290,16 @@ const translations: Translations = {
   'all': { fr: 'Tous', en: 'All', es: 'Todos', zh: '全部', ja: 'すべて' },
   'house': { fr: 'Maison', en: 'House', es: 'Casa', zh: '学院', ja: 'ハウス' },
   'biometrics': { fr: 'Biométrie', en: 'Biometrics', es: 'Biometría', zh: '生物识别', ja: '生体認証' },
+  'contact': { fr: 'Contact', en: 'Contact', es: 'Contacto', zh: '联系方式', ja: '連絡先' },
+  'address': { fr: 'Adresse', en: 'Address', es: 'Dirección', zh: '地址', ja: '住所' },
+  'gender': { fr: 'Sexe', en: 'Gender', es: 'Género', zh: '性别', ja: '性別' },
+  'diploma': { fr: 'Diplôme', en: 'Diploma', es: 'Diploma', zh: '文凭', ja: '学位' },
+  'experience_years': { fr: 'Années d\'expérience', en: 'Years of Experience', es: 'Años de experiencia', zh: '工作年限', ja: '経験年数' },
+  'age': { fr: 'Âge', en: 'Age', es: 'Edad', zh: '年龄', ja: '年齢' },
+  'male': { fr: 'Homme', en: 'Male', es: 'Hombre', zh: '男', ja: '男性' },
+  'female': { fr: 'Femme', en: 'Female', es: 'Mujer', zh: '女', ja: '女性' },
+  'other': { fr: 'Autre', en: 'Other', es: 'Otro', zh: '其他', ja: 'その他' },
+  'not_specified': { fr: 'Non spécifié', en: 'Not specified', es: 'No especificado', zh: '未指定', ja: '未指定' },
   'registered': { fr: 'Enregistré', en: 'Registered', es: 'Registrado', zh: '已注册', ja: '登録済み' },
   'missing': { fr: 'Manquant', en: 'Missing', es: 'Falta', zh: '缺失', ja: '不足' },
   'view_details': { fr: 'Voir les détails', en: 'View details', es: 'Ver detalles', zh: '查看详情', ja: '詳細を見る' },
@@ -321,7 +331,6 @@ const translations: Translations = {
 
   // Connections
   'recent_connections_desc': { fr: 'Historique des dernières connexions', en: 'History of last connections', es: 'Historial de las últimas conexiones', zh: '最近连接历史', ja: '最近の接続履歴' },
-  'contact': { fr: 'Contact', en: 'Contact', es: 'Contacto', zh: '联系方式', ja: '連絡先' },
   'datetime': { fr: 'Date & Heure', en: 'Date & Time', es: 'Fecha y Hora', zh: '日期和时间', ja: '日時' },
   'no_connections': { fr: 'Aucune connexion récente.', en: 'No recent connections.', es: 'No hay conexiones recientes.', zh: '没有最近的连接。', ja: '最近の接続はありません。' },
 
