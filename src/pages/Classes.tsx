@@ -48,6 +48,20 @@ export default function Classes() {
     };
   }, []);
 
+  useEffect(() => {
+    const handlePopState = (event: PopStateEvent) => {
+      if (event.state && event.state.modal === 'class_details') {
+        // Modal is open
+      } else {
+        setIsModalOpen(false);
+        setSelectedClass(null);
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
   const handleOpenModal = (mode: 'create' | 'edit' | 'view', classItem?: any) => {
     setModalMode(mode);
     setSelectedClass(classItem || null);
@@ -62,11 +76,17 @@ export default function Classes() {
       setFormData({ nom: '', niveau: '', professeur_principal_id: '', heure_debut: '08:00' });
     }
     setIsModalOpen(true);
+    if (mode === 'view') {
+      window.history.pushState({ modal: 'class_details' }, '');
+    }
   };
 
   const closeModal = () => {
     setIsModalOpen(false);
     setSelectedClass(null);
+    if (window.history.state?.modal === 'class_details') {
+      window.history.back();
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {

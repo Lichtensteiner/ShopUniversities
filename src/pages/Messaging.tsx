@@ -76,6 +76,7 @@ export default function Messaging({ initialChatTargetId, onClearTarget }: Messag
 
       if (existingConv) {
         setSelectedConversationId(existingConv.id);
+        window.history.pushState({ modal: 'chat' }, '');
       } else {
         // Create new conversation
         try {
@@ -91,6 +92,7 @@ export default function Messaging({ initialChatTargetId, onClearTarget }: Messag
             }
           });
           setSelectedConversationId(newConvRef.id);
+          window.history.pushState({ modal: 'chat' }, '');
         } catch (error) {
           console.error("Error creating conversation:", error);
         }
@@ -194,6 +196,19 @@ export default function Messaging({ initialChatTargetId, onClearTarget }: Messag
 
   const groupConversations = conversations.filter(conv => conv.isGroup && (!searchQuery || conv.groupName?.toLowerCase().includes(searchQuery.toLowerCase())));
 
+  useEffect(() => {
+    const handlePopState = (event: PopStateEvent) => {
+      if (event.state && event.state.modal === 'chat') {
+        // Chat is open
+      } else {
+        setSelectedConversationId(null);
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
   const handleStartDirectChat = async (userId: string) => {
     if (!currentUser) return;
     
@@ -216,6 +231,7 @@ export default function Messaging({ initialChatTargetId, onClearTarget }: Messag
 
     if (existingConv) {
       setSelectedConversationId(existingConv.id);
+      window.history.pushState({ modal: 'chat' }, '');
     } else {
       try {
         const newConvRef = await addDoc(collection(db, 'conversations'), {
@@ -230,11 +246,19 @@ export default function Messaging({ initialChatTargetId, onClearTarget }: Messag
           }
         });
         setSelectedConversationId(newConvRef.id);
+        window.history.pushState({ modal: 'chat' }, '');
       } catch (error) {
         console.error("Error creating conversation:", error);
       }
     }
     setActiveModal(null);
+  };
+
+  const handleBackFromChat = () => {
+    setSelectedConversationId(null);
+    if (window.history.state?.modal === 'chat') {
+      window.history.back();
+    }
   };
 
   const handleCreateGroup = async () => {
@@ -255,6 +279,7 @@ export default function Messaging({ initialChatTargetId, onClearTarget }: Messag
         unreadCounts
       });
       setSelectedConversationId(newConvRef.id);
+      window.history.pushState({ modal: 'chat' }, '');
       setActiveModal(null);
       setGroupName('');
       setSelectedUsers([]);
@@ -331,7 +356,7 @@ export default function Messaging({ initialChatTargetId, onClearTarget }: Messag
   };
 
   if (selectedConversationId) {
-    return <Chat conversationId={selectedConversationId} onBack={() => setSelectedConversationId(null)} />;
+    return <Chat conversationId={selectedConversationId} onBack={handleBackFromChat} />;
   }
 
   return (
@@ -388,7 +413,10 @@ export default function Messaging({ initialChatTargetId, onClearTarget }: Messag
                 <div 
                   key={conv.id} 
                   className="p-4 hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-colors cursor-pointer flex items-center justify-between group"
-                  onClick={() => setSelectedConversationId(conv.id)}
+                  onClick={() => {
+                    setSelectedConversationId(conv.id);
+                    window.history.pushState({ modal: 'chat' }, '');
+                  }}
                 >
                   <div className="flex items-center gap-4">
                     <div className="relative">

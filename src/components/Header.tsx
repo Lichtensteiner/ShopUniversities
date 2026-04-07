@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Bell, Search, UserCircle, Clock, Check, Info, Globe, X, Menu, Download, Trash2, AlertTriangle, CheckCircle } from 'lucide-react';
+import { Bell, Search, UserCircle, Clock, Check, Info, Globe, X, Menu, Download, Trash2, AlertTriangle, CheckCircle, ArrowLeft } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage, Language } from '../contexts/LanguageContext';
 import { collection, query, where, orderBy, onSnapshot, updateDoc, doc, deleteDoc } from 'firebase/firestore';
@@ -15,17 +15,24 @@ interface Notification {
 }
 
 interface HeaderProps {
+  activeTab?: string;
   setActiveTab?: (tab: string) => void;
   onMenuClick?: () => void;
 }
 
-export default function Header({ setActiveTab, onMenuClick }: HeaderProps) {
+export default function Header({ activeTab, setActiveTab, onMenuClick }: HeaderProps) {
   const { currentUser } = useAuth();
   const { language, setLanguage, t } = useLanguage();
   const [time, setTime] = useState(new Date());
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [showNotifications, setShowNotifications] = useState(false);
   const [selectedNotificationState, setSelectedNotificationState] = useState<Notification | null>(null);
+
+  const isDashboard = activeTab === 'dashboard' || activeTab === 'student_dashboard';
+
+  const handleBack = () => {
+    window.history.back();
+  };
 
   useEffect(() => {
     const handlePopState = (event: PopStateEvent) => {
@@ -239,12 +246,21 @@ export default function Header({ setActiveTab, onMenuClick }: HeaderProps) {
     <>
     <header className="h-16 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between px-4 sm:px-6 shrink-0 print:hidden transition-colors duration-200">
       <div className="flex items-center gap-2 sm:gap-4 flex-1">
-        <button 
-          onClick={onMenuClick}
-          className="p-2 -ml-2 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-xl lg:hidden transition-colors"
-        >
-          <Menu size={24} />
-        </button>
+        {!isDashboard ? (
+          <button 
+            onClick={handleBack}
+            className="p-2 -ml-2 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-xl transition-colors"
+          >
+            <ArrowLeft size={24} />
+          </button>
+        ) : (
+          <button 
+            onClick={onMenuClick}
+            className="p-2 -ml-2 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-xl lg:hidden transition-colors"
+          >
+            <Menu size={24} />
+          </button>
+        )}
         <div className="relative w-full max-w-xs sm:max-w-md hidden sm:block" ref={searchRef}>
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500" size={18} />
           <input 

@@ -125,7 +125,7 @@ function AppContent() {
     <div className="flex h-screen bg-gray-50 dark:bg-gray-900 font-sans text-gray-900 dark:text-gray-100 print:bg-white print:h-auto transition-colors duration-200">
       <Sidebar activeTab={activeTab} setActiveTab={handleNavigate} isMobileOpen={isSidebarOpen} setIsMobileOpen={setIsSidebarOpen} />
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden print:overflow-visible">
-        <Header setActiveTab={handleNavigate} onMenuClick={() => setIsSidebarOpen(true)} />
+        <Header activeTab={activeTab} setActiveTab={handleNavigate} onMenuClick={() => setIsSidebarOpen(true)} />
         {!isFirebaseConfigured && (
           <div className="bg-amber-100 text-amber-800 p-3 text-center text-sm font-medium flex items-center justify-center gap-2">
             ⚠️ Firebase n'est pas configuré. Ajoutez vos clés d'API dans les variables d'environnement (Settings &gt; Environment Variables) avec les clés VITE_FIREBASE_*.
