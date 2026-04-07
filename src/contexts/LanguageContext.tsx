@@ -67,6 +67,7 @@ const translations: Translations = {
   'integration': { fr: 'Architecture', en: 'Architecture', es: 'Arquitectura', zh: '架构', ja: 'アーキテクチャ' },
   'profile': { fr: 'Mon Profil', en: 'My Profile', es: 'Mi Perfil', zh: '我的个人资料', ja: 'マイプロフィール' },
   'logout': { fr: 'Déconnexion', en: 'Logout', es: 'Cerrar sesión', zh: '登出', ja: 'ログアウト' },
+  'about': { fr: 'À propos', en: 'About', es: 'Acerca de', zh: '关于', ja: 'アバウト' },
   
   // Header
   'search_placeholder': { fr: 'Rechercher un élève, un professeur...', en: 'Search for a student, a teacher...', es: 'Buscar un estudiante, un profesor...', zh: '搜索学生，老师...', ja: '学生、先生を検索...' },

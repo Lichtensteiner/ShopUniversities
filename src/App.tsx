@@ -24,6 +24,7 @@ import Calendar from './pages/Calendar';
 import NewsFeed from './pages/NewsFeed';
 import Directory from './pages/Directory';
 import Messaging from './pages/Messaging';
+import About from './pages/About';
 import { runMaintenance } from './services/MaintenanceService';
 import { isFirebaseConfigured } from './lib/firebase';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
@@ -117,6 +118,7 @@ function AppContent() {
       case 'messaging': return <Messaging initialChatTargetId={tabParams?.userId} onClearTarget={() => setTabParams(null)} />;
       case 'recent_connections': return <RecentConnections />;
       case 'profile': return <Profile />;
+      case 'about': return <About />;
       default: return <Dashboard />;
     }
   };
