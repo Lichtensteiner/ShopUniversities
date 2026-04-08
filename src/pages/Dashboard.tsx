@@ -45,9 +45,6 @@ export default function Dashboard() {
         
         usersSnap.forEach(doc => {
           const data = doc.data();
-          if (currentUser.role === 'enseignant' && data.classe !== currentUser.classe) {
-            return;
-          }
           totalUsers++;
           usersMap.set(doc.id, data);
           
@@ -176,15 +173,19 @@ export default function Dashboard() {
           });
           setAlerts(newAlerts);
 
-          // Calculate presence by class for today
+          // Calculate distribution by class (percentage of total students)
           const classChartData: any[] = [];
-          classCountMap.forEach((totalInClass, className) => {
-            const presentInClass = classPresenceMap.get(className) || 0;
-            const percentage = totalInClass > 0 ? Math.round((presentInClass / totalInClass) * 100) : 0;
-            classChartData.push({ name: className, value: percentage });
+          const totalStudents = studentCount || 1; // Avoid division by zero
+          
+          classCountMap.forEach((countInClass, className) => {
+            // Only include classes (not personnel) in this specific chart
+            if (className !== 'Personnel') {
+              const percentage = Math.round((countInClass / totalStudents) * 100);
+              classChartData.push({ name: className, value: countInClass, percentage });
+            }
           });
 
-          setClassData(classChartData.sort((a, b) => b.value - a.value).slice(0, 5)); // Top 5 classes
+          setClassData(classChartData.sort((a, b) => b.value - a.value).slice(0, 6)); // Top 6 classes
           setLoading(false);
         }, (error) => {
           console.error("Erreur lors de la récupération en temps réel des statistiques:", error);
@@ -321,7 +322,7 @@ export default function Dashboard() {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* User Distribution Chart */}
               <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-                <h3 className="text-lg font-semibold text-gray-900 mb-6">Répartition Globale</h3>
+                <h3 className="text-lg font-semibold text-gray-900 mb-6">Répartition Globale (%)</h3>
                 <div className="h-64 w-full">
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
@@ -333,6 +334,7 @@ export default function Dashboard() {
                         outerRadius={80}
                         paddingAngle={8}
                         dataKey="value"
+                        label={({ percent }) => `${(percent * 100).toFixed(0)}%`}
                       >
                         {userDistribution.map((entry, index) => (
                           <Cell key={`cell-${index}`} fill={entry.color} />
@@ -340,6 +342,7 @@ export default function Dashboard() {
                       </Pie>
                       <Tooltip 
                         contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                        formatter={(value: number) => [value, 'Utilisateurs']}
                       />
                       <Legend verticalAlign="bottom" height={36}/>
                     </PieChart>
@@ -395,7 +398,7 @@ export default function Dashboard() {
             </div>
 
             <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-              <h3 className="text-lg font-semibold text-gray-900 mb-6">{t('class_distribution')}</h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-6">Répartition par classe (%)</h3>
               {classData.length > 0 ? (
                 <>
                   <div className="h-64 w-full">
@@ -409,6 +412,7 @@ export default function Dashboard() {
                           outerRadius={80}
                           paddingAngle={5}
                           dataKey="value"
+                          label={({ percent }) => `${(percent * 100).toFixed(0)}%`}
                         >
                           {classData.map((entry, index) => (
                             <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
@@ -416,7 +420,7 @@ export default function Dashboard() {
                         </Pie>
                         <Tooltip 
                           contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                          formatter={(value) => [`${value}%`, t('presence')]}
+                          formatter={(value, name, props) => [`${props.payload.percentage}%`, `Part de l'école`]}
                         />
                       </PieChart>
                     </ResponsiveContainer>
@@ -428,7 +432,7 @@ export default function Dashboard() {
                           <div className="w-3 h-3 rounded-full" style={{ backgroundColor: COLORS[index % COLORS.length] }}></div>
                           <span className="text-gray-600">{item.name}</span>
                         </div>
-                        <span className="font-medium text-gray-900">{item.value}%</span>
+                        <span className="font-medium text-gray-900">{item.percentage}%</span>
                       </div>
                     ))}
                   </div>

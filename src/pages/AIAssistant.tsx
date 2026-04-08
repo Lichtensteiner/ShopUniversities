@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useAuth } from '../contexts/AuthContext';
-import { GoogleGenAI } from "@google/genai";
 import { Sparkles, Upload, Send, CheckCircle, AlertCircle, Loader2, Image as ImageIcon, FileText, X, BookOpen, ListChecks, HelpCircle, FileSearch, Copy, Terminal, Trash2, ChevronRight, Search } from 'lucide-react';
 import { createNotification } from '../services/NotificationService';
 import { collection, query, getDocs, where, addDoc, serverTimestamp, onSnapshot, orderBy, deleteDoc, doc } from 'firebase/firestore';
@@ -124,7 +123,6 @@ export default function AIAssistant({ onNavigate }: AIAssistantProps) {
     setSuggestedScore(null);
 
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
       const base64Data = previewUrl.split(',')[1];
 
       const prompt = `
@@ -137,19 +135,23 @@ export default function AIAssistant({ onNavigate }: AIAssistantProps) {
         Réponds en français de manière structurée avec des titres clairs.
       `;
 
-      const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
-        contents: [
-          {
-            parts: [
-              { text: prompt },
-              { inlineData: { data: base64Data, mimeType: selectedFile.type } }
-            ]
-          }
-        ]
+      const response = await fetch('/api/ai/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          prompt,
+          image: base64Data,
+          mimeType: selectedFile.type
+        })
       });
 
-      const result = response.text;
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to analyze work");
+      }
+
+      const data = await response.json();
+      const result = data.text;
       setAiFeedback(result);
       
       const scoreMatch = result.match(/(\d{1,2})\/20/);
@@ -169,8 +171,6 @@ export default function AIAssistant({ onNavigate }: AIAssistantProps) {
     setGeneratedPrep(null);
 
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-      
       let typeLabel = "";
       switch(prepType) {
         case 'lesson_plan': typeLabel = "un plan de cours détaillé"; break;
@@ -186,12 +186,19 @@ export default function AIAssistant({ onNavigate }: AIAssistantProps) {
         Réponds en français.
       `;
 
-      const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
-        contents: [{ parts: [{ text: prompt }] }]
+      const response = await fetch('/api/ai/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt })
       });
 
-      setGeneratedPrep(response.text);
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to generate preparation");
+      }
+
+      const data = await response.json();
+      setGeneratedPrep(data.text);
     } catch (error) {
       console.error("AI Generation error:", error);
       alert("Erreur lors de la génération par l'IA.");

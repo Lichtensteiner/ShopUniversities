@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Filter, Plus, Fingerprint, RefreshCw, Eye, EyeOff, Edit2, Trash2, X, AlertCircle, BellRing, Key, Phone, MapPin, User2, Calendar, GraduationCap, History as HistoryIcon } from 'lucide-react';
+import { Search, Filter, Plus, Fingerprint, RefreshCw, Eye, EyeOff, Edit2, Trash2, X, AlertCircle, BellRing, Key, Phone, MapPin, User2, Calendar, GraduationCap, History as HistoryIcon, Mail, Lock, Briefcase, User, Hash } from 'lucide-react';
 import { collection, getDocs, doc, updateDoc, deleteDoc, setDoc, addDoc, onSnapshot } from 'firebase/firestore';
 import { initializeApp, getApp, getApps, deleteApp } from 'firebase/app';
 import { getAuth, createUserWithEmailAndPassword, signOut } from 'firebase/auth';
@@ -457,131 +457,201 @@ export default function Users() {
 
       {/* View Modal */}
       {viewUser && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden">
-            <div className="flex justify-between items-center p-6 border-b border-gray-100">
-              <h3 className="text-xl font-bold text-gray-900">{t('user_details')}</h3>
-              <button onClick={() => setViewUser(null)} className="text-gray-400 hover:text-gray-600">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-2xl my-8 overflow-hidden animate-in fade-in zoom-in duration-200">
+            <div className="flex justify-between items-center p-6 border-b border-gray-100 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-900/50">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-lg">
+                  <User size={20} />
+                </div>
+                <h3 className="text-xl font-bold text-gray-900 dark:text-white">{t('user_details')}</h3>
+              </div>
+              <button onClick={() => setViewUser(null)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors">
                 <X size={24} />
               </button>
             </div>
-            <div className="p-6 space-y-4">
-              <div className="flex items-center gap-4 mb-6">
+            <div className="p-6 space-y-6 max-h-[70vh] overflow-y-auto custom-scrollbar">
+              <div className="flex flex-col md:flex-row items-center gap-6 p-6 bg-indigo-50/50 dark:bg-indigo-900/10 rounded-2xl border border-indigo-100 dark:border-indigo-900/30">
                 {viewUser.photo ? (
-                  <img src={viewUser.photo} alt="" className="w-16 h-16 rounded-full object-cover" referrerPolicy="no-referrer" />
+                  <img src={viewUser.photo} alt="" className="w-24 h-24 rounded-2xl object-cover shadow-lg border-4 border-white dark:border-gray-800" referrerPolicy="no-referrer" />
                 ) : (
-                  <div className="w-16 h-16 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold text-2xl uppercase">
+                  <div className="w-24 h-24 rounded-2xl bg-indigo-600 text-white flex items-center justify-center font-bold text-3xl uppercase shadow-lg border-4 border-white dark:border-gray-800">
                     {viewUser.prenom?.[0]}{viewUser.nom?.[0]}
                   </div>
                 )}
-                <div>
-                  <h4 className="text-lg font-bold text-gray-900">{viewUser.prenom} {viewUser.nom}</h4>
-                  <p className="text-sm text-gray-500">{viewUser.email}</p>
+                <div className="text-center md:text-left">
+                  <h4 className="text-2xl font-bold text-gray-900 dark:text-white">{viewUser.prenom} {viewUser.nom}</h4>
+                  <div className="flex flex-wrap justify-center md:justify-start gap-2 mt-2">
+                    <span className="px-3 py-1 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-full text-xs font-bold uppercase tracking-wider">
+                      {tData(viewUser.role)}
+                    </span>
+                    {viewUser.matricule && (
+                      <span className="px-3 py-1 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 rounded-full text-xs font-mono">
+                        #{viewUser.matricule}
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-gray-500 dark:text-gray-400 mt-3 flex items-center justify-center md:justify-start gap-2 text-sm">
+                    <Mail size={14} />
+                    {viewUser.email}
+                  </p>
                 </div>
               </div>
               
-              <div className="grid grid-cols-2 gap-4 text-sm">
-                <div>
-                  <span className="block text-gray-500 mb-1">{t('role')}</span>
-                  <span className="font-medium text-gray-900 capitalize">{tData(viewUser.role)}</span>
-                </div>
-                {viewUser.role === 'enseignant' && (
-                  <div>
-                    <span className="block text-gray-500 mb-1">{t('subjects')}</span>
-                    <span className="font-medium text-gray-900">{viewUser.matieres?.join(', ') || viewUser.matiere || '-'}</span>
-                  </div>
-                )}
-                <div>
-                  <span className="block text-gray-500 mb-1">{t('id_number')}</span>
-                  <span className="font-mono text-gray-900">{viewUser.matricule || t('not_defined')}</span>
-                </div>
-                <div>
-                  <span className="block text-gray-500 mb-1">{t('contact')}</span>
-                  <span className="font-medium text-gray-900">{viewUser.contact || '-'}</span>
-                </div>
-                <div>
-                  <span className="block text-gray-500 mb-1">{t('address')}</span>
-                  <span className="font-medium text-gray-900">{viewUser.address || '-'}</span>
-                </div>
-                <div>
-                  <span className="block text-gray-500 mb-1">{t('gender')}</span>
-                  <span className="font-medium text-gray-900">{viewUser.gender ? t(viewUser.gender) : '-'}</span>
-                </div>
-                <div>
-                  <span className="block text-gray-500 mb-1">{t('age')}</span>
-                  <span className="font-medium text-gray-900">{viewUser.age || '-'}</span>
-                </div>
-                <div>
-                  <span className="block text-gray-500 mb-1">{t('diploma')}</span>
-                  <span className="font-medium text-gray-900">{viewUser.diploma || '-'}</span>
-                </div>
-                <div>
-                  <span className="block text-gray-500 mb-1">{t('experience_years')}</span>
-                  <span className="font-medium text-gray-900">{viewUser.experience_years || '-'}</span>
-                </div>
-                {viewUser.role === 'élève' && (
-                  <>
-                    <div>
-                      <span className="block text-gray-500 mb-1">{t('class')}</span>
-                      <span className="font-medium text-gray-900">{viewUser.classe || t('not_defined')}</span>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                {/* Personal Information */}
+                <div className="space-y-4">
+                  <h5 className="text-xs font-bold text-gray-400 uppercase tracking-wider flex items-center gap-2">
+                    <User size={14} />
+                    Informations Personnelles
+                  </h5>
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-center py-2 border-b border-gray-50 dark:border-gray-700/50">
+                      <span className="text-sm text-gray-500">{t('gender')}</span>
+                      <span className="text-sm font-medium text-gray-900 dark:text-gray-200">{viewUser.gender ? t(viewUser.gender) : '-'}</span>
                     </div>
-                    <div>
-                      <span className="block text-gray-500 mb-1">{t('house')}</span>
-                      <span className="font-medium text-gray-900">
-                        {viewUser.house_id && houses.find(h => h.id === viewUser.house_id) ? (
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium" style={{ backgroundColor: `${houses.find(h => h.id === viewUser.house_id)?.color}20`, color: houses.find(h => h.id === viewUser.house_id)?.color }}>
-                            {houses.find(h => h.id === viewUser.house_id)?.logo?.startsWith('http') ? (
-                              <img src={houses.find(h => h.id === viewUser.house_id)?.logo} alt="" className="w-4 h-4 object-cover rounded-full" referrerPolicy="no-referrer" />
-                            ) : (
-                              <span>{houses.find(h => h.id === viewUser.house_id)?.logo}</span>
-                            )}
-                            {houses.find(h => h.id === viewUser.house_id)?.nom_maison}
-                          </span>
-                        ) : t('not_defined')}
+                    <div className="flex justify-between items-center py-2 border-b border-gray-50 dark:border-gray-700/50">
+                      <span className="text-sm text-gray-500">{t('age')}</span>
+                      <span className="text-sm font-medium text-gray-900 dark:text-gray-200">{viewUser.age || '-'} ans</span>
+                    </div>
+                    <div className="flex justify-between items-center py-2 border-b border-gray-50 dark:border-gray-700/50">
+                      <span className="text-sm text-gray-500">{t('address')}</span>
+                      <span className="text-sm font-medium text-gray-900 dark:text-gray-200 flex items-center gap-1">
+                        <MapPin size={14} className="text-gray-400" />
+                        {viewUser.address || '-'}
                       </span>
                     </div>
-                  </>
-                )}
-                {viewUser.role === 'enseignant' && (
-                  <div className="col-span-2">
-                    <span className="block text-gray-500 mb-1">Classes assignées</span>
-                    <div className="flex flex-wrap gap-2">
-                      {viewUser.classes && viewUser.classes.length > 0 ? (
-                        viewUser.classes.map((c: string) => (
-                          <span key={c} className="px-2 py-1 bg-indigo-50 text-indigo-700 rounded-lg text-xs font-medium border border-indigo-100">
-                            {c}
-                          </span>
-                        ))
-                      ) : (
-                        <span className="text-gray-400 italic text-xs">Aucune classe assignée</span>
-                      )}
+                    <div className="flex justify-between items-center py-2 border-b border-gray-50 dark:border-gray-700/50">
+                      <span className="text-sm text-gray-500">{t('contact')}</span>
+                      <span className="text-sm font-medium text-gray-900 dark:text-gray-200 flex items-center gap-1">
+                        <Phone size={14} className="text-gray-400" />
+                        {viewUser.contact || '-'}
+                      </span>
                     </div>
                   </div>
-                )}
-                <div>
-                  <span className="block text-gray-500 mb-1">{t('registration_date')}</span>
-                  <span className="font-medium text-gray-900">
-                    {viewUser.date_creation ? new Date(viewUser.date_creation).toLocaleDateString() : t('unknown')}
-                  </span>
                 </div>
-                <div className="col-span-2">
-                  <span className="block text-gray-500 mb-1">{t('biometric_status')}</span>
-                  {viewUser.face_id && viewUser.fingerprint_id ? (
-                    <span className="text-emerald-600 font-medium flex items-center gap-1">
-                      <Fingerprint size={16} /> {t('registration_complete')}
-                    </span>
-                  ) : (
-                    <span className="text-amber-600 font-medium flex items-center gap-1">
-                      <AlertCircle size={16} /> {t('registration_incomplete')}
-                    </span>
-                  )}
+
+                {/* Professional/Academic Information */}
+                <div className="space-y-4">
+                  <h5 className="text-xs font-bold text-gray-400 uppercase tracking-wider flex items-center gap-2">
+                    <Briefcase size={14} />
+                    Profil {viewUser.role === 'élève' ? 'Académique' : 'Professionnel'}
+                  </h5>
+                  <div className="space-y-3">
+                    {viewUser.role === 'élève' ? (
+                      <>
+                        <div className="flex justify-between items-center py-2 border-b border-gray-50 dark:border-gray-700/50">
+                          <span className="text-sm text-gray-500">{t('class')}</span>
+                          <span className="text-sm font-bold text-indigo-600 dark:text-indigo-400">{viewUser.classe || t('not_defined')}</span>
+                        </div>
+                        <div className="flex justify-between items-center py-2 border-b border-gray-50 dark:border-gray-700/50">
+                          <span className="text-sm text-gray-500">{t('house')}</span>
+                          <span className="text-sm font-medium">
+                            {viewUser.house_id && houses.find(h => h.id === viewUser.house_id) ? (
+                              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium" style={{ backgroundColor: `${houses.find(h => h.id === viewUser.house_id)?.color}20`, color: houses.find(h => h.id === viewUser.house_id)?.color }}>
+                                {houses.find(h => h.id === viewUser.house_id)?.logo?.startsWith('http') ? (
+                                  <img src={houses.find(h => h.id === viewUser.house_id)?.logo} alt="" className="w-4 h-4 object-cover rounded-full" referrerPolicy="no-referrer" />
+                                ) : (
+                                  <span>{houses.find(h => h.id === viewUser.house_id)?.logo}</span>
+                                )}
+                                {houses.find(h => h.id === viewUser.house_id)?.nom_maison}
+                              </span>
+                            ) : t('not_defined')}
+                          </span>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="flex justify-between items-center py-2 border-b border-gray-50 dark:border-gray-700/50">
+                          <span className="text-sm text-gray-500">{t('diploma')}</span>
+                          <span className="text-sm font-medium text-gray-900 dark:text-gray-200">{viewUser.diploma || '-'}</span>
+                        </div>
+                        <div className="flex justify-between items-center py-2 border-b border-gray-50 dark:border-gray-700/50">
+                          <span className="text-sm text-gray-500">{t('experience_years')}</span>
+                          <span className="text-sm font-medium text-gray-900 dark:text-gray-200">{viewUser.experience_years || '-'} ans</span>
+                        </div>
+                      </>
+                    )}
+                    <div className="flex justify-between items-center py-2 border-b border-gray-50 dark:border-gray-700/50">
+                      <span className="text-sm text-gray-500">{t('registration_date')}</span>
+                      <span className="text-sm font-medium text-gray-900 dark:text-gray-200">
+                        {viewUser.date_creation ? new Date(viewUser.date_creation).toLocaleDateString() : t('unknown')}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Specific sections for teachers */}
+              {viewUser.role === 'enseignant' && (
+                <div className="pt-4 border-t border-gray-100 dark:border-gray-700 space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div className="space-y-3">
+                      <h5 className="text-xs font-bold text-gray-400 uppercase tracking-wider flex items-center gap-2">
+                        <Briefcase size={14} />
+                        Matières Enseignées
+                      </h5>
+                      <div className="flex flex-wrap gap-2">
+                        {viewUser.matieres && viewUser.matieres.length > 0 ? (
+                          viewUser.matieres.map((m: string) => (
+                            <span key={m} className="px-3 py-1 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 rounded-lg text-xs font-bold border border-blue-100 dark:border-blue-800">
+                              {m}
+                            </span>
+                          ))
+                        ) : (
+                          <span className="text-gray-400 italic text-xs">Aucune matière définie</span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="space-y-3">
+                      <h5 className="text-xs font-bold text-gray-400 uppercase tracking-wider flex items-center gap-2">
+                        <GraduationCap size={14} />
+                        Classes Assignées
+                      </h5>
+                      <div className="flex flex-wrap gap-2">
+                        {viewUser.classes && viewUser.classes.length > 0 ? (
+                          viewUser.classes.map((c: string) => (
+                            <span key={c} className="px-3 py-1 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 rounded-lg text-xs font-bold border border-emerald-100 dark:border-emerald-800">
+                              {c}
+                            </span>
+                          ))
+                        ) : (
+                          <span className="text-gray-400 italic text-xs">Aucune classe assignée</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Biometric Status */}
+              <div className="pt-4 border-t border-gray-100 dark:border-gray-700">
+                <h5 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+                  <Fingerprint size={14} />
+                  Statut Biométrique
+                </h5>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className={`p-4 rounded-xl border flex items-center gap-3 ${viewUser.face_id ? 'bg-emerald-50 dark:bg-emerald-900/10 border-emerald-100 dark:border-emerald-900/30 text-emerald-700 dark:text-emerald-400' : 'bg-gray-50 dark:bg-gray-900 border-gray-100 dark:border-gray-800 text-gray-400'}`}>
+                    <User size={20} className={viewUser.face_id ? 'text-emerald-600' : 'text-gray-300'} />
+                    <div>
+                      <p className="text-xs font-bold uppercase tracking-tight">Reconnaissance Faciale</p>
+                      <p className="text-[10px]">{viewUser.face_id ? 'Enregistré' : 'Non configuré'}</p>
+                    </div>
+                  </div>
+                  <div className={`p-4 rounded-xl border flex items-center gap-3 ${viewUser.fingerprint_id ? 'bg-emerald-50 dark:bg-emerald-900/10 border-emerald-100 dark:border-emerald-900/30 text-emerald-700 dark:text-emerald-400' : 'bg-gray-50 dark:bg-gray-900 border-gray-100 dark:border-gray-800 text-gray-400'}`}>
+                    <Fingerprint size={20} className={viewUser.fingerprint_id ? 'text-emerald-600' : 'text-gray-300'} />
+                    <div>
+                      <p className="text-xs font-bold uppercase tracking-tight">Empreinte Digitale</p>
+                      <p className="text-[10px]">{viewUser.fingerprint_id ? 'Enregistré' : 'Non configuré'}</p>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
-            <div className="p-4 bg-gray-50 border-t border-gray-100 flex justify-end">
+            <div className="p-6 bg-gray-50 dark:bg-gray-900/50 border-t border-gray-100 dark:border-gray-700 flex justify-end">
               <button 
                 onClick={() => setViewUser(null)}
-                className="px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 font-medium text-sm transition-colors"
+                className="px-8 py-2.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 font-bold text-sm transition-all shadow-sm"
               >
                 {t('close')}
               </button>
@@ -592,220 +662,263 @@ export default function Users() {
 
       {/* Edit Modal */}
       {editUser && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden">
-            <div className="flex justify-between items-center p-6 border-b border-gray-100">
-              <h3 className="text-xl font-bold text-gray-900">{t('edit_user')}</h3>
-              <button onClick={() => setEditUser(null)} className="text-gray-400 hover:text-gray-600">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-2xl my-8 overflow-hidden animate-in fade-in zoom-in duration-200">
+            <div className="flex justify-between items-center p-6 border-b border-gray-100 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-900/50">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-lg">
+                  <Edit2 size={20} />
+                </div>
+                <h3 className="text-xl font-bold text-gray-900 dark:text-white">{t('edit_user')}</h3>
+              </div>
+              <button onClick={() => setEditUser(null)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors">
                 <X size={24} />
               </button>
             </div>
             <form onSubmit={handleUpdate}>
-              <div className="p-6 space-y-4">
+              <div className="p-6 space-y-6 max-h-[70vh] overflow-y-auto custom-scrollbar">
                 {error && (
-                  <div className="p-3 bg-red-50 text-red-600 rounded-xl text-sm border border-red-100">
+                  <div className="p-4 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-xl text-sm border border-red-100 dark:border-red-800 flex items-center gap-2">
+                    <AlertCircle size={18} />
                     {error}
                   </div>
                 )}
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">{t('name')}</label>
-                    <input
-                      type="text"
-                      required
-                      value={editUser.nom}
-                      onChange={(e) => setEditUser({...editUser, nom: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">{t('firstname')}</label>
-                    <input
-                      type="text"
-                      required
-                      value={editUser.prenom}
-                      onChange={(e) => setEditUser({...editUser, prenom: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                    />
-                  </div>
-                </div>
                 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('id_number')}</label>
-                  <input
-                    type="text"
-                    value={editUser.matricule || ''}
-                    onChange={(e) => setEditUser({...editUser, matricule: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">{t('contact')}</label>
-                    <input
-                      type="text"
-                      value={editUser.contact || ''}
-                      onChange={(e) => setEditUser({...editUser, contact: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">{t('address')}</label>
-                    <input
-                      type="text"
-                      value={editUser.address || ''}
-                      onChange={(e) => setEditUser({...editUser, address: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">{t('gender')}</label>
-                    <select
-                      value={editUser.gender || 'not_specified'}
-                      onChange={(e) => setEditUser({...editUser, gender: e.target.value as any})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm bg-white"
-                    >
-                      <option value="not_specified">{t('not_specified')}</option>
-                      <option value="male">{t('male')}</option>
-                      <option value="female">{t('female')}</option>
-                      <option value="other">{t('other')}</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">{t('age')}</label>
-                    <input
-                      type="number"
-                      value={editUser.age || ''}
-                      onChange={(e) => setEditUser({...editUser, age: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">{t('diploma')}</label>
-                    <input
-                      type="text"
-                      value={editUser.diploma || ''}
-                      onChange={(e) => setEditUser({...editUser, diploma: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">{t('experience_years')}</label>
-                    <input
-                      type="number"
-                      value={editUser.experience_years || ''}
-                      onChange={(e) => setEditUser({...editUser, experience_years: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('role')}</label>
-                  <select
-                    value={editUser.role}
-                    onChange={(e) => setEditUser({...editUser, role: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm bg-white"
-                  >
-                    <option value="élève">{tData('élève')}</option>
-                    <option value="enseignant">{tData('enseignant')}</option>
-                    <option value="personnel administratif">{tData('personnel administratif')}</option>
-                    <option value="admin">{tData('admin')}</option>
-                  </select>
-                </div>
-
-                {editUser.role === 'élève' && (
-                  <>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Personal Info */}
+                  <div className="space-y-4">
+                    <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider flex items-center gap-2">
+                      <User size={14} />
+                      Informations Personnelles
+                    </h4>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-xs font-medium text-gray-500 mb-1.5 ml-1 uppercase">{t('name')}</label>
+                        <input
+                          type="text"
+                          required
+                          value={editUser.nom}
+                          onChange={(e) => setEditUser({...editUser, nom: e.target.value})}
+                          className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-500 mb-1.5 ml-1 uppercase">{t('firstname')}</label>
+                        <input
+                          type="text"
+                          required
+                          value={editUser.prenom}
+                          onChange={(e) => setEditUser({...editUser, prenom: e.target.value})}
+                          className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-sm"
+                        />
+                      </div>
+                    </div>
+                    
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">{t('class')}</label>
-                      <select
-                        required
-                        value={editUser.classe || ''}
-                        onChange={(e) => setEditUser({...editUser, classe: e.target.value})}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm bg-white"
-                      >
-                        <option value="">Sélectionner une classe</option>
-                        {classes.map(cls => (
-                          <option key={cls.id} value={cls.nom}>{cls.nom}</option>
-                        ))}
-                      </select>
+                      <label className="block text-xs font-medium text-gray-500 mb-1.5 ml-1 uppercase">{t('id_number')}</label>
+                      <div className="relative">
+                        <Hash className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+                        <input
+                          type="text"
+                          value={editUser.matricule || ''}
+                          onChange={(e) => setEditUser({...editUser, matricule: e.target.value})}
+                          className="w-full pl-10 pr-4 py-2.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-sm"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-xs font-medium text-gray-500 mb-1.5 ml-1 uppercase">{t('gender')}</label>
+                        <select
+                          value={editUser.gender || 'not_specified'}
+                          onChange={(e) => setEditUser({...editUser, gender: e.target.value as any})}
+                          className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-sm"
+                        >
+                          <option value="not_specified">{t('not_specified')}</option>
+                          <option value="male">{t('male')}</option>
+                          <option value="female">{t('female')}</option>
+                          <option value="other">{t('other')}</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-500 mb-1.5 ml-1 uppercase">{t('age')}</label>
+                        <input
+                          type="number"
+                          value={editUser.age || ''}
+                          onChange={(e) => setEditUser({...editUser, age: e.target.value})}
+                          className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-sm"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Contact & Professional */}
+                  <div className="space-y-4">
+                    <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider flex items-center gap-2">
+                      <Phone size={14} />
+                      Contact & Professionnel
+                    </h4>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-500 mb-1.5 ml-1 uppercase">{t('contact')}</label>
+                      <div className="relative">
+                        <Phone className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+                        <input
+                          type="text"
+                          value={editUser.contact || ''}
+                          onChange={(e) => setEditUser({...editUser, contact: e.target.value})}
+                          className="w-full pl-10 pr-4 py-2.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-sm"
+                        />
+                      </div>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">{t('house_optional')}</label>
-                      <select
-                        value={editUser.house_id || ''}
-                        onChange={(e) => setEditUser({...editUser, house_id: e.target.value})}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm bg-white"
-                      >
-                        <option value="">{t('no_house')}</option>
-                        {houses.map(house => (
-                          <option key={house.id} value={house.id}>{house.nom_maison}</option>
-                        ))}
-                      </select>
+                      <label className="block text-xs font-medium text-gray-500 mb-1.5 ml-1 uppercase">{t('address')}</label>
+                      <div className="relative">
+                        <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+                        <input
+                          type="text"
+                          value={editUser.address || ''}
+                          onChange={(e) => setEditUser({...editUser, address: e.target.value})}
+                          className="w-full pl-10 pr-4 py-2.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-sm"
+                        />
+                      </div>
                     </div>
-                  </>
-                )}
 
-                {editUser.role === 'enseignant' && (
-                  <>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">{t('subjects')} (séparés par des virgules)</label>
-                      <input
-                        type="text"
-                        value={editUser.matieres?.join(', ') || editUser.matiere || ''}
-                        onChange={(e) => setEditUser({...editUser, matieres: e.target.value.split(',').map(s => s.trim()).filter(s => s !== '')})}
-                        placeholder="Ex: Mathématiques, Français..."
-                        className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Classes assignées</label>
-                    <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto p-3 border border-gray-200 rounded-xl bg-gray-50">
-                      {classes.map(cls => (
-                        <label key={cls.id} className="flex items-center gap-2 p-2 hover:bg-white rounded-lg cursor-pointer transition-colors">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-xs font-medium text-gray-500 mb-1.5 ml-1 uppercase">{t('diploma')}</label>
+                        <div className="relative">
+                          <GraduationCap className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
                           <input
-                            type="checkbox"
-                            checked={(editUser.classes || []).includes(cls.nom)}
-                            onChange={(e) => {
-                              const currentClasses = editUser.classes || [];
-                              if (e.target.checked) {
-                                setEditUser({...editUser, classes: [...currentClasses, cls.nom]});
-                              } else {
-                                setEditUser({...editUser, classes: currentClasses.filter((c: string) => c !== cls.nom)});
-                              }
-                            }}
-                            className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                            type="text"
+                            value={editUser.diploma || ''}
+                            onChange={(e) => setEditUser({...editUser, diploma: e.target.value})}
+                            className="w-full pl-10 pr-4 py-2.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-sm"
                           />
-                          <span className="text-sm text-gray-700">{cls.nom}</span>
-                        </label>
-                      ))}
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-500 mb-1.5 ml-1 uppercase">{t('experience_years')}</label>
+                        <div className="relative">
+                          <Briefcase className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+                          <input
+                            type="number"
+                            value={editUser.experience_years || ''}
+                            onChange={(e) => setEditUser({...editUser, experience_years: e.target.value})}
+                            className="w-full pl-10 pr-4 py-2.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-sm"
+                          />
+                        </div>
+                      </div>
                     </div>
-                    <p className="text-[10px] text-gray-500 mt-1 italic">Cochez les classes où cet enseignant intervient.</p>
                   </div>
-                </>
-              )}
+                </div>
+
+                <div className="pt-4 border-t border-gray-100 dark:border-gray-700">
+                  <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4 flex items-center gap-2">
+                    <Key size={14} />
+                    Rôle & Affectation
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <label className="block text-xs font-medium text-gray-500 mb-1.5 ml-1 uppercase">{t('role')}</label>
+                      <select
+                        value={editUser.role}
+                        onChange={(e) => setEditUser({...editUser, role: e.target.value})}
+                        className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-sm"
+                      >
+                        <option value="élève">{tData('élève')}</option>
+                        <option value="enseignant">{tData('enseignant')}</option>
+                        <option value="personnel administratif">{tData('personnel administratif')}</option>
+                        <option value="admin">{tData('admin')}</option>
+                      </select>
+                    </div>
+
+                    {editUser.role === 'élève' && (
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-xs font-medium text-gray-500 mb-1.5 ml-1 uppercase">{t('class')}</label>
+                          <select
+                            required
+                            value={editUser.classe || ''}
+                            onChange={(e) => setEditUser({...editUser, classe: e.target.value})}
+                            className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-sm"
+                          >
+                            <option value="">Sélectionner une classe</option>
+                            {classes.map(cls => (
+                              <option key={cls.id} value={cls.nom}>{cls.nom}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-500 mb-1.5 ml-1 uppercase">{t('house_optional')}</label>
+                          <select
+                            value={editUser.house_id || ''}
+                            onChange={(e) => setEditUser({...editUser, house_id: e.target.value})}
+                            className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-sm"
+                          >
+                            <option value="">{t('no_house')}</option>
+                            {houses.map(house => (
+                              <option key={house.id} value={house.id}>{house.nom_maison}</option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+                    )}
+
+                    {editUser.role === 'enseignant' && (
+                      <div className="col-span-1 md:col-span-2 space-y-4">
+                        <div>
+                          <label className="block text-xs font-medium text-gray-500 mb-1.5 ml-1 uppercase">{t('subjects')} (séparés par des virgules)</label>
+                          <input
+                            type="text"
+                            value={editUser.matieres?.join(', ') || editUser.matiere || ''}
+                            onChange={(e) => setEditUser({...editUser, matieres: e.target.value.split(',').map(s => s.trim()).filter(s => s !== '')})}
+                            placeholder="Ex: Mathématiques, Français..."
+                            className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-sm"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-500 mb-2 ml-1 uppercase">Classes assignées</label>
+                          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-40 overflow-y-auto p-3 border border-gray-200 dark:border-gray-700 rounded-xl bg-gray-50 dark:bg-gray-900/50">
+                            {classes.map(cls => (
+                              <label key={cls.id} className="flex items-center gap-2 p-2 hover:bg-white dark:hover:bg-gray-800 rounded-lg cursor-pointer transition-colors border border-transparent hover:border-gray-100 dark:hover:border-gray-700">
+                                <input
+                                  type="checkbox"
+                                  checked={(editUser.classes || []).includes(cls.nom)}
+                                  onChange={(e) => {
+                                    const currentClasses = editUser.classes || [];
+                                    if (e.target.checked) {
+                                      setEditUser({...editUser, classes: [...currentClasses, cls.nom]});
+                                    } else {
+                                      setEditUser({...editUser, classes: currentClasses.filter((c: string) => c !== cls.nom)});
+                                    }
+                                  }}
+                                  className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                                />
+                                <span className="text-xs text-gray-700 dark:text-gray-300">{cls.nom}</span>
+                              </label>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
-              <div className="p-4 bg-gray-50 border-t border-gray-100 flex justify-end gap-3">
+              <div className="p-6 bg-gray-50 dark:bg-gray-900/50 border-t border-gray-100 dark:border-gray-700 flex justify-end gap-3">
                 <button 
                   type="button"
                   onClick={() => setEditUser(null)}
-                  className="px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 font-medium text-sm transition-colors"
+                  className="px-6 py-2.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 font-bold text-sm transition-all shadow-sm"
                 >
                   {t('cancel')}
                 </button>
                 <button 
                   type="submit"
                   disabled={actionLoading}
-                  className="px-4 py-2 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 font-medium text-sm transition-colors flex items-center gap-2 disabled:bg-indigo-400"
+                  className="px-6 py-2.5 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 font-bold text-sm transition-all shadow-lg shadow-indigo-500/20 flex items-center gap-2 disabled:opacity-50"
                 >
-                  {actionLoading ? <RefreshCw className="animate-spin" size={16} /> : null}
+                  {actionLoading ? <RefreshCw className="animate-spin" size={18} /> : null}
                   {t('save')}
                 </button>
               </div>
@@ -816,35 +929,38 @@ export default function Users() {
 
       {/* Delete Modal */}
       {deleteUser && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden">
-            <div className="p-6 text-center">
-              <div className="w-16 h-16 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4">
-                <AlertCircle size={32} />
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200">
+            <div className="p-8 text-center">
+              <div className="w-20 h-20 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-full flex items-center justify-center mx-auto mb-6 animate-bounce">
+                <AlertCircle size={40} />
               </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-2">{t('delete_user_confirm')}</h3>
-              <p className="text-gray-500 text-sm">
-                {t('delete_user_warning')} <strong>{deleteUser.prenom} {deleteUser.nom}</strong> ?
+              <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-3">{t('delete_user_confirm')}</h3>
+              <p className="text-gray-500 dark:text-gray-400 text-sm leading-relaxed">
+                {t('delete_user_warning')} <br />
+                <span className="font-bold text-gray-900 dark:text-white text-lg block mt-2">
+                  {deleteUser.prenom} {deleteUser.nom}
+                </span>
               </p>
               {error && (
-                <div className="mt-4 p-3 bg-red-50 text-red-600 rounded-xl text-sm border border-red-100">
+                <div className="mt-6 p-4 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-xl text-sm border border-red-100 dark:border-red-800">
                   {error}
                 </div>
               )}
             </div>
-            <div className="p-4 bg-gray-50 border-t border-gray-100 flex justify-center gap-3">
+            <div className="p-6 bg-gray-50 dark:bg-gray-900/50 border-t border-gray-100 dark:border-gray-700 flex flex-col sm:flex-row justify-center gap-3">
               <button 
                 onClick={() => setDeleteUser(null)}
-                className="px-6 py-2 bg-white border border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 font-medium text-sm transition-colors"
+                className="order-2 sm:order-1 px-8 py-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 font-bold text-sm transition-all shadow-sm"
               >
                 {t('cancel')}
               </button>
               <button 
                 onClick={handleDelete}
                 disabled={actionLoading}
-                className="px-6 py-2 bg-red-600 text-white rounded-xl hover:bg-red-700 font-medium text-sm transition-colors flex items-center gap-2 disabled:bg-red-400"
+                className="order-1 sm:order-2 px-8 py-3 bg-red-600 text-white rounded-xl hover:bg-red-700 font-bold text-sm transition-all shadow-lg shadow-red-500/20 flex items-center justify-center gap-2 disabled:opacity-50"
               >
-                {actionLoading ? <RefreshCw className="animate-spin" size={16} /> : null}
+                {actionLoading ? <RefreshCw className="animate-spin" size={18} /> : null}
                 {t('delete')}
               </button>
             </div>
@@ -935,260 +1051,313 @@ export default function Users() {
 
       {/* Add User Modal */}
       {showAddUserModal && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden">
-            <div className="flex justify-between items-center p-6 border-b border-gray-100">
-              <h3 className="text-xl font-bold text-gray-900">{t('add_user')}</h3>
-              <button onClick={() => setShowAddUserModal(false)} className="text-gray-400 hover:text-gray-600">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-2xl my-8 overflow-hidden animate-in fade-in zoom-in duration-200">
+            <div className="flex justify-between items-center p-6 border-b border-gray-100 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-900/50">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-lg">
+                  <Plus size={20} />
+                </div>
+                <h3 className="text-xl font-bold text-gray-900 dark:text-white">{t('add_user')}</h3>
+              </div>
+              <button onClick={() => setShowAddUserModal(false)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors">
                 <X size={24} />
               </button>
             </div>
             <form onSubmit={handleAddUser}>
-              <div className="p-6 space-y-4">
+              <div className="p-6 space-y-6 max-h-[70vh] overflow-y-auto custom-scrollbar">
                 {error && (
-                  <div className="p-3 bg-red-50 text-red-600 rounded-xl text-sm border border-red-100">
+                  <div className="p-4 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-xl text-sm border border-red-100 dark:border-red-800 flex items-center gap-2">
+                    <AlertCircle size={18} />
                     {error}
                   </div>
                 )}
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">{t('name')}</label>
-                    <input
-                      type="text"
-                      required
-                      value={newUser.nom}
-                      onChange={(e) => setNewUser({...newUser, nom: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">{t('firstname')}</label>
-                    <input
-                      type="text"
-                      required
-                      value={newUser.prenom}
-                      onChange={(e) => setNewUser({...newUser, prenom: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                    />
-                  </div>
-                </div>
                 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('email')}</label>
-                  <input
-                    type="email"
-                    required
-                    value={newUser.email}
-                    onChange={(e) => setNewUser({...newUser, email: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                  />
-                </div>
-
-                <div>
-                  <div className="flex justify-between items-center mb-1">
-                    <label className="block text-sm font-medium text-gray-700">{t('password')}</label>
-                    <button 
-                      type="button" 
-                      onClick={generatePassword}
-                      className="text-xs text-indigo-600 hover:text-indigo-700 flex items-center gap-1"
-                    >
-                      <Key size={12} /> {t('generate')}
-                    </button>
-                  </div>
-                  <div className="relative">
-                    <input
-                      type={showPassword ? "text" : "password"}
-                      required
-                      minLength={6}
-                      value={newUser.password}
-                      onChange={(e) => setNewUser({...newUser, password: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm pr-10"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                    >
-                      {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                    </button>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('id_number')}</label>
-                  <input
-                    type="text"
-                    value={newUser.matricule}
-                    onChange={(e) => setNewUser({...newUser, matricule: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">{t('contact')}</label>
-                    <input
-                      type="text"
-                      value={newUser.contact}
-                      onChange={(e) => setNewUser({...newUser, contact: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">{t('address')}</label>
-                    <input
-                      type="text"
-                      value={newUser.address}
-                      onChange={(e) => setNewUser({...newUser, address: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">{t('gender')}</label>
-                    <select
-                      value={newUser.gender}
-                      onChange={(e) => setNewUser({...newUser, gender: e.target.value as any})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm bg-white"
-                    >
-                      <option value="not_specified">{t('not_specified')}</option>
-                      <option value="male">{t('male')}</option>
-                      <option value="female">{t('female')}</option>
-                      <option value="other">{t('other')}</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">{t('age')}</label>
-                    <input
-                      type="number"
-                      value={newUser.age}
-                      onChange={(e) => setNewUser({...newUser, age: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">{t('diploma')}</label>
-                    <input
-                      type="text"
-                      value={newUser.diploma}
-                      onChange={(e) => setNewUser({...newUser, diploma: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">{t('experience_years')}</label>
-                    <input
-                      type="number"
-                      value={newUser.experience_years}
-                      onChange={(e) => setNewUser({...newUser, experience_years: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('role')}</label>
-                  <select
-                    value={newUser.role}
-                    onChange={(e) => setNewUser({...newUser, role: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm bg-white"
-                  >
-                    <option value="élève">{tData('élève')}</option>
-                    <option value="enseignant">{tData('enseignant')}</option>
-                    <option value="personnel administratif">{tData('personnel administratif')}</option>
-                    <option value="admin">{tData('admin')}</option>
-                  </select>
-                </div>
-
-                {newUser.role === 'élève' && (
-                  <>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">{t('class')}</label>
-                      <select
-                        required
-                        value={newUser.classe}
-                        onChange={(e) => setNewUser({...newUser, classe: e.target.value})}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm bg-white"
-                      >
-                        <option value="">Sélectionner une classe</option>
-                        {classes.map(cls => (
-                          <option key={cls.id} value={cls.nom}>{cls.nom}</option>
-                        ))}
-                      </select>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Account Info */}
+                  <div className="space-y-4">
+                    <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider flex items-center gap-2">
+                      <Lock size={14} />
+                      Compte & Sécurité
+                    </h4>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-xs font-medium text-gray-500 mb-1.5 ml-1 uppercase">{t('name')}</label>
+                        <input
+                          type="text"
+                          required
+                          value={newUser.nom}
+                          onChange={(e) => setNewUser({...newUser, nom: e.target.value})}
+                          className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-500 mb-1.5 ml-1 uppercase">{t('firstname')}</label>
+                        <input
+                          type="text"
+                          required
+                          value={newUser.prenom}
+                          onChange={(e) => setNewUser({...newUser, prenom: e.target.value})}
+                          className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-sm"
+                        />
+                      </div>
                     </div>
+                    
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">{t('house_optional')}</label>
-                      <select
-                        value={newUser.house_id || ''}
-                        onChange={(e) => setNewUser({...newUser, house_id: e.target.value})}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm bg-white"
-                      >
-                        <option value="">{t('no_house')}</option>
-                        {houses.map(house => (
-                          <option key={house.id} value={house.id}>{house.nom_maison}</option>
-                        ))}
-                      </select>
+                      <label className="block text-xs font-medium text-gray-500 mb-1.5 ml-1 uppercase">{t('email')}</label>
+                      <div className="relative">
+                        <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+                        <input
+                          type="email"
+                          required
+                          value={newUser.email}
+                          onChange={(e) => setNewUser({...newUser, email: e.target.value})}
+                          className="w-full pl-10 pr-4 py-2.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-sm"
+                        />
+                      </div>
                     </div>
-                  </>
-                )}
 
-                {newUser.role === 'enseignant' && (
-                  <>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">{t('subjects')} (séparés par des virgules)</label>
-                      <input
-                        type="text"
-                        value={newUser.matieres?.join(', ') || newUser.matiere || ''}
-                        onChange={(e) => setNewUser({...newUser, matieres: e.target.value.split(',').map(s => s.trim()).filter(s => s !== '')})}
-                        placeholder="Ex: Mathématiques, Français..."
-                        className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                      />
+                      <div className="flex justify-between items-center mb-1.5 ml-1">
+                        <label className="block text-xs font-medium text-gray-500 uppercase">{t('password')}</label>
+                        <button 
+                          type="button" 
+                          onClick={generatePassword}
+                          className="text-[10px] font-bold text-indigo-600 hover:text-indigo-700 flex items-center gap-1 uppercase"
+                        >
+                          <Key size={10} /> {t('generate')}
+                        </button>
+                      </div>
+                      <div className="relative">
+                        <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+                        <input
+                          type={showPassword ? "text" : "password"}
+                          required
+                          minLength={6}
+                          value={newUser.password}
+                          onChange={(e) => setNewUser({...newUser, password: e.target.value})}
+                          className="w-full pl-10 pr-10 py-2.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-sm"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowPassword(!showPassword)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                        >
+                          {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                        </button>
+                      </div>
                     </div>
+                  </div>
+
+                  {/* Personal Info */}
+                  <div className="space-y-4">
+                    <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider flex items-center gap-2">
+                      <User size={14} />
+                      Informations Personnelles
+                    </h4>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Classes assignées</label>
-                    <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto p-3 border border-gray-200 rounded-xl bg-gray-50">
-                      {classes.map(cls => (
-                        <label key={cls.id} className="flex items-center gap-2 p-2 hover:bg-white rounded-lg cursor-pointer transition-colors">
+                      <label className="block text-xs font-medium text-gray-500 mb-1.5 ml-1 uppercase">{t('id_number')}</label>
+                      <div className="relative">
+                        <Hash className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+                        <input
+                          type="text"
+                          value={newUser.matricule}
+                          onChange={(e) => setNewUser({...newUser, matricule: e.target.value})}
+                          className="w-full pl-10 pr-4 py-2.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-sm"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-xs font-medium text-gray-500 mb-1.5 ml-1 uppercase">{t('contact')}</label>
+                        <div className="relative">
+                          <Phone className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
                           <input
-                            type="checkbox"
-                            checked={(newUser.classes || []).includes(cls.nom)}
-                            onChange={(e) => {
-                              const currentClasses = newUser.classes || [];
-                              if (e.target.checked) {
-                                setNewUser({...newUser, classes: [...currentClasses, cls.nom]});
-                              } else {
-                                setNewUser({...newUser, classes: currentClasses.filter((c: string) => c !== cls.nom)});
-                              }
-                            }}
-                            className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                            type="text"
+                            value={newUser.contact}
+                            onChange={(e) => setNewUser({...newUser, contact: e.target.value})}
+                            className="w-full pl-10 pr-4 py-2.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-sm"
                           />
-                          <span className="text-sm text-gray-700">{cls.nom}</span>
-                        </label>
-                      ))}
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-500 mb-1.5 ml-1 uppercase">{t('address')}</label>
+                        <div className="relative">
+                          <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+                          <input
+                            type="text"
+                            value={newUser.address}
+                            onChange={(e) => setNewUser({...newUser, address: e.target.value})}
+                            className="w-full pl-10 pr-4 py-2.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-sm"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-xs font-medium text-gray-500 mb-1.5 ml-1 uppercase">{t('gender')}</label>
+                        <select
+                          value={newUser.gender}
+                          onChange={(e) => setNewUser({...newUser, gender: e.target.value as any})}
+                          className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-sm"
+                        >
+                          <option value="not_specified">{t('not_specified')}</option>
+                          <option value="male">{t('male')}</option>
+                          <option value="female">{t('female')}</option>
+                          <option value="other">{t('other')}</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-500 mb-1.5 ml-1 uppercase">{t('age')}</label>
+                        <input
+                          type="number"
+                          value={newUser.age}
+                          onChange={(e) => setNewUser({...newUser, age: e.target.value})}
+                          className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-sm"
+                        />
+                      </div>
                     </div>
                   </div>
-                </>
-              )}
+                </div>
+
+                <div className="pt-4 border-t border-gray-100 dark:border-gray-700">
+                  <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4 flex items-center gap-2">
+                    <Briefcase size={14} />
+                    Profil Professionnel & Rôle
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-xs font-medium text-gray-500 mb-1.5 ml-1 uppercase">{t('diploma')}</label>
+                          <div className="relative">
+                            <GraduationCap className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+                            <input
+                              type="text"
+                              value={newUser.diploma}
+                              onChange={(e) => setNewUser({...newUser, diploma: e.target.value})}
+                              className="w-full pl-10 pr-4 py-2.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-sm"
+                            />
+                          </div>
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-500 mb-1.5 ml-1 uppercase">{t('experience_years')}</label>
+                          <div className="relative">
+                            <Briefcase className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+                            <input
+                              type="number"
+                              value={newUser.experience_years}
+                              onChange={(e) => setNewUser({...newUser, experience_years: e.target.value})}
+                              className="w-full pl-10 pr-4 py-2.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-sm"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-500 mb-1.5 ml-1 uppercase">{t('role')}</label>
+                        <select
+                          value={newUser.role}
+                          onChange={(e) => setNewUser({...newUser, role: e.target.value})}
+                          className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-sm"
+                        >
+                          <option value="élève">{tData('élève')}</option>
+                          <option value="enseignant">{tData('enseignant')}</option>
+                          <option value="personnel administratif">{tData('personnel administratif')}</option>
+                          <option value="admin">{tData('admin')}</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="space-y-4">
+                      {newUser.role === 'élève' && (
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-xs font-medium text-gray-500 mb-1.5 ml-1 uppercase">{t('class')}</label>
+                            <select
+                              required
+                              value={newUser.classe}
+                              onChange={(e) => setNewUser({...newUser, classe: e.target.value})}
+                              className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-sm"
+                            >
+                              <option value="">Sélectionner une classe</option>
+                              {classes.map(cls => (
+                                <option key={cls.id} value={cls.nom}>{cls.nom}</option>
+                              ))}
+                            </select>
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-gray-500 mb-1.5 ml-1 uppercase">{t('house_optional')}</label>
+                            <select
+                              value={newUser.house_id || ''}
+                              onChange={(e) => setNewUser({...newUser, house_id: e.target.value})}
+                              className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-sm"
+                            >
+                              <option value="">{t('no_house')}</option>
+                              {houses.map(house => (
+                                <option key={house.id} value={house.id}>{house.nom_maison}</option>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
+                      )}
+
+                      {newUser.role === 'enseignant' && (
+                        <div className="space-y-4">
+                          <div>
+                            <label className="block text-xs font-medium text-gray-500 mb-1.5 ml-1 uppercase">{t('subjects')} (séparés par des virgules)</label>
+                            <input
+                              type="text"
+                              value={newUser.matieres?.join(', ') || newUser.matiere || ''}
+                              onChange={(e) => setNewUser({...newUser, matieres: e.target.value.split(',').map(s => s.trim()).filter(s => s !== '')})}
+                              placeholder="Ex: Mathématiques, Français..."
+                              className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-sm"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-gray-500 mb-2 ml-1 uppercase">Classes assignées</label>
+                            <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto p-3 border border-gray-200 dark:border-gray-700 rounded-xl bg-gray-50 dark:bg-gray-900/50">
+                              {classes.map(cls => (
+                                <label key={cls.id} className="flex items-center gap-2 p-2 hover:bg-white dark:hover:bg-gray-800 rounded-lg cursor-pointer transition-colors border border-transparent hover:border-gray-100 dark:hover:border-gray-700">
+                                  <input
+                                    type="checkbox"
+                                    checked={(newUser.classes || []).includes(cls.nom)}
+                                    onChange={(e) => {
+                                      const currentClasses = newUser.classes || [];
+                                      if (e.target.checked) {
+                                        setNewUser({...newUser, classes: [...currentClasses, cls.nom]});
+                                      } else {
+                                        setNewUser({...newUser, classes: currentClasses.filter((c: string) => c !== cls.nom)});
+                                      }
+                                    }}
+                                    className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                                  />
+                                  <span className="text-xs text-gray-700 dark:text-gray-300">{cls.nom}</span>
+                                </label>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
               </div>
-              <div className="p-4 bg-gray-50 border-t border-gray-100 flex justify-end gap-3">
+              <div className="p-6 bg-gray-50 dark:bg-gray-900/50 border-t border-gray-100 dark:border-gray-700 flex justify-end gap-3">
                 <button 
                   type="button"
                   onClick={() => setShowAddUserModal(false)}
-                  className="px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 font-medium text-sm transition-colors"
+                  className="px-6 py-2.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 font-bold text-sm transition-all shadow-sm"
                 >
                   {t('cancel')}
                 </button>
                 <button 
                   type="submit"
                   disabled={actionLoading}
-                  className="px-4 py-2 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 font-medium text-sm transition-colors flex items-center gap-2 disabled:bg-indigo-400"
+                  className="px-6 py-2.5 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 font-bold text-sm transition-all shadow-lg shadow-indigo-500/20 flex items-center gap-2 disabled:opacity-50"
                 >
-                  {actionLoading ? <RefreshCw className="animate-spin" size={16} /> : null}
+                  {actionLoading ? <RefreshCw className="animate-spin" size={18} /> : null}
                   {t('save')}
                 </button>
               </div>
