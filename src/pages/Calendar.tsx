@@ -42,11 +42,12 @@ export default function Calendar() {
   const { t, language } = useLanguage();
   const [events, setEvents] = useState<AppEvent[]>([]);
   const [viewMode, setViewMode] = useState<'calendar' | 'list'>('calendar');
-  const [calendarView, setCalendarView] = useState<View>(Views.MONTH);
+  const [calendarView, setCalendarView] = useState<View>(window.innerWidth < 768 ? Views.AGENDA : Views.MONTH);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<AppEvent | null>(null);
-  
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+
   // Form state
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -57,6 +58,20 @@ export default function Calendar() {
   const [type, setType] = useState('meeting');
   const [audience, setAudience] = useState('all');
   const [imageUrl, setImageUrl] = useState('');
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  useEffect(() => {
+    if (isMobile && calendarView === Views.MONTH) {
+      setCalendarView(Views.AGENDA);
+    } else if (!isMobile && calendarView === Views.AGENDA) {
+      setCalendarView(Views.MONTH);
+    }
+  }, [isMobile, calendarView]);
 
   useEffect(() => {
     const q = query(collection(db, 'events'));
@@ -278,9 +293,9 @@ export default function Calendar() {
       </div>
 
       {/* Content */}
-      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-4 sm:p-6">
+      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-2 sm:p-6">
         {viewMode === 'calendar' ? (
-          <div className="h-[600px] calendar-container">
+          <div className="h-[500px] sm:h-[600px] lg:h-[750px] calendar-container">
             <style>{`
               .calendar-container .rbc-calendar {
                 font-family: inherit;
@@ -326,6 +341,34 @@ export default function Calendar() {
               }
               .calendar-container .rbc-event {
                 padding: 2px 5px;
+                font-size: 0.75rem;
+              }
+              @media (max-width: 640px) {
+                .calendar-container .rbc-toolbar {
+                  display: flex;
+                  flex-direction: column;
+                  align-items: center;
+                  gap: 0.5rem;
+                }
+                .calendar-container .rbc-toolbar .rbc-btn-group {
+                  width: 100%;
+                  display: flex;
+                  justify-content: center;
+                }
+                .calendar-container .rbc-toolbar .rbc-btn-group button {
+                  flex: 1;
+                  padding: 4px 8px;
+                  font-size: 0.7rem;
+                }
+                .calendar-container .rbc-toolbar-label {
+                  font-size: 0.9rem;
+                  font-weight: bold;
+                  margin: 4px 0;
+                }
+                .calendar-container .rbc-header {
+                  padding: 4px;
+                  font-size: 0.7rem;
+                }
               }
               .calendar-container .rbc-toolbar button {
                 color: #374151;
@@ -363,7 +406,7 @@ export default function Calendar() {
               messages={{
                 next: "▶",
                 previous: "◀",
-                today: t('day'), // Using day as today fallback if needed, or just let it be
+                today: t('today'),
                 month: t('month'),
                 week: t('week'),
                 day: t('day'),
@@ -380,10 +423,10 @@ export default function Calendar() {
               </div>
             ) : (
               events.sort((a, b) => a.start.getTime() - b.start.getTime()).map(event => (
-                <div key={event.id} className="flex flex-col sm:flex-row gap-4 p-4 rounded-xl border border-gray-100 dark:border-gray-700 hover:shadow-md transition-shadow bg-gray-50 dark:bg-gray-800/50">
-                  <div className="flex-shrink-0 w-16 h-16 rounded-xl bg-indigo-100 dark:bg-indigo-900/30 flex flex-col items-center justify-center text-indigo-600 dark:text-indigo-400">
+                <div key={event.id} className="flex flex-col sm:flex-row gap-4 p-3 sm:p-4 rounded-xl border border-gray-100 dark:border-gray-700 hover:shadow-md transition-shadow bg-gray-50 dark:bg-gray-800/50">
+                  <div className="flex sm:flex-col items-center sm:justify-center gap-3 sm:gap-0 flex-shrink-0 sm:w-16 sm:h-16 p-2 sm:p-0 rounded-xl bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400">
                     <span className="text-xs font-bold uppercase">{format(event.start, 'MMM')}</span>
-                    <span className="text-xl font-black">{format(event.start, 'dd')}</span>
+                    <span className="text-lg sm:text-xl font-black">{format(event.start, 'dd')}</span>
                   </div>
                   
                   <div className="flex-1">

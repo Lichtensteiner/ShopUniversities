@@ -1,15 +1,22 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useAuth } from '../contexts/AuthContext';
 import { GoogleGenAI } from "@google/genai";
-import { Sparkles, Upload, Send, CheckCircle, AlertCircle, Loader2, Image as ImageIcon, FileText, X } from 'lucide-react';
+import { Sparkles, Upload, Send, CheckCircle, AlertCircle, Loader2, Image as ImageIcon, FileText, X, BookOpen, ListChecks, HelpCircle, FileSearch, Copy, Terminal, Trash2, ChevronRight, Search } from 'lucide-react';
 import { createNotification } from '../services/NotificationService';
-import { collection, query, getDocs, where } from 'firebase/firestore';
+import { collection, query, getDocs, where, addDoc, serverTimestamp, onSnapshot, orderBy, deleteDoc, doc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 
-export default function AIAssistant() {
+interface AIAssistantProps {
+  onNavigate?: (tab: string, params?: any) => void;
+}
+
+export default function AIAssistant({ onNavigate }: AIAssistantProps) {
   const { t } = useLanguage();
   const { currentUser } = useAuth();
+  const [activeTab, setActiveTab] = useState<'grading' | 'preparations' | 'prompts' | 'my_preps'>('grading');
+
+  // Grading State
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -19,8 +26,52 @@ export default function AIAssistant() {
   const [students, setStudents] = useState<any[]>([]);
   const [isSending, setIsSending] = useState(false);
 
+  // Preparations State
+  const [prepTopic, setPrepTopic] = useState('');
+  const [prepGrade, setPrepGrade] = useState('');
+  const [prepSubject, setPrepSubject] = useState('');
+  const [prepType, setPrepType] = useState('lesson_plan');
+  const [isGeneratingPrep, setIsGeneratingPrep] = useState(false);
+  const [generatedPrep, setGeneratedPrep] = useState<string | null>(null);
+  const [isSavingPrep, setIsSavingPrep] = useState(false);
+
+  // Saved Preparations State
+  const [savedPreps, setSavedPreps] = useState<any[]>([]);
+  const [selectedPrep, setSelectedPrep] = useState<any | null>(null);
+  const [prepSearchQuery, setPrepSearchQuery] = useState('');
+
+  // Prompts State
+  const [copiedPromptId, setCopiedPromptId] = useState<string | null>(null);
+
+  const promptTemplates = [
+    {
+      id: 'p1',
+      title: 'Plan de cours structuré',
+      description: 'Génère un plan de cours complet avec objectifs, matériel et étapes.',
+      prompt: 'Rédige un plan de cours détaillé pour une séance de 55 minutes sur [SUJET] pour des élèves de [NIVEAU]. Inclus : Objectifs pédagogiques, Matériel nécessaire, Introduction (5 min), Développement (40 min), et Conclusion/Évaluation (10 min).'
+    },
+    {
+      id: 'p2',
+      title: 'Générateur d\'exercices',
+      description: 'Crée une série d\'exercices progressifs avec corrigés.',
+      prompt: 'Génère 5 exercices progressifs sur [SUJET] pour le niveau [NIVEAU]. Les exercices doivent aller du plus simple au plus complexe. Fournis également les corrigés détaillés pour chaque exercice.'
+    },
+    {
+      id: 'p3',
+      title: 'Simplification de concept',
+      description: 'Explique un concept complexe avec des mots simples.',
+      prompt: 'Explique le concept de [CONCEPT] à un enfant de 10 ans en utilisant des analogies simples et un langage accessible. Évite le jargon technique.'
+    },
+    {
+      id: 'p4',
+      title: 'Création de Quiz QCM',
+      description: 'Génère un QCM de 10 questions avec options et explications.',
+      prompt: 'Crée un QCM de 10 questions sur [SUJET] pour le niveau [NIVEAU]. Pour chaque question, propose 4 options (A, B, C, D) et indique la bonne réponse avec une brève explication.'
+    }
+  ];
+
   // Fetch students for the dropdown
-  React.useEffect(() => {
+  useEffect(() => {
     const fetchStudents = async () => {
       try {
         const q = query(collection(db, 'users'), where('role', '==', 'élève'));
@@ -32,6 +83,29 @@ export default function AIAssistant() {
     };
     fetchStudents();
   }, []);
+
+  // Real-time listener for saved preparations
+  useEffect(() => {
+    if (!currentUser) return;
+
+    const q = query(
+      collection(db, 'preparations'),
+      where('authorId', '==', currentUser.id)
+    );
+
+    const unsubscribe = onSnapshot(q, (snap) => {
+      const preps = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      // Sort client-side to avoid requiring a composite index
+      preps.sort((a: any, b: any) => {
+        const dateA = a.createdAt?.toDate?.() || new Date(0);
+        const dateB = b.createdAt?.toDate?.() || new Date(0);
+        return dateB.getTime() - dateA.getTime();
+      });
+      setSavedPreps(preps);
+    });
+
+    return () => unsubscribe();
+  }, [currentUser]);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -78,15 +152,78 @@ export default function AIAssistant() {
       const result = response.text;
       setAiFeedback(result);
       
-      // Extract score if possible (simple regex)
       const scoreMatch = result.match(/(\d{1,2})\/20/);
       if (scoreMatch) setSuggestedScore(scoreMatch[0]);
 
     } catch (error) {
       console.error("AI Analysis error:", error);
-      alert("Erreur lors de l'analyse par l'IA. Vérifiez votre connexion ou la clé API.");
+      alert("Erreur lors de l'analyse par l'IA.");
     } finally {
       setIsAnalyzing(false);
+    }
+  };
+
+  const generatePreparation = async () => {
+    if (!prepTopic || !prepGrade || !prepSubject) return;
+    setIsGeneratingPrep(true);
+    setGeneratedPrep(null);
+
+    try {
+      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+      
+      let typeLabel = "";
+      switch(prepType) {
+        case 'lesson_plan': typeLabel = "un plan de cours détaillé"; break;
+        case 'exercises_list': typeLabel = "une liste d'exercices variés"; break;
+        case 'quiz_mcq': typeLabel = "un quiz / QCM avec corrigé"; break;
+        case 'summary_sheet': typeLabel = "une fiche de synthèse pour les élèves"; break;
+      }
+
+      const prompt = `
+        Tu es un assistant pédagogique expert en ${prepSubject}. Génère ${typeLabel} pour le sujet suivant : "${prepTopic}".
+        Niveau scolaire : ${prepGrade}.
+        La réponse doit être structurée, professionnelle et prête à l'emploi pour un enseignant.
+        Réponds en français.
+      `;
+
+      const response = await ai.models.generateContent({
+        model: "gemini-3-flash-preview",
+        contents: [{ parts: [{ text: prompt }] }]
+      });
+
+      setGeneratedPrep(response.text);
+    } catch (error) {
+      console.error("AI Generation error:", error);
+      alert("Erreur lors de la génération par l'IA.");
+    } finally {
+      setIsGeneratingPrep(false);
+    }
+  };
+
+  const savePreparation = async () => {
+    if (!generatedPrep || !currentUser) return;
+    setIsSavingPrep(true);
+    try {
+      await addDoc(collection(db, 'preparations'), {
+        authorId: currentUser.id,
+        authorName: `${currentUser.prenom || ''} ${currentUser.nom || ''}`.trim(),
+        topic: prepTopic,
+        grade: prepGrade,
+        subject: prepSubject,
+        type: prepType,
+        content: generatedPrep,
+        createdAt: serverTimestamp()
+      });
+      alert("Préparation enregistrée avec succès !");
+      setGeneratedPrep(null);
+      setPrepTopic('');
+      setPrepGrade('');
+      setPrepSubject('');
+    } catch (error) {
+      console.error("Error saving preparation:", error);
+      alert("Erreur lors de l'enregistrement.");
+    } finally {
+      setIsSavingPrep(false);
     }
   };
 
@@ -115,140 +252,480 @@ export default function AIAssistant() {
     }
   };
 
-  const clearSelection = () => {
-    setSelectedFile(null);
-    setPreviewUrl(null);
-    setAiFeedback(null);
-    setSuggestedScore(null);
+  const copyToClipboard = (text: string, id: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedPromptId(id);
+    setTimeout(() => setCopiedPromptId(null), 2000);
   };
 
+  const deletePrep = async (id: string) => {
+    if (!confirm("Êtes-vous sûr de vouloir supprimer cette préparation ?")) return;
+    try {
+      await deleteDoc(doc(db, 'preparations', id));
+      if (selectedPrep?.id === id) setSelectedPrep(null);
+    } catch (error) {
+      console.error("Error deleting preparation:", error);
+    }
+  };
+
+  // Group preparations by subject
+  const groupedPreps = savedPreps.reduce((acc: any, prep) => {
+    const subject = prep.subject || 'Autre';
+    if (!acc[subject]) acc[subject] = [];
+    acc[subject].push(prep);
+    return acc;
+  }, {});
+
+  const filteredSubjects = Object.keys(groupedPreps).filter(subject => 
+    subject.toLowerCase().includes(prepSearchQuery.toLowerCase()) ||
+    groupedPreps[subject].some((p: any) => p.topic.toLowerCase().includes(prepSearchQuery.toLowerCase()))
+  );
+
   return (
-    <div className="max-w-4xl mx-auto py-8 px-4">
-      <div className="flex items-center gap-3 mb-8">
-        <div className="p-3 bg-indigo-100 dark:bg-indigo-900/50 rounded-2xl">
-          <Sparkles className="text-indigo-600 dark:text-indigo-400" size={32} />
+    <div className="max-w-7xl mx-auto py-8 px-4">
+      {/* Header */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+        <div className="flex items-center gap-3">
+          <div className="p-3 bg-indigo-100 dark:bg-indigo-900/50 rounded-2xl">
+            <Sparkles className="text-indigo-600 dark:text-indigo-400" size={32} />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{t('ai_assistant')}</h1>
+            <p className="text-gray-500 dark:text-gray-400">Boostez votre pédagogie avec Gemini</p>
+          </div>
         </div>
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{t('ai_grading_title')}</h1>
-          <p className="text-gray-500 dark:text-gray-400">{t('ai_grading_desc')}</p>
+
+        {/* Tabs */}
+        <div className="flex bg-gray-100 dark:bg-gray-800 p-1 rounded-xl overflow-x-auto">
+          {[
+            { id: 'grading', label: t('ai_grading_tab') },
+            { id: 'preparations', label: t('ai_preps_tab') },
+            { id: 'my_preps', label: t('my_preps_tab') },
+            { id: 'prompts', label: t('ai_prompts_tab') },
+          ].map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id as any)}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${
+                activeTab === tab.id 
+                  ? 'bg-white dark:bg-gray-700 text-indigo-600 dark:text-indigo-400 shadow-sm' 
+                  : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Upload Section */}
-        <div className="space-y-6">
-          <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-200 dark:border-gray-700">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold flex items-center gap-2">
-                <Upload size={20} className="text-indigo-600" />
-                {t('upload_work')}
-              </h2>
-              {previewUrl && (
-                <button onClick={clearSelection} className="text-gray-400 hover:text-red-500">
-                  <X size={20} />
-                </button>
-              )}
-            </div>
-            
-            <label className="block w-full aspect-video border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-2xl hover:border-indigo-500 dark:hover:border-indigo-400 transition-colors cursor-pointer overflow-hidden relative group">
-              {previewUrl ? (
-                <img src={previewUrl} alt="Preview" className="w-full h-full object-contain" />
-              ) : (
-                <div className="absolute inset-0 flex flex-col items-center justify-center text-gray-400">
-                  <ImageIcon size={48} className="mb-2" />
-                  <span className="text-sm">Cliquez pour sélectionner une photo</span>
-                </div>
-              )}
-              <input type="file" accept="image/*" className="hidden" onChange={handleFileSelect} />
-            </label>
-
-            <button
-              onClick={analyzeWork}
-              disabled={!selectedFile || isAnalyzing}
-              className="w-full mt-6 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
-            >
-              {isAnalyzing ? (
-                <>
-                  <Loader2 className="animate-spin" size={20} />
-                  {t('analyzing')}
-                </>
-              ) : (
-                <>
-                  <Sparkles size={20} />
-                  {t('analyze_with_gemini')}
-                </>
-              )}
-            </button>
-          </div>
-
-          <div className="bg-indigo-50 dark:bg-indigo-900/20 p-4 rounded-xl border border-indigo-100 dark:border-indigo-800">
-            <h3 className="text-sm font-bold text-indigo-800 dark:text-indigo-300 mb-2 flex items-center gap-2">
-              <AlertCircle size={16} />
-              Conseil d'utilisation
-            </h3>
-            <p className="text-xs text-indigo-700 dark:text-indigo-400 leading-relaxed">
-              Prenez une photo claire du travail de l'élève. L'IA peut analyser l'écriture manuscrite, les dessins et les schémas pour fournir une évaluation détaillée.
-            </p>
-          </div>
-        </div>
-
-        {/* Results Section */}
-        <div className="space-y-6">
-          {aiFeedback ? (
-            <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-200 dark:border-gray-700 animate-fade-in">
+      {activeTab === 'grading' && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 animate-fade-in">
+          {/* Upload Section */}
+          <div className="space-y-6">
+            <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-200 dark:border-gray-700">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-lg font-semibold flex items-center gap-2">
-                  <CheckCircle size={20} className="text-green-500" />
-                  {t('ai_feedback')}
+                  <Upload size={20} className="text-indigo-600" />
+                  {t('upload_work')}
                 </h2>
-                {suggestedScore && (
-                  <div className="px-3 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded-full text-sm font-bold">
-                    {t('ai_score')}: {suggestedScore}
-                  </div>
+                {previewUrl && (
+                  <button onClick={() => { setSelectedFile(null); setPreviewUrl(null); }} className="text-gray-400 hover:text-red-500">
+                    <X size={20} />
+                  </button>
                 )}
               </div>
               
-              <div className="prose dark:prose-invert max-w-none text-sm text-gray-600 dark:text-gray-300 whitespace-pre-wrap mb-6 bg-gray-50 dark:bg-gray-900/50 p-4 rounded-xl border border-gray-100 dark:border-gray-700 max-h-[400px] overflow-y-auto custom-scrollbar">
-                {aiFeedback}
-              </div>
+              <label className="block w-full aspect-video border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-2xl hover:border-indigo-500 dark:hover:border-indigo-400 transition-colors cursor-pointer overflow-hidden relative group">
+                {previewUrl ? (
+                  <img src={previewUrl} alt="Preview" className="w-full h-full object-contain" />
+                ) : (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center text-gray-400">
+                    <ImageIcon size={48} className="mb-2" />
+                    <span className="text-sm">Cliquez pour sélectionner une photo</span>
+                  </div>
+                )}
+                <input type="file" accept="image/*" className="hidden" onChange={handleFileSelect} />
+              </label>
 
-              <div className="pt-6 border-t border-gray-200 dark:border-gray-700 space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Sélectionner l'élève destinataire
-                  </label>
-                  <select
-                    value={selectedStudentId}
-                    onChange={(e) => setSelectedStudentId(e.target.value)}
-                    className="w-full p-2.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+              <button
+                onClick={analyzeWork}
+                disabled={!selectedFile || isAnalyzing}
+                className="w-full mt-6 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
+              >
+                {isAnalyzing ? (
+                  <>
+                    <Loader2 className="animate-spin" size={20} />
+                    {t('analyzing')}
+                  </>
+                ) : (
+                  <>
+                    <Sparkles size={20} />
+                    {t('analyze_with_gemini')}
+                  </>
+                )}
+              </button>
+            </div>
+
+            <div className="bg-indigo-50 dark:bg-indigo-900/20 p-4 rounded-xl border border-indigo-100 dark:border-indigo-800">
+              <h3 className="text-sm font-bold text-indigo-800 dark:text-indigo-300 mb-2 flex items-center gap-2">
+                <AlertCircle size={16} />
+                Conseil d'utilisation
+              </h3>
+              <p className="text-xs text-indigo-700 dark:text-indigo-400 leading-relaxed">
+                Prenez une photo claire du travail de l'élève. L'IA peut analyser l'écriture manuscrite, les dessins et les schémas pour fournir une évaluation détaillée.
+              </p>
+            </div>
+          </div>
+
+          {/* Results Section */}
+          <div className="space-y-6">
+            {aiFeedback ? (
+              <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-200 dark:border-gray-700 animate-fade-in">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-lg font-semibold flex items-center gap-2">
+                    <CheckCircle size={20} className="text-green-500" />
+                    {t('ai_feedback')}
+                  </h2>
+                  {suggestedScore && (
+                    <div className="px-3 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded-full text-sm font-bold">
+                      {t('ai_score')}: {suggestedScore}
+                    </div>
+                  )}
+                </div>
+                
+                <div className="prose dark:prose-invert max-w-none text-sm text-gray-600 dark:text-gray-300 whitespace-pre-wrap mb-6 bg-gray-50 dark:bg-gray-900/50 p-4 rounded-xl border border-gray-100 dark:border-gray-700 max-h-[400px] overflow-y-auto custom-scrollbar">
+                  {aiFeedback}
+                </div>
+
+                <div className="pt-6 border-t border-gray-200 dark:border-gray-700 space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Sélectionner l'élève destinataire
+                    </label>
+                    <select
+                      value={selectedStudentId}
+                      onChange={(e) => setSelectedStudentId(e.target.value)}
+                      className="w-full p-2.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                    >
+                      <option value="">Choisir un élève...</option>
+                      {students.map(s => (
+                        <option key={s.id} value={s.id}>{s.prenom} {s.nom} ({s.classe || 'N/A'})</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <button
+                    onClick={sendFeedback}
+                    disabled={!selectedStudentId || isSending}
+                    className="w-full py-3 bg-green-600 text-white rounded-xl font-bold hover:bg-green-700 disabled:opacity-50 transition-all flex items-center justify-center gap-2 shadow-lg shadow-green-500/20"
                   >
-                    <option value="">Choisir un élève...</option>
-                    {students.map(s => (
-                      <option key={s.id} value={s.id}>{s.prenom} {s.nom} ({s.classe || 'N/A'})</option>
+                    {isSending ? <Loader2 className="animate-spin" size={20} /> : <Send size={20} />}
+                    {t('send_to_student')}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="h-full min-h-[400px] flex flex-col items-center justify-center text-gray-400 bg-gray-50 dark:bg-gray-800/50 rounded-2xl border-2 border-dashed border-gray-200 dark:border-gray-700 p-8">
+                <div className="p-6 bg-white dark:bg-gray-800 rounded-full shadow-sm mb-4">
+                  <FileText size={48} className="opacity-20" />
+                </div>
+                <p className="text-center max-w-xs">Les résultats de l'analyse apparaîtront ici après avoir utilisé Gemini.</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'preparations' && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 animate-fade-in">
+          {/* Config Section */}
+          <div className="lg:col-span-1 space-y-6">
+            <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-200 dark:border-gray-700">
+              <h2 className="text-lg font-semibold mb-6 flex items-center gap-2">
+                <BookOpen size={20} className="text-indigo-600" />
+                Configuration
+              </h2>
+              
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">{t('subject')}</label>
+                  <input
+                    type="text"
+                    value={prepSubject}
+                    onChange={(e) => setPrepSubject(e.target.value)}
+                    placeholder={t('subject_placeholder')}
+                    className="w-full p-2.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">{t('topic_subject')}</label>
+                  <input
+                    type="text"
+                    value={prepTopic}
+                    onChange={(e) => setPrepTopic(e.target.value)}
+                    placeholder="Ex: Les fractions, La Révolution Française..."
+                    className="w-full p-2.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">{t('grade_level')}</label>
+                  <input
+                    type="text"
+                    value={prepGrade}
+                    onChange={(e) => setPrepGrade(e.target.value)}
+                    placeholder="Ex: CM1, 3ème, Terminale..."
+                    className="w-full p-2.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">{t('preparation_type')}</label>
+                  <div className="grid grid-cols-1 gap-2">
+                    {[
+                      { id: 'lesson_plan', label: t('lesson_plan'), icon: BookOpen },
+                      { id: 'exercises_list', label: t('exercises_list'), icon: ListChecks },
+                      { id: 'quiz_mcq', label: t('quiz_mcq'), icon: HelpCircle },
+                      { id: 'summary_sheet', label: t('summary_sheet'), icon: FileSearch },
+                    ].map((type) => (
+                      <button
+                        key={type.id}
+                        onClick={() => setPrepType(type.id)}
+                        className={`flex items-center gap-3 p-3 rounded-xl border transition-all text-left ${
+                          prepType === type.id
+                            ? 'bg-indigo-50 dark:bg-indigo-900/30 border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300'
+                            : 'bg-white dark:bg-gray-800 border-gray-100 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'
+                        }`}
+                      >
+                        <type.icon size={18} />
+                        <span className="text-sm font-medium">{type.label}</span>
+                      </button>
                     ))}
-                  </select>
+                  </div>
                 </div>
 
                 <button
-                  onClick={sendFeedback}
-                  disabled={!selectedStudentId || isSending}
-                  className="w-full py-3 bg-green-600 text-white rounded-xl font-bold hover:bg-green-700 disabled:opacity-50 transition-all flex items-center justify-center gap-2 shadow-lg shadow-green-500/20"
+                  onClick={generatePreparation}
+                  disabled={!prepTopic || !prepGrade || !prepSubject || isGeneratingPrep}
+                  className="w-full mt-4 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 disabled:opacity-50 transition-all flex items-center justify-center gap-2"
                 >
-                  {isSending ? <Loader2 className="animate-spin" size={20} /> : <Send size={20} />}
-                  {t('send_to_student')}
+                  {isGeneratingPrep ? (
+                    <>
+                      <Loader2 className="animate-spin" size={20} />
+                      {t('generating')}
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles size={20} />
+                      {t('generate_preparation')}
+                    </>
+                  )}
                 </button>
               </div>
             </div>
-          ) : (
-            <div className="h-full min-h-[400px] flex flex-col items-center justify-center text-gray-400 bg-gray-50 dark:bg-gray-800/50 rounded-2xl border-2 border-dashed border-gray-200 dark:border-gray-700 p-8">
-              <div className="p-6 bg-white dark:bg-gray-800 rounded-full shadow-sm mb-4">
-                <FileText size={48} className="opacity-20" />
+          </div>
+
+          {/* Preview Section */}
+          <div className="lg:col-span-2 space-y-6">
+            {generatedPrep ? (
+              <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-200 dark:border-gray-700 animate-fade-in flex flex-col h-full">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-lg font-semibold flex items-center gap-2">
+                    <CheckCircle size={20} className="text-green-500" />
+                    Aperçu de la préparation
+                  </h2>
+                  <button
+                    onClick={savePreparation}
+                    disabled={isSavingPrep}
+                    className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-xl text-sm font-bold hover:bg-green-700 disabled:opacity-50 transition-all"
+                  >
+                    {isSavingPrep ? <Loader2 className="animate-spin" size={16} /> : <Send size={16} />}
+                    {t('save_preparation')}
+                  </button>
+                </div>
+                
+                <div className="flex-1 prose dark:prose-invert max-w-none text-sm text-gray-600 dark:text-gray-300 whitespace-pre-wrap bg-gray-50 dark:bg-gray-900/50 p-6 rounded-xl border border-gray-100 dark:border-gray-700 overflow-y-auto custom-scrollbar">
+                  {generatedPrep}
+                </div>
               </div>
-              <p className="text-center max-w-xs">Les résultats de l'analyse apparaîtront ici après avoir utilisé Gemini.</p>
-            </div>
-          )}
+            ) : (
+              <div className="h-full min-h-[500px] flex flex-col items-center justify-center text-gray-400 bg-gray-50 dark:bg-gray-800/50 rounded-2xl border-2 border-dashed border-gray-200 dark:border-gray-700 p-8">
+                <div className="p-6 bg-white dark:bg-gray-800 rounded-full shadow-sm mb-4">
+                  <BookOpen size={48} className="opacity-20" />
+                </div>
+                <p className="text-center max-w-xs">Configurez votre préparation à gauche et laissez Gemini générer votre contenu pédagogique.</p>
+              </div>
+            )}
+          </div>
         </div>
-      </div>
+      )}
+
+      {activeTab === 'my_preps' && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 animate-fade-in">
+          {/* List Section */}
+          <div className="lg:col-span-1 space-y-6">
+            <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-200 dark:border-gray-700 flex flex-col h-[calc(100vh-250px)]">
+              <div className="relative mb-6">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                <input
+                  type="text"
+                  value={prepSearchQuery}
+                  onChange={(e) => setPrepSearchQuery(e.target.value)}
+                  placeholder="Rechercher une matière ou un sujet..."
+                  className="w-full pl-10 pr-4 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                />
+              </div>
+
+              <div className="flex-1 overflow-y-auto custom-scrollbar space-y-6">
+                {filteredSubjects.length > 0 ? (
+                  filteredSubjects.map(subject => (
+                    <div key={subject}>
+                      <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 px-2">{subject}</h3>
+                      <div className="space-y-2">
+                        {groupedPreps[subject]
+                          .filter((p: any) => p.topic.toLowerCase().includes(prepSearchQuery.toLowerCase()) || subject.toLowerCase().includes(prepSearchQuery.toLowerCase()))
+                          .map((prep: any) => (
+                          <button
+                            key={prep.id}
+                            onClick={() => {
+                              setSelectedPrep(prep);
+                              if (onNavigate) {
+                                onNavigate('courses_subjects', { prepId: prep.id });
+                              }
+                            }}
+                            className={`w-full text-left p-3 rounded-xl border transition-all group ${
+                              selectedPrep?.id === prep.id
+                                ? 'bg-indigo-50 dark:bg-indigo-900/30 border-indigo-200 dark:border-indigo-800'
+                                : 'bg-white dark:bg-gray-800 border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700'
+                            }`}
+                          >
+                            <div className="flex justify-between items-start">
+                              <div>
+                                <p className={`text-sm font-bold ${selectedPrep?.id === prep.id ? 'text-indigo-700 dark:text-indigo-300' : 'text-gray-900 dark:text-white'}`}>
+                                  {prep.topic}
+                                </p>
+                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                  {prep.grade} • {t(prep.type)}
+                                </p>
+                              </div>
+                              <ChevronRight size={16} className={`transition-transform ${selectedPrep?.id === prep.id ? 'translate-x-1 text-indigo-500' : 'text-gray-300 group-hover:text-gray-400'}`} />
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-center py-12">
+                    <FileSearch size={48} className="mx-auto text-gray-200 mb-4" />
+                    <p className="text-sm text-gray-500">{t('no_preps_found')}</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Detail Section */}
+          <div className="lg:col-span-2">
+            {selectedPrep ? (
+              <div className="bg-white dark:bg-gray-800 rounded-2xl p-8 shadow-sm border border-gray-200 dark:border-gray-700 animate-fade-in flex flex-col h-[calc(100vh-250px)]">
+                <div className="flex justify-between items-start mb-6">
+                  <div>
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="px-2 py-0.5 bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 text-[10px] font-bold rounded uppercase tracking-wider">
+                        {selectedPrep.subject}
+                      </span>
+                      <span className="px-2 py-0.5 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 text-[10px] font-bold rounded uppercase tracking-wider">
+                        {selectedPrep.grade}
+                      </span>
+                    </div>
+                    <h2 className="text-2xl font-bold text-gray-900 dark:text-white">{selectedPrep.topic}</h2>
+                    <p className="text-sm text-gray-500 mt-1">Généré le {new Date(selectedPrep.createdAt?.toDate()).toLocaleDateString()}</p>
+                  </div>
+                  <button
+                    onClick={() => deletePrep(selectedPrep.id)}
+                    className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-colors"
+                    title={t('delete_prep')}
+                  >
+                    <Trash2 size={20} />
+                  </button>
+                </div>
+
+                <div className="flex-1 prose dark:prose-invert max-w-none text-sm text-gray-600 dark:text-gray-300 whitespace-pre-wrap bg-gray-50 dark:bg-gray-900/50 p-8 rounded-2xl border border-gray-100 dark:border-gray-700 overflow-y-auto custom-scrollbar shadow-inner">
+                  {selectedPrep.content}
+                </div>
+              </div>
+            ) : (
+              <div className="h-full min-h-[500px] flex flex-col items-center justify-center text-gray-400 bg-gray-50 dark:bg-gray-800/50 rounded-2xl border-2 border-dashed border-gray-200 dark:border-gray-700 p-8">
+                <div className="p-6 bg-white dark:bg-gray-800 rounded-full shadow-sm mb-4">
+                  <FileText size={48} className="opacity-20" />
+                </div>
+                <p className="text-center max-w-xs">Sélectionnez une préparation dans la liste pour voir son contenu détaillé.</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'prompts' && (
+        <div className="animate-fade-in space-y-8">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl p-8 shadow-sm border border-gray-200 dark:border-gray-700">
+            <div className="flex items-center gap-4 mb-6">
+              <div className="p-3 bg-indigo-100 dark:bg-indigo-900/50 rounded-2xl">
+                <Terminal className="text-indigo-600 dark:text-indigo-400" size={24} />
+              </div>
+              <div>
+                <h2 className="text-xl font-bold text-gray-900 dark:text-white">{t('ai_prompts_title')}</h2>
+                <p className="text-gray-500 dark:text-gray-400">{t('ai_prompts_desc')}</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {promptTemplates.map((template) => (
+                <div key={template.id} className="group bg-gray-50 dark:bg-gray-900/50 rounded-2xl p-6 border border-gray-100 dark:border-gray-700 hover:border-indigo-300 dark:hover:border-indigo-700 transition-all">
+                  <div className="flex justify-between items-start mb-4">
+                    <div>
+                      <h3 className="font-bold text-gray-900 dark:text-white mb-1">{template.title}</h3>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">{template.description}</p>
+                    </div>
+                    <button
+                      onClick={() => copyToClipboard(template.prompt, template.id)}
+                      className={`p-2 rounded-xl transition-all ${
+                        copiedPromptId === template.id 
+                          ? 'bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400' 
+                          : 'bg-white dark:bg-gray-800 text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 shadow-sm'
+                      }`}
+                    >
+                      {copiedPromptId === template.id ? <CheckCircle size={18} /> : <Copy size={18} />}
+                    </button>
+                  </div>
+                  <div className="bg-white dark:bg-gray-800 p-4 rounded-xl border border-gray-100 dark:border-gray-700 text-xs font-mono text-gray-600 dark:text-gray-400 leading-relaxed italic">
+                    "{template.prompt}"
+                  </div>
+                  {copiedPromptId === template.id && (
+                    <p className="text-[10px] text-green-600 dark:text-green-400 mt-2 font-medium animate-pulse">
+                      {t('prompt_copied')}
+                    </p>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="bg-amber-50 dark:bg-amber-900/20 p-6 rounded-2xl border border-amber-100 dark:border-amber-800 flex gap-4">
+            <div className="p-2 bg-amber-100 dark:bg-amber-800 rounded-xl h-fit">
+              <AlertCircle className="text-amber-600 dark:text-amber-400" size={20} />
+            </div>
+            <div>
+              <h4 className="font-bold text-amber-800 dark:text-amber-300 mb-1">Comment utiliser ces prompts ?</h4>
+              <p className="text-sm text-amber-700 dark:text-amber-400 leading-relaxed">
+                Copiez le prompt de votre choix et collez-le dans l'onglet <strong>Préparations IA</strong> ou utilisez-le directement avec un outil comme Gemini ou ChatGPT. Remplacez les parties entre crochets (ex: [SUJET]) par vos propres informations pour des résultats optimaux.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

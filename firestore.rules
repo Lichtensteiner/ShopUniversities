@@ -128,5 +128,26 @@ service cloud.firestore {
       allow create: if isAuthenticated() && request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participants;
       allow update: if isAuthenticated() && request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participants;
     }
+
+    // Preparations Collection
+    match /preparations/{prepId} {
+      allow read: if isAuthenticated() && (isOwner(resource.data.authorId) || isAdmin());
+      allow create: if isAdmin() || isTeacher() || isStaff();
+      allow update, delete: if isAdmin() || (isAuthenticated() && isOwner(resource.data.authorId));
+    }
+
+    // Resources Collection
+    match /resources/{resourceId} {
+      allow read: if isAuthenticated();
+      allow create: if isAdmin() || isTeacher();
+      allow update, delete: if isAdmin() || (isAuthenticated() && request.auth.uid == resource.data.teacher_id);
+    }
+
+    // Behavior Points Collection
+    match /behavior_points/{pointId} {
+      allow read: if isAuthenticated();
+      allow create: if isAdmin() || isTeacher();
+      allow update, delete: if isAdmin() || (isAuthenticated() && request.auth.uid == resource.data.teacher_id);
+    }
   }
 }

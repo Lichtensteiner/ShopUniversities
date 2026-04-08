@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { collection, query, where, getDocs, addDoc, deleteDoc, doc, onSnapshot, orderBy } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
+import { ref, uploadBytesResumable, getDownloadURL, deleteObject } from 'firebase/storage';
 import { db, storage, isFirebaseConfigured } from '../lib/firebase';
 import { Award, BookOpen, Link as LinkIcon, FileText, Video, Plus, ThumbsUp, ThumbsDown, Trash2, ExternalLink, X, Image as ImageIcon } from 'lucide-react';
 
@@ -36,6 +36,62 @@ interface Resource {
   timestamp: string;
 }
 
+const handleFirestoreError = (error: any, operation: string, path: string) => {
+  console.error(`Firestore Error [${operation}] on ${path}:`, error);
+  if (error.code === 'permission-denied') {
+    return "Permission refusée. Vérifiez les règles de sécurité Firestore.";
+  }
+  return error.message || "Une erreur est survenue.";
+};
+
+const compressImage = (file: File): Promise<Blob> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = (event) => {
+      const img = new Image();
+      img.src = event.target?.result as string;
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+        
+        // Max dimensions
+        const MAX_WIDTH = 1200;
+        const MAX_HEIGHT = 1200;
+        
+        if (width > height) {
+          if (width > MAX_WIDTH) {
+            height *= MAX_WIDTH / width;
+            width = MAX_WIDTH;
+          }
+        } else {
+          if (height > MAX_HEIGHT) {
+            width *= MAX_HEIGHT / height;
+            height = MAX_HEIGHT;
+          }
+        }
+        
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx?.drawImage(img, 0, 0, width, height);
+        
+        canvas.toBlob(
+          (blob) => {
+            if (blob) resolve(blob);
+            else reject(new Error("Compression failed"));
+          },
+          'image/jpeg',
+          0.7 // Quality
+        );
+      };
+      img.onerror = reject;
+    };
+    reader.onerror = reject;
+  });
+};
+
 export default function Classroom() {
   const { currentUser } = useAuth();
   const { t } = useLanguage();
@@ -57,6 +113,7 @@ export default function Classroom() {
   const [pointData, setPointData] = useState({ points: 1, reason: '', type: 'positive' as 'positive' | 'negative' });
   const [resourceData, setResourceData] = useState({ title: '', description: '', subject: '', url: '', type: 'document' as 'document' | 'link' | 'video' | 'image' });
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const [selectedPublishClasses, setSelectedPublishClasses] = useState<string[]>([]);
   const [actionLoading, setActionLoading] = useState(false);
 
@@ -168,8 +225,8 @@ export default function Classroom() {
       setShowPointModal(false);
       setPointData({ points: 1, reason: '', type: 'positive' });
     } catch (error) {
-      console.error("Error adding points:", error);
-      alert("Erreur lors de l'ajout des points");
+      const message = handleFirestoreError(error, 'add', 'behavior_points');
+      alert(message);
     } finally {
       setActionLoading(false);
     }
@@ -183,17 +240,58 @@ export default function Classroom() {
     if (classesToPublish.length === 0) return;
 
     setActionLoading(true);
+    setUploadProgress(5); // Immediate feedback
     try {
       let fileUrl = resourceData.url;
 
       if ((resourceData.type === 'document' || resourceData.type === 'image') && selectedFile) {
+        // Check file size (limit to 20MB for example)
+        if (selectedFile.size > 20 * 1024 * 1024) {
+          throw new Error("Le fichier est trop volumineux (max 20Mo)");
+        }
+
+        let fileToUpload: File | Blob = selectedFile;
+        
+        // Compress image if applicable
+        if (resourceData.type === 'image' && selectedFile.type.startsWith('image/')) {
+          try {
+            fileToUpload = await compressImage(selectedFile);
+          } catch (err) {
+            console.warn("Compression failed, uploading original", err);
+          }
+        }
+
         const fileRef = ref(storage, `resources/${Date.now()}_${selectedFile.name}`);
-        await uploadBytes(fileRef, selectedFile);
-        fileUrl = await getDownloadURL(fileRef);
+        const uploadTask = uploadBytesResumable(fileRef, fileToUpload);
+
+        fileUrl = await new Promise((resolve, reject) => {
+          uploadTask.on('state_changed', 
+            (snapshot) => {
+              const progress = 5 + (snapshot.bytesTransferred / snapshot.totalBytes) * 95;
+              setUploadProgress(progress);
+            }, 
+            (error) => {
+              console.error("Upload error:", error);
+              reject(error);
+            }, 
+            async () => {
+              const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+              resolve(downloadURL);
+            }
+          );
+        });
       }
 
-      for (const cls of classesToPublish) {
-        await addDoc(collection(db, 'resources'), {
+      if (!fileUrl && (resourceData.type === 'document' || resourceData.type === 'image')) {
+        throw new Error("Veuillez sélectionner un fichier ou entrer une URL");
+      }
+
+      if (!fileUrl && (resourceData.type === 'link' || resourceData.type === 'video')) {
+        throw new Error("Veuillez entrer une URL");
+      }
+
+      const uploadPromises = classesToPublish.map(cls => 
+        addDoc(collection(db, 'resources'), {
           class_name: cls,
           teacher_id: currentUser.id,
           title: resourceData.title,
@@ -202,18 +300,22 @@ export default function Classroom() {
           url: fileUrl,
           type: resourceData.type,
           timestamp: new Date().toISOString()
-        });
-      }
+        })
+      );
+
+      await Promise.all(uploadPromises);
       
       setShowResourceModal(false);
       setResourceData({ title: '', description: '', subject: '', url: '', type: 'document' });
       setSelectedFile(null);
       setSelectedPublishClasses([]);
-    } catch (error) {
-      console.error("Error adding resource:", error);
-      alert("Erreur lors de l'ajout de la ressource");
+      setUploadProgress(null);
+    } catch (error: any) {
+      const message = handleFirestoreError(error, 'add', 'resources');
+      alert(message);
     } finally {
       setActionLoading(false);
+      setUploadProgress(null);
     }
   };
 
@@ -487,136 +589,138 @@ export default function Classroom() {
 
       {/* Give Points Modal */}
       {showPointModal && selectedStudent && (
-        <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden">
-            <div className="p-6 border-b border-gray-100 flex justify-between items-center">
-              <h3 className="text-lg font-bold text-gray-900">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-2 sm:p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-md max-h-[95vh] flex flex-col overflow-hidden animate-in fade-in zoom-in duration-200">
+            <div className="p-4 sm:p-6 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center bg-white dark:bg-gray-800 sticky top-0 z-10">
+              <h3 className="text-lg font-bold text-gray-900 dark:text-white">
                 {t('evaluate')} {selectedStudent.prenom} {selectedStudent.nom}
               </h3>
-              <button onClick={() => setShowPointModal(false)} className="text-gray-400 hover:text-gray-600">
+              <button onClick={() => setShowPointModal(false)} className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors">
                 <X size={20} />
               </button>
             </div>
             
-            <div className="p-6 border-b border-gray-100 bg-gray-50 max-h-48 overflow-y-auto">
-              <h4 className="text-sm font-semibold text-gray-900 mb-3">{t('history')}</h4>
-              {points.filter(p => p.student_id === selectedStudent.id).length === 0 ? (
-                <p className="text-sm text-gray-500">{t('no_points_recorded')}</p>
-              ) : (
-                <div className="space-y-2">
-                  {points.filter(p => p.student_id === selectedStudent.id).map(pt => (
-                    <div key={pt.id} className="flex items-center justify-between bg-white p-2 rounded-lg border border-gray-100 group">
-                      <div className="flex items-center gap-2">
-                        <div className={`w-6 h-6 rounded-full flex items-center justify-center ${
-                          pt.type === 'positive' ? 'bg-emerald-100 text-emerald-600' : 'bg-red-100 text-red-600'
-                        }`}>
-                          {pt.type === 'positive' ? <ThumbsUp size={12} /> : <ThumbsDown size={12} />}
+            <div className="flex-1 overflow-y-auto">
+              <div className="p-4 sm:p-6 border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50">
+                <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">{t('history')}</h4>
+                {points.filter(p => p.student_id === selectedStudent.id).length === 0 ? (
+                  <p className="text-sm text-gray-500 dark:text-gray-400">{t('no_points_recorded')}</p>
+                ) : (
+                  <div className="space-y-2">
+                    {points.filter(p => p.student_id === selectedStudent.id).map(pt => (
+                      <div key={pt.id} className="flex items-center justify-between bg-white dark:bg-gray-800 p-2 rounded-lg border border-gray-100 dark:border-gray-700 group">
+                        <div className="flex items-center gap-2">
+                          <div className={`w-6 h-6 rounded-full flex items-center justify-center ${
+                            pt.type === 'positive' ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400' : 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400'
+                          }`}>
+                            {pt.type === 'positive' ? <ThumbsUp size={12} /> : <ThumbsDown size={12} />}
+                          </div>
+                          <div>
+                            <p className="text-xs font-medium text-gray-900 dark:text-white">{pt.reason}</p>
+                            <p className="text-[10px] text-gray-500 dark:text-gray-400">{new Date(pt.timestamp).toLocaleDateString()}</p>
+                          </div>
                         </div>
-                        <div>
-                          <p className="text-xs font-medium text-gray-900">{pt.reason}</p>
-                          <p className="text-[10px] text-gray-500">{new Date(pt.timestamp).toLocaleDateString()}</p>
+                        <div className="flex items-center gap-2">
+                          <span className={`text-xs font-bold ${pt.type === 'positive' ? 'text-emerald-600' : 'text-red-600'}`}>
+                            {pt.points > 0 ? '+' : ''}{pt.points}
+                          </span>
+                          <button 
+                            onClick={() => handleDeletePoint(pt.id)}
+                            className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded opacity-0 group-hover:opacity-100 transition-all"
+                          >
+                            <Trash2 size={14} />
+                          </button>
                         </div>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <span className={`text-xs font-bold ${pt.type === 'positive' ? 'text-emerald-600' : 'text-red-600'}`}>
-                          {pt.points > 0 ? '+' : ''}{pt.points}
-                        </span>
-                        <button 
-                          onClick={() => handleDeletePoint(pt.id)}
-                          className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded opacity-0 group-hover:opacity-100 transition-all"
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <form onSubmit={handleGivePoints} className="p-4 sm:p-6 space-y-4">
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setPointData({ ...pointData, type: 'positive' })}
+                    className={`p-4 rounded-xl border-2 flex flex-col items-center gap-2 transition-all ${
+                      pointData.type === 'positive' ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400' : 'border-gray-100 dark:border-gray-700 text-gray-500 hover:bg-gray-50 dark:hover:bg-gray-700'
+                    }`}
+                  >
+                    <ThumbsUp size={24} />
+                    <span className="font-medium">{t('positive')}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPointData({ ...pointData, type: 'negative' })}
+                    className={`p-4 rounded-xl border-2 flex flex-col items-center gap-2 transition-all ${
+                      pointData.type === 'negative' ? 'border-red-500 bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400' : 'border-gray-100 dark:border-gray-700 text-gray-500 hover:bg-gray-50 dark:hover:bg-gray-700'
+                    }`}
+                  >
+                    <ThumbsDown size={24} />
+                    <span className="font-medium">{t('needs_improvement')}</span>
+                  </button>
                 </div>
-              )}
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('number_of_points')}</label>
+                  <input 
+                    type="number" 
+                    min="1"
+                    max="10"
+                    required
+                    value={pointData.points}
+                    onChange={(e) => setPointData({...pointData, points: parseInt(e.target.value) || 1})}
+                    className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-indigo-500 dark:text-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('reason_comment')}</label>
+                  <input 
+                    type="text" 
+                    required
+                    placeholder={t('reason_placeholder')}
+                    value={pointData.reason}
+                    onChange={(e) => setPointData({...pointData, reason: e.target.value})}
+                    className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-indigo-500 dark:text-white"
+                  />
+                </div>
+
+                <div className="pt-4 flex flex-col sm:flex-row gap-3 bg-white dark:bg-gray-800 sticky bottom-0 z-10">
+                  <button 
+                    type="button"
+                    onClick={() => setShowPointModal(false)}
+                    className="flex-1 px-4 py-2.5 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 font-medium transition-colors order-2 sm:order-1"
+                  >
+                    {t('cancel')}
+                  </button>
+                  <button 
+                    type="submit"
+                    disabled={actionLoading}
+                    className={`flex-1 px-4 py-2.5 text-white rounded-xl font-medium disabled:opacity-50 transition-all order-1 sm:order-2 ${
+                      pointData.type === 'positive' ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-red-600 hover:bg-red-700'
+                    }`}
+                  >
+                    {actionLoading ? t('save') + '...' : t('save')}
+                  </button>
+                </div>
+              </form>
             </div>
-
-            <form onSubmit={handleGivePoints} className="p-6 space-y-4">
-              <div className="grid grid-cols-2 gap-3">
-                <button
-                  type="button"
-                  onClick={() => setPointData({ ...pointData, type: 'positive' })}
-                  className={`p-4 rounded-xl border-2 flex flex-col items-center gap-2 transition-all ${
-                    pointData.type === 'positive' ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-gray-100 text-gray-500 hover:bg-gray-50'
-                  }`}
-                >
-                  <ThumbsUp size={24} />
-                  <span className="font-medium">{t('positive')}</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setPointData({ ...pointData, type: 'negative' })}
-                  className={`p-4 rounded-xl border-2 flex flex-col items-center gap-2 transition-all ${
-                    pointData.type === 'negative' ? 'border-red-500 bg-red-50 text-red-700' : 'border-gray-100 text-gray-500 hover:bg-gray-50'
-                  }`}
-                >
-                  <ThumbsDown size={24} />
-                  <span className="font-medium">{t('needs_improvement')}</span>
-                </button>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">{t('number_of_points')}</label>
-                <input 
-                  type="number" 
-                  min="1"
-                  max="10"
-                  required
-                  value={pointData.points}
-                  onChange={(e) => setPointData({...pointData, points: parseInt(e.target.value) || 1})}
-                  className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">{t('reason_comment')}</label>
-                <input 
-                  type="text" 
-                  required
-                  placeholder={t('reason_placeholder')}
-                  value={pointData.reason}
-                  onChange={(e) => setPointData({...pointData, reason: e.target.value})}
-                  className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500"
-                />
-              </div>
-
-              <div className="pt-4 flex gap-3">
-                <button 
-                  type="button"
-                  onClick={() => setShowPointModal(false)}
-                  className="flex-1 px-4 py-2 border border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 font-medium"
-                >
-                  {t('cancel')}
-                </button>
-                <button 
-                  type="submit"
-                  disabled={actionLoading}
-                  className={`flex-1 px-4 py-2 text-white rounded-xl font-medium disabled:opacity-50 ${
-                    pointData.type === 'positive' ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-red-600 hover:bg-red-700'
-                  }`}
-                >
-                  {actionLoading ? t('save') + '...' : t('save')}
-                </button>
-              </div>
-            </form>
           </div>
         </div>
       )}
 
       {/* Add Resource Modal */}
       {showResourceModal && (
-        <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden">
-            <div className="p-6 border-b border-gray-100 flex justify-between items-center">
-              <h3 className="text-lg font-bold text-gray-900">{t('share_resource')}</h3>
-              <button onClick={() => setShowResourceModal(false)} className="text-gray-400 hover:text-gray-600">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-2 sm:p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-lg max-h-[95vh] flex flex-col overflow-hidden animate-in fade-in zoom-in duration-200">
+            <div className="p-4 sm:p-6 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center bg-white dark:bg-gray-800 sticky top-0 z-10">
+              <h3 className="text-lg font-bold text-gray-900 dark:text-white">{t('share_resource')}</h3>
+              <button onClick={() => setShowResourceModal(false)} className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors">
                 <X size={20} />
               </button>
             </div>
-            <form onSubmit={handleAddResource} className="p-6 space-y-4">
+            <form onSubmit={handleAddResource} className="p-4 sm:p-6 space-y-4 overflow-y-auto">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">{t('resource_type')}</label>
                 <select 
@@ -720,20 +824,33 @@ export default function Classroom() {
                 />
               </div>
 
-              <div className="pt-4 flex gap-3">
+              <div className="pt-4 flex flex-col sm:flex-row gap-3 bg-white dark:bg-gray-800 sticky bottom-0 z-10">
                 <button 
                   type="button"
                   onClick={() => setShowResourceModal(false)}
-                  className="flex-1 px-4 py-2 border border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 font-medium"
+                  className="flex-1 px-4 py-2.5 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 font-medium transition-colors order-2 sm:order-1"
                 >
                   {t('cancel')}
                 </button>
                 <button 
                   type="submit"
                   disabled={actionLoading}
-                  className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 font-medium disabled:opacity-50"
+                  className="flex-1 px-4 py-2.5 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 font-medium disabled:opacity-50 relative overflow-hidden transition-all order-1 sm:order-2"
                 >
-                  {actionLoading ? t('sharing') : t('share')}
+                  {actionLoading ? (
+                    <>
+                      <div className="relative z-10 flex items-center justify-center gap-2">
+                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        <span>{uploadProgress !== null ? `${Math.round(uploadProgress)}%` : t('sharing')}</span>
+                      </div>
+                      {uploadProgress !== null && (
+                        <div 
+                          className="absolute inset-0 bg-white/20 transition-all duration-500 ease-out" 
+                          style={{ width: `${uploadProgress}%` }}
+                        />
+                      )}
+                    </>
+                  ) : t('share')}
                 </button>
               </div>
             </form>

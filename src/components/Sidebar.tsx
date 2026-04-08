@@ -102,6 +102,7 @@ export default function Sidebar({ activeTab, setActiveTab, isMobileOpen, setIsMo
       title: t('schooling_category'),
       items: [
         { id: 'classroom', labelKey: 'classroom', icon: GraduationCap, roles: ['enseignant', 'élève'] },
+        { id: 'courses_subjects', labelKey: 'courses_subjects', icon: BookOpen, roles: ['enseignant', 'admin'] },
         { id: 'ai_assistant', labelKey: 'ai_assistant', icon: Sparkles, roles: ['enseignant', 'admin'] },
         { id: 'classes', labelKey: 'classes', icon: BookOpen, roles: ['admin'] },
         { id: 'calendar', labelKey: 'calendar', icon: CalendarIcon, roles: ['admin', 'enseignant', 'personnel administratif'] },

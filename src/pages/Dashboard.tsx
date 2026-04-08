@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Users, UserCheck, UserX, Clock, TrendingUp, RefreshCw, AlertTriangle } from 'lucide-react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import { Users, UserCheck, UserX, Clock, TrendingUp, RefreshCw, AlertTriangle, ShieldCheck, GraduationCap } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, AreaChart, Area } from 'recharts';
 import { collection, getDocs, query, where, onSnapshot } from 'firebase/firestore';
 import { db, isFirebaseConfigured } from '../lib/firebase';
 import { useAuth } from '../contexts/AuthContext';
@@ -14,6 +14,8 @@ export default function Dashboard() {
   const [stats, setStats] = useState({ presents: 0, retards: 0, absents: 0, total: 0 });
   const [weeklyData, setWeeklyData] = useState<any[]>([]);
   const [classData, setClassData] = useState<any[]>([]);
+  const [userDistribution, setUserDistribution] = useState<any[]>([]);
+  const [studentLevelData, setStudentLevelData] = useState<any[]>([]);
   const [alerts, setAlerts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -35,6 +37,12 @@ export default function Dashboard() {
         const usersMap = new Map();
         const classCountMap = new Map();
         
+        // User distribution stats
+        let teacherCount = 0;
+        let studentCount = 0;
+        let staffCount = 0;
+        const studentLevelsMap = new Map();
+        
         usersSnap.forEach(doc => {
           const data = doc.data();
           if (currentUser.role === 'enseignant' && data.classe !== currentUser.classe) {
@@ -43,9 +51,34 @@ export default function Dashboard() {
           totalUsers++;
           usersMap.set(doc.id, data);
           
+          const role = data.role?.toLowerCase() || '';
+          if (role === 'enseignant') {
+            teacherCount++;
+          } else if (role === 'élève' || role === 'eleve') {
+            studentCount++;
+            // Group students by level (e.g., "6ème A" -> "6ème")
+            const className = data.classe || 'Non classé';
+            const level = className.split(' ')[0];
+            studentLevelsMap.set(level, (studentLevelsMap.get(level) || 0) + 1);
+          } else if (role === 'admin' || role === 'personnel') {
+            staffCount++;
+          }
+          
           const className = data.classe || 'Personnel';
           classCountMap.set(className, (classCountMap.get(className) || 0) + 1);
         });
+
+        setUserDistribution([
+          { name: 'Enseignants', value: teacherCount, color: '#8b5cf6' },
+          { name: 'Élèves', value: studentCount, color: '#3b82f6' },
+          { name: 'Personnel', value: staffCount, color: '#ef4444' }
+        ]);
+
+        setStudentLevelData(
+          Array.from(studentLevelsMap.entries())
+            .map(([name, value]) => ({ name, value }))
+            .sort((a, b) => a.name.localeCompare(b.name))
+        );
 
         // 2. Setup date range for the current week
         const currentWeekDays: string[] = [];
@@ -239,6 +272,98 @@ export default function Dashboard() {
               <div>
                 <p className="text-sm font-medium text-gray-500">{t('lates')}</p>
                 <h3 className="text-2xl font-bold text-gray-900">{stats.retards}</h3>
+              </div>
+            </div>
+          </div>
+
+          {/* User Statistics Section */}
+          <div className="space-y-6">
+            <div className="flex items-center gap-2">
+              <div className="h-8 w-1 bg-indigo-600 rounded-full"></div>
+              <h2 className="text-xl font-bold text-gray-900">{t('user_statistics') || 'Statistiques des Utilisateurs'}</h2>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {/* Teachers Card */}
+              <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4 border-l-4 border-l-violet-500">
+                <div className="w-12 h-12 bg-violet-50 text-violet-600 rounded-xl flex items-center justify-center">
+                  <Users size={24} />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-gray-500">Enseignants</p>
+                  <h3 className="text-2xl font-bold text-gray-900">{userDistribution.find(d => d.name === 'Enseignants')?.value || 0}</h3>
+                </div>
+              </div>
+
+              {/* Students Card */}
+              <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4 border-l-4 border-l-blue-500">
+                <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center">
+                  <GraduationCap size={24} />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-gray-500">Élèves</p>
+                  <h3 className="text-2xl font-bold text-gray-900">{userDistribution.find(d => d.name === 'Élèves')?.value || 0}</h3>
+                </div>
+              </div>
+
+              {/* Staff Card */}
+              <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4 border-l-4 border-l-red-500">
+                <div className="w-12 h-12 bg-red-50 text-red-600 rounded-xl flex items-center justify-center">
+                  <ShieldCheck size={24} />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-gray-500">Personnel Administratif</p>
+                  <h3 className="text-2xl font-bold text-gray-900">{userDistribution.find(d => d.name === 'Personnel')?.value || 0}</h3>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* User Distribution Chart */}
+              <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
+                <h3 className="text-lg font-semibold text-gray-900 mb-6">Répartition Globale</h3>
+                <div className="h-64 w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={userDistribution}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={60}
+                        outerRadius={80}
+                        paddingAngle={8}
+                        dataKey="value"
+                      >
+                        {userDistribution.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <Tooltip 
+                        contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                      />
+                      <Legend verticalAlign="bottom" height={36}/>
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+
+              {/* Students by Level Chart */}
+              <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
+                <h3 className="text-lg font-semibold text-gray-900 mb-6">Élèves par Niveau</h3>
+                <div className="h-64 w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={studentLevelData}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
+                      <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#6b7280', fontSize: 12 }} />
+                      <YAxis axisLine={false} tickLine={false} tick={{ fill: '#6b7280', fontSize: 12 }} />
+                      <Tooltip 
+                        cursor={{ fill: '#f9fafb' }}
+                        contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                      />
+                      <Bar dataKey="value" name="Nombre d'élèves" fill="#3b82f6" radius={[4, 4, 0, 0]} maxBarSize={40} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
               </div>
             </div>
           </div>
