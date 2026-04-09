@@ -3,7 +3,8 @@ import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { collection, query, where, getDocs, doc, getDoc, onSnapshot, addDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
-import { User, MessageCircle, GraduationCap, UserPlus, Search, ChevronRight, Mail } from 'lucide-react';
+import { User, MessageCircle, GraduationCap, UserPlus, Search, ChevronRight, Mail, Trash2, X, MapPin, Phone, Briefcase, Ban } from 'lucide-react';
+import { deleteDoc } from 'firebase/firestore';
 
 interface UserProfile {
   id: string;
@@ -14,6 +15,12 @@ interface UserProfile {
   photo?: string;
   classe?: string;
   status?: 'online' | 'offline';
+  contact?: string;
+  address?: string;
+  gender?: string;
+  age?: number;
+  matricule?: string;
+  biographie?: string;
 }
 
 interface DirectoryProps {
@@ -33,6 +40,7 @@ export default function Directory({ onNavigate }: DirectoryProps) {
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState('enseignant');
+  const [viewUser, setViewUser] = useState<UserProfile | null>(null);
 
   useEffect(() => {
     fetchUsers();
@@ -88,6 +96,23 @@ export default function Directory({ onNavigate }: DirectoryProps) {
   const handleStartConversation = (userId: string) => {
     if (onNavigate) {
       onNavigate('messaging', { userId });
+    }
+  };
+
+  const handleDeleteUser = async (userId: string) => {
+    if (!window.confirm("Êtes-vous sûr de vouloir supprimer cet utilisateur ? Cette action est irréversible.")) {
+      return;
+    }
+
+    try {
+      await deleteDoc(doc(db, 'users', userId));
+      alert("Utilisateur supprimé avec succès.");
+      if (viewUser?.id === userId) {
+        setViewUser(null);
+      }
+    } catch (error) {
+      console.error("Erreur lors de la suppression de l'utilisateur:", error);
+      alert("Une erreur est survenue lors de la suppression.");
     }
   };
 
@@ -243,7 +268,7 @@ export default function Directory({ onNavigate }: DirectoryProps) {
                 
                 <div className="flex items-center gap-2 sm:opacity-0 group-hover:opacity-100 transition-opacity justify-end sm:justify-start w-full sm:w-auto mt-2 sm:mt-0">
                   <button 
-                    onClick={() => alert('Voir profil')}
+                    onClick={() => setViewUser(user)}
                     className="p-2 text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-full hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-colors"
                     title="Voir profil"
                   >
@@ -256,6 +281,15 @@ export default function Directory({ onNavigate }: DirectoryProps) {
                   >
                     <MessageCircle size={20} />
                   </button>
+                  {currentUser?.role === 'admin' && (
+                    <button 
+                      onClick={() => handleDeleteUser(user.id)}
+                      className="p-2 text-gray-400 hover:text-red-600 dark:hover:text-red-400 rounded-full hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                      title="Supprimer l'utilisateur"
+                    >
+                      <Trash2 size={20} />
+                    </button>
+                  )}
                 </div>
               </div>
             ))
@@ -328,6 +362,125 @@ export default function Directory({ onNavigate }: DirectoryProps) {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* View Profile Modal */}
+      {viewUser && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-2xl my-8 overflow-hidden animate-in fade-in zoom-in duration-200">
+            <div className="flex justify-between items-center p-6 border-b border-gray-100 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-900/50">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-lg">
+                  <User size={20} />
+                </div>
+                <h3 className="text-xl font-bold text-gray-900 dark:text-white">Profil Utilisateur</h3>
+              </div>
+              <button onClick={() => setViewUser(null)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors">
+                <X size={24} />
+              </button>
+            </div>
+            
+            <div className="p-6 space-y-6 max-h-[70vh] overflow-y-auto custom-scrollbar">
+              <div className="flex flex-col md:flex-row items-center gap-6 p-6 bg-indigo-50/50 dark:bg-indigo-900/10 rounded-2xl border border-indigo-100 dark:border-indigo-900/30">
+                {viewUser.photo ? (
+                  <img src={viewUser.photo} alt="" className="w-24 h-24 rounded-2xl object-cover shadow-lg border-4 border-white dark:border-gray-800" referrerPolicy="no-referrer" />
+                ) : (
+                  <div className="w-24 h-24 rounded-2xl bg-indigo-600 text-white flex items-center justify-center font-bold text-3xl uppercase shadow-lg border-4 border-white dark:border-gray-800">
+                    {viewUser.prenom?.[0]}{viewUser.nom?.[0]}
+                  </div>
+                )}
+                <div className="text-center md:text-left">
+                  <h4 className="text-2xl font-bold text-gray-900 dark:text-white">{viewUser.prenom} {viewUser.nom}</h4>
+                  <div className="flex flex-wrap justify-center md:justify-start gap-2 mt-2">
+                    <span className="px-3 py-1 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-full text-xs font-bold uppercase tracking-wider">
+                      {viewUser.role}
+                    </span>
+                    {viewUser.classe && (
+                      <span className="px-3 py-1 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 rounded-full text-xs font-mono">
+                        {viewUser.classe}
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-gray-500 dark:text-gray-400 mt-3 flex items-center justify-center md:justify-start gap-2 text-sm">
+                    <Mail size={14} />
+                    {viewUser.email}
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div className="space-y-4">
+                  <h5 className="text-xs font-bold text-gray-400 uppercase tracking-wider flex items-center gap-2">
+                    <User size={14} />
+                    Informations
+                  </h5>
+                  <div className="space-y-3 text-sm">
+                    <div className="flex justify-between py-2 border-b border-gray-50 dark:border-gray-700/50">
+                      <span className="text-gray-500">Email</span>
+                      <span className="font-medium text-gray-900 dark:text-gray-200">{viewUser.email}</span>
+                    </div>
+                    <div className="flex justify-between py-2 border-b border-gray-50 dark:border-gray-700/50">
+                      <span className="text-gray-500">Rôle</span>
+                      <span className="font-medium text-gray-900 dark:text-gray-200 capitalize">{viewUser.role}</span>
+                    </div>
+                    {viewUser.contact && (
+                      <div className="flex justify-between py-2 border-b border-gray-50 dark:border-gray-700/50">
+                        <span className="text-gray-500">Contact</span>
+                        <span className="font-medium text-gray-900 dark:text-gray-200">{viewUser.contact}</span>
+                      </div>
+                    )}
+                    {viewUser.address && (
+                      <div className="flex justify-between py-2 border-b border-gray-50 dark:border-gray-700/50">
+                        <span className="text-gray-500">Adresse</span>
+                        <span className="font-medium text-gray-900 dark:text-gray-200">{viewUser.address}</span>
+                      </div>
+                    )}
+                    {viewUser.gender && (
+                      <div className="flex justify-between py-2 border-b border-gray-50 dark:border-gray-700/50">
+                        <span className="text-gray-500">Genre</span>
+                        <span className="font-medium text-gray-900 dark:text-gray-200 capitalize">{viewUser.gender}</span>
+                      </div>
+                    )}
+                    {viewUser.age && (
+                      <div className="flex justify-between py-2 border-b border-gray-50 dark:border-gray-700/50">
+                        <span className="text-gray-500">Âge</span>
+                        <span className="font-medium text-gray-900 dark:text-gray-200">{viewUser.age} ans</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <h5 className="text-xs font-bold text-gray-400 uppercase tracking-wider flex items-center gap-2">
+                    <Briefcase size={14} />
+                    Actions
+                  </h5>
+                  <div className="flex flex-col gap-2">
+                    <button 
+                      onClick={() => {
+                        handleStartConversation(viewUser.id);
+                        setViewUser(null);
+                      }}
+                      className="flex items-center justify-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors w-full"
+                    >
+                      <MessageCircle size={18} />
+                      Lancer une conversation
+                    </button>
+                    {currentUser?.role === 'admin' && (
+                      <button 
+                        onClick={() => handleDeleteUser(viewUser.id)}
+                        className="flex items-center justify-center gap-2 px-4 py-2 bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400 rounded-lg hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors w-full"
+                      >
+                        <Trash2 size={18} />
+                        Supprimer l'utilisateur
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       )}

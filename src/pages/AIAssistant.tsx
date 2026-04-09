@@ -5,6 +5,9 @@ import { Sparkles, Upload, Send, CheckCircle, AlertCircle, Loader2, Image as Ima
 import { createNotification } from '../services/NotificationService';
 import { collection, query, getDocs, where, addDoc, serverTimestamp, onSnapshot, orderBy, deleteDoc, doc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
+import { GoogleGenAI } from "@google/genai";
+
+const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
 interface AIAssistantProps {
   onNavigate?: (tab: string, params?: any) => void;
@@ -135,23 +138,21 @@ export default function AIAssistant({ onNavigate }: AIAssistantProps) {
         Réponds en français de manière structurée avec des titres clairs.
       `;
 
-      const response = await fetch('/api/ai/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          prompt,
-          image: base64Data,
-          mimeType: selectedFile.type
-        })
+      const response = await ai.models.generateContent({
+        model: "gemini-3-flash-preview",
+        contents: [
+          {
+            parts: [
+              { text: prompt },
+              { inlineData: { data: base64Data, mimeType: selectedFile.type } }
+            ]
+          }
+        ]
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Failed to analyze work");
-      }
-
-      const data = await response.json();
-      const result = data.text;
+      const result = response.text;
+      if (!result) throw new Error("No response from AI");
+      
       setAiFeedback(result);
       
       const scoreMatch = result.match(/(\d{1,2})\/20/);
@@ -186,19 +187,13 @@ export default function AIAssistant({ onNavigate }: AIAssistantProps) {
         Réponds en français.
       `;
 
-      const response = await fetch('/api/ai/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt })
+      const response = await ai.models.generateContent({
+        model: "gemini-3-flash-preview",
+        contents: [{ parts: [{ text: prompt }] }]
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Failed to generate preparation");
-      }
-
-      const data = await response.json();
-      setGeneratedPrep(data.text);
+      if (!response.text) throw new Error("No response from AI");
+      setGeneratedPrep(response.text);
     } catch (error) {
       console.error("AI Generation error:", error);
       alert("Erreur lors de la génération par l'IA.");

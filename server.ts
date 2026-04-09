@@ -16,44 +16,6 @@ async function startServer() {
 
   app.use(express.json({ limit: '50mb' }));
 
-  // AI Proxy Route
-  app.post("/api/ai/generate", async (req, res) => {
-    try {
-      const { prompt, image, mimeType } = req.body;
-      
-      if (!process.env.GEMINI_API_KEY) {
-        return res.status(500).json({ error: "GEMINI_API_KEY is not configured on the server." });
-      }
-
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-      
-      let result;
-      if (image && mimeType) {
-        result = await ai.models.generateContent({
-          model: "gemini-3-flash-preview",
-          contents: [
-            {
-              parts: [
-                { text: prompt },
-                { inlineData: { data: image, mimeType: mimeType } }
-              ]
-            }
-          ]
-        });
-      } else {
-        result = await ai.models.generateContent({
-          model: "gemini-3-flash-preview",
-          contents: [{ parts: [{ text: prompt }] }]
-        });
-      }
-
-      res.json({ text: result.text });
-    } catch (error: any) {
-      console.error("AI Generation Error:", error);
-      res.status(500).json({ error: error.message || "Failed to generate content" });
-    }
-  });
-
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({
