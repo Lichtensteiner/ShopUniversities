@@ -14,6 +14,16 @@ if ('serviceWorker' in navigator) {
   });
 }
 
+// Aggressive cache clearing for PWA issues
+if ('caches' in window) {
+  caches.keys().then((names) => {
+    for (let name of names) {
+      caches.delete(name);
+      console.log('Cache deleted:', name);
+    }
+  });
+}
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <App />

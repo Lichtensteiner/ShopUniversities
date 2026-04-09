@@ -54,8 +54,20 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [isInitializing, setIsInitializing] = useState(true);
 
   useEffect(() => {
+    // Safety timeout to prevent permanent white screen if Firebase hangs
+    const timeout = setTimeout(() => {
+      setIsInitializing(prev => {
+        if (prev) {
+          console.warn("Auth initialization timeout reached - forcing app to load");
+          return false;
+        }
+        return prev;
+      });
+    }, 8000); // 8 seconds safety margin
+
     if (!isFirebaseConfigured) {
       setIsInitializing(false);
+      clearTimeout(timeout);
       return;
     }
     
@@ -106,18 +118,22 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             }
           }
           setIsInitializing(false);
+          clearTimeout(timeout);
         }, (err) => {
           console.error("Erreur lors de la récupération du profil:", err);
           setCurrentUser(null);
           setIsInitializing(false);
+          clearTimeout(timeout);
         });
       } else {
         setCurrentUser(null);
         setIsInitializing(false);
+        clearTimeout(timeout);
       }
     });
 
     return () => {
+      clearTimeout(timeout);
       unsubscribeAuth();
       if (unsubscribeDoc) unsubscribeDoc();
     };

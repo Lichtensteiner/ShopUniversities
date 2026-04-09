@@ -7,7 +7,22 @@ import { collection, query, getDocs, where, addDoc, serverTimestamp, onSnapshot,
 import { db } from '../lib/firebase';
 import { GoogleGenAI } from "@google/genai";
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+// Safe initialization of Gemini API
+const getApiKey = () => {
+  try {
+    return typeof process !== 'undefined' ? process.env.GEMINI_API_KEY || '' : '';
+  } catch (e) {
+    return '';
+  }
+};
+
+let aiInstance: GoogleGenAI | null = null;
+const getAI = () => {
+  if (!aiInstance) {
+    aiInstance = new GoogleGenAI({ apiKey: getApiKey() });
+  }
+  return aiInstance;
+};
 
 interface AIAssistantProps {
   onNavigate?: (tab: string, params?: any) => void;
@@ -138,8 +153,8 @@ export default function AIAssistant({ onNavigate }: AIAssistantProps) {
         Réponds en français de manière structurée avec des titres clairs.
       `;
 
-      const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
+      const response = await getAI().models.generateContent({
+        model: "gemini-1.5-flash",
         contents: [
           {
             parts: [
@@ -187,8 +202,8 @@ export default function AIAssistant({ onNavigate }: AIAssistantProps) {
         Réponds en français.
       `;
 
-      const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
+      const response = await getAI().models.generateContent({
+        model: "gemini-1.5-flash",
         contents: [{ parts: [{ text: prompt }] }]
       });
 

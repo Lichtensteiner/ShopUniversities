@@ -35,6 +35,7 @@ import { ThemeProvider } from './contexts/ThemeContext';
 import ReloadPrompt from './components/ReloadPrompt';
 import Footer from './components/Footer';
 import { Ban } from 'lucide-react';
+import ErrorBoundary from './components/ErrorBoundary';
 
 function AppContent() {
   const { currentUser } = useAuth();
@@ -194,13 +195,15 @@ function AppContent() {
 
 export default function App() {
   return (
-    <ThemeProvider>
-      <LanguageProvider>
-        <AuthProvider>
-          <AppContent />
-          <ReloadPrompt />
-        </AuthProvider>
-      </LanguageProvider>
-    </ThemeProvider>
+    <ErrorBoundary>
+      <ThemeProvider>
+        <LanguageProvider>
+          <AuthProvider>
+            <AppContent />
+            <ReloadPrompt />
+          </AuthProvider>
+        </LanguageProvider>
+      </ThemeProvider>
+    </ErrorBoundary>
   );
 }

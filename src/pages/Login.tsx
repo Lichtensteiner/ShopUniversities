@@ -54,6 +54,8 @@ export default function Login() {
     const unsubscribe = onSnapshot(collection(db, 'houses'), (snapshot) => {
       const housesData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       setHouses(housesData);
+    }, (err) => {
+      console.error("Erreur onSnapshot houses:", err);
     });
     return () => unsubscribe();
   }, []);
