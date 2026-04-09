@@ -74,10 +74,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     let unsubscribeDoc: () => void;
 
     const unsubscribeAuth = onAuthStateChanged(auth, (firebaseUser) => {
+      console.log("Auth state changed:", firebaseUser ? "User logged in" : "No user");
       if (unsubscribeDoc) unsubscribeDoc();
 
       if (firebaseUser) {
         const docRef = doc(db, 'users', firebaseUser.uid);
+        console.log("Fetching user profile for UID:", firebaseUser.uid);
         
         // Update status to online when auth state changes to logged in
         setDoc(docRef, {
@@ -86,11 +88,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         }, { merge: true }).catch(err => console.error("Error updating online status:", err));
 
         unsubscribeDoc = onSnapshot(docRef, (docSnap) => {
+          console.log("User profile snapshot received. Exists:", docSnap.exists());
           if (docSnap.exists()) {
             const userData = docSnap.data();
             
             // Auto-fill admin name if missing
             if (firebaseUser.email === 'martinienmvezogo@gmail.com' && (!userData.prenom || !userData.nom)) {
+              console.log("Auto-filling admin name...");
               setDoc(docRef, {
                 prenom: 'Martinien',
                 nom: 'Mvezogo'
@@ -101,8 +105,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
               setCurrentUser({ id: docSnap.id, ...userData } as User);
             }
           } else {
+            console.log("User profile does not exist in Firestore.");
             // Auto-create admin document if it doesn't exist
             if (firebaseUser.email === 'martinienmvezogo@gmail.com') {
+              console.log("Creating admin profile...");
               const adminData = {
                 email: firebaseUser.email,
                 role: 'admin',
@@ -117,6 +123,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
               setCurrentUser(null);
             }
           }
+          console.log("Auth initialization complete.");
           setIsInitializing(false);
           clearTimeout(timeout);
         }, (err) => {

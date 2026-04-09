@@ -39,6 +39,7 @@ import ErrorBoundary from './components/ErrorBoundary';
 
 function AppContent() {
   const { currentUser } = useAuth();
+  console.log("AppContent rendering. CurrentUser:", currentUser ? currentUser.email : "None");
   const [activeTab, setActiveTab] = useState('dashboard');
   const [tabParams, setTabParams] = useState<any>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);

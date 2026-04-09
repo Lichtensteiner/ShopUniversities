@@ -7,19 +7,14 @@ import { collection, query, getDocs, where, addDoc, serverTimestamp, onSnapshot,
 import { db } from '../lib/firebase';
 import { GoogleGenAI } from "@google/genai";
 
-// Safe initialization of Gemini API
-const getApiKey = () => {
-  try {
-    return typeof process !== 'undefined' ? process.env.GEMINI_API_KEY || '' : '';
-  } catch (e) {
-    return '';
-  }
-};
-
 let aiInstance: GoogleGenAI | null = null;
 const getAI = () => {
   if (!aiInstance) {
-    aiInstance = new GoogleGenAI({ apiKey: getApiKey() });
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      throw new Error("La clé API Gemini n'est pas configurée.");
+    }
+    aiInstance = new GoogleGenAI({ apiKey });
   }
   return aiInstance;
 };
@@ -154,28 +149,27 @@ export default function AIAssistant({ onNavigate }: AIAssistantProps) {
       `;
 
       const response = await getAI().models.generateContent({
-        model: "gemini-1.5-flash",
-        contents: [
-          {
-            parts: [
-              { text: prompt },
-              { inlineData: { data: base64Data, mimeType: selectedFile.type } }
-            ]
-          }
-        ]
+        model: "gemini-3-flash-preview",
+        contents: {
+          parts: [
+            { text: prompt },
+            { inlineData: { data: base64Data, mimeType: selectedFile.type } }
+          ]
+        }
       });
 
       const result = response.text;
-      if (!result) throw new Error("No response from AI");
+      
+      if (!result) throw new Error("Réponse vide de l'IA");
       
       setAiFeedback(result);
       
       const scoreMatch = result.match(/(\d{1,2})\/20/);
       if (scoreMatch) setSuggestedScore(scoreMatch[0]);
 
-    } catch (error) {
+    } catch (error: any) {
       console.error("AI Analysis error:", error);
-      alert("Erreur lors de l'analyse par l'IA.");
+      alert(`Erreur lors de l'analyse par l'IA : ${error.message}`);
     } finally {
       setIsAnalyzing(false);
     }
@@ -203,15 +197,15 @@ export default function AIAssistant({ onNavigate }: AIAssistantProps) {
       `;
 
       const response = await getAI().models.generateContent({
-        model: "gemini-1.5-flash",
-        contents: [{ parts: [{ text: prompt }] }]
+        model: "gemini-3-flash-preview",
+        contents: { parts: [{ text: prompt }] }
       });
 
-      if (!response.text) throw new Error("No response from AI");
+      if (!response.text) throw new Error("Réponse vide de l'IA");
       setGeneratedPrep(response.text);
-    } catch (error) {
+    } catch (error: any) {
       console.error("AI Generation error:", error);
-      alert("Erreur lors de la génération par l'IA.");
+      alert(`Erreur lors de la génération par l'IA : ${error.message}`);
     } finally {
       setIsGeneratingPrep(false);
     }
