@@ -34,6 +34,7 @@ import { LanguageProvider } from './contexts/LanguageContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 import ReloadPrompt from './components/ReloadPrompt';
 import Footer from './components/Footer';
+import { Ban } from 'lucide-react';
 
 function AppContent() {
   const { currentUser } = useAuth();
@@ -83,6 +84,31 @@ function AppContent() {
       window.history.pushState({ tab, params }, '');
     }
   };
+
+  const { logout } = useAuth();
+
+  if (currentUser?.accessBlocked) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-red-50 dark:bg-gray-900 p-4">
+        <div className="bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-xl max-w-md w-full text-center border border-red-100 dark:border-red-900/30">
+          <div className="w-20 h-20 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-full flex items-center justify-center mx-auto mb-6">
+            <Ban size={40} />
+          </div>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">Accès Restreint</h1>
+          <p className="text-gray-600 dark:text-gray-400 mb-8">
+            Votre accès à l'application a été suspendu par l'administrateur de l'établissement. 
+            Veuillez contacter l'administration pour plus d'informations.
+          </p>
+          <button 
+            onClick={() => logout()}
+            className="w-full py-3 bg-red-600 text-white rounded-xl font-bold hover:bg-red-700 transition-colors shadow-lg shadow-red-500/20"
+          >
+            Se déconnecter
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   if (!currentUser) {
     return <Login />;

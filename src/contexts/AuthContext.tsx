@@ -34,6 +34,8 @@ export interface User {
   biographie?: string;
   status?: 'online' | 'offline';
   lastSeen?: any;
+  chatBlocked?: boolean;
+  accessBlocked?: boolean;
 }
 
 interface AuthContextType {

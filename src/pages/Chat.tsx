@@ -261,6 +261,11 @@ export default function Chat({ conversationId, onBack }: ChatProps) {
     e.preventDefault();
     if ((!newMessage.trim() && !selectedFile) || !currentUser || !conversationId) return;
 
+    if (currentUser.chatBlocked) {
+      alert("Votre accès à la messagerie a été restreint par l'administrateur.");
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       let mediaUrl = null;
@@ -587,8 +592,9 @@ export default function Chat({ conversationId, onBack }: ChatProps) {
               ref={textareaRef}
               value={newMessage}
               onChange={handleTextareaChange}
-              placeholder="Écrivez un message..."
-              className="w-full bg-transparent border-none focus:ring-0 p-3 text-gray-900 dark:text-white resize-none custom-scrollbar"
+              disabled={currentUser?.chatBlocked}
+              placeholder={currentUser?.chatBlocked ? "Messagerie bloquée par l'administrateur" : "Écrivez un message..."}
+              className="w-full bg-transparent border-none focus:ring-0 p-3 text-gray-900 dark:text-white resize-none custom-scrollbar disabled:opacity-50"
               rows={1}
               style={{ minHeight: '44px', maxHeight: '120px' }}
               onKeyDown={(e) => {

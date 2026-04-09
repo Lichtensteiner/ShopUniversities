@@ -38,6 +38,7 @@ export default function Messaging({ initialChatTargetId, onClearTarget }: Messag
   const [groupMessageText, setGroupMessageText] = useState('');
   const [announcementText, setAnnouncementText] = useState('');
   const [isSubmittingAnnouncement, setIsSubmittingAnnouncement] = useState(false);
+  const [activeTab, setActiveTab] = useState<'conversations' | 'monitoring'>('conversations');
 
   // Fetch all users for main list and modals
   useEffect(() => {
@@ -109,11 +110,16 @@ export default function Messaging({ initialChatTargetId, onClearTarget }: Messag
   useEffect(() => {
     if (!currentUser) return;
 
-    // Fetch conversations where current user is a participant
-    const q = query(
-      collection(db, 'conversations'),
-      where('participants', 'array-contains', currentUser.id)
-    );
+    // Fetch conversations
+    let q;
+    if (currentUser.role === 'admin') {
+      q = collection(db, 'conversations');
+    } else {
+      q = query(
+        collection(db, 'conversations'),
+        where('participants', 'array-contains', currentUser.id)
+      );
+    }
 
     const unsubscribe = onSnapshot(q, async (snapshot) => {
       const convos = snapshot.docs.map(doc => ({
@@ -198,6 +204,15 @@ export default function Messaging({ initialChatTargetId, onClearTarget }: Messag
   });
 
   const groupConversations = conversations.filter(conv => conv.isGroup && (!searchQuery || conv.groupName?.toLowerCase().includes(searchQuery.toLowerCase())));
+
+  const studentConversations = conversations.filter(conv => {
+    if (conv.isGroup) return false;
+    // Check if all participants are students
+    return conv.participants.every(pId => {
+      const user = allUsers.find(u => u.id === pId) || (pId === currentUser?.id ? currentUser : null);
+      return user?.role === 'élève';
+    });
+  });
 
   useEffect(() => {
     const handlePopState = (event: PopStateEvent) => {
@@ -407,7 +422,25 @@ export default function Messaging({ initialChatTargetId, onClearTarget }: Messag
   return (
     <div className="max-w-5xl mx-auto h-[calc(100dvh-6rem)] sm:h-[calc(100vh-7rem)] flex flex-col">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4 shrink-0">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Messagerie</h1>
+        <div className="flex items-center gap-4">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Messagerie</h1>
+          {currentUser?.role === 'admin' && (
+            <div className="flex bg-gray-100 dark:bg-gray-700 p-1 rounded-lg">
+              <button
+                onClick={() => setActiveTab('conversations')}
+                className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${activeTab === 'conversations' ? 'bg-white dark:bg-gray-600 text-indigo-600 dark:text-indigo-300 shadow-sm' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}
+              >
+                Mes Conversations
+              </button>
+              <button
+                onClick={() => setActiveTab('monitoring')}
+                className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${activeTab === 'monitoring' ? 'bg-white dark:bg-gray-600 text-indigo-600 dark:text-indigo-300 shadow-sm' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}
+              >
+                Surveillance Élèves
+              </button>
+            </div>
+          )}
+        </div>
         
         <div className="flex flex-wrap gap-2">
           <button 
@@ -449,105 +482,163 @@ export default function Messaging({ initialChatTargetId, onClearTarget }: Messag
         </div>
 
         <div className="flex-1 overflow-y-auto custom-scrollbar divide-y divide-gray-200 dark:divide-gray-700">
-          {groupConversations.length > 0 && (
+          {activeTab === 'conversations' ? (
+            <>
+              {groupConversations.length > 0 && (
+                <div className="bg-gray-50 dark:bg-gray-800/50">
+                  <div className="px-4 py-2 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    Groupes
+                  </div>
+                  {groupConversations.map((conv) => (
+                    <div 
+                      key={conv.id} 
+                      className="p-4 hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-colors cursor-pointer flex items-center justify-between group"
+                      onClick={() => {
+                        setSelectedConversationId(conv.id);
+                        window.history.pushState({ modal: 'chat' }, '');
+                      }}
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className="relative">
+                          <div className="w-12 h-12 rounded-full bg-indigo-100 dark:bg-indigo-900 flex items-center justify-center text-indigo-600 dark:text-indigo-300 font-bold text-lg shrink-0 overflow-hidden">
+                            <Users size={24} />
+                          </div>
+                        </div>
+                        <div>
+                          <h3 className="font-medium text-gray-900 dark:text-white">
+                            {conv.groupName}
+                          </h3>
+                          <p className="text-sm text-gray-500 dark:text-gray-400 line-clamp-1">
+                            {conv.lastMessage}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex flex-col items-end gap-1">
+                        <span className="text-xs text-gray-400">
+                          {conv.lastMessageTime ? format(conv.lastMessageTime.toDate(), 'HH:mm', { locale: fr }) : ''}
+                        </span>
+                        {conv.unreadCounts?.[currentUser.id] ? (
+                          <span className="bg-indigo-600 text-white text-xs font-bold px-2 py-0.5 rounded-full">
+                            {conv.unreadCounts[currentUser.id]}
+                          </span>
+                        ) : null}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div className="px-4 py-2 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider bg-gray-50 dark:bg-gray-800/50">
+                Utilisateurs
+              </div>
+              {filteredUsers.length > 0 ? (
+                filteredUsers.map((user) => {
+                  // Find if there is an existing conversation to show last message
+                  const existingConv = conversations.find(c => !c.isGroup && c.participants.includes(user.id) && c.participants.includes(currentUser.id));
+                  
+                  return (
+                    <div 
+                      key={user.id} 
+                      className="p-4 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors cursor-pointer flex items-center justify-between group"
+                      onClick={() => handleStartDirectChat(user.id)}
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className="relative">
+                          <div className="w-12 h-12 rounded-full bg-indigo-100 dark:bg-indigo-900 flex items-center justify-center text-indigo-600 dark:text-indigo-300 font-bold text-lg shrink-0 overflow-hidden">
+                            {user.photo ? (
+                              <img src={user.photo} alt={user.nom} className="w-full h-full object-cover" />
+                            ) : (
+                              user.prenom || user.nom ? `${user.prenom?.[0] || ''}${user.nom?.[0] || ''}` : user.email?.[0] || 'U'
+                            )}
+                          </div>
+                          {user.status === 'online' && (
+                            <div className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-green-500 border-2 border-white dark:border-gray-800 rounded-full"></div>
+                          )}
+                        </div>
+                        <div>
+                          <h3 className="font-medium text-gray-900 dark:text-white">
+                            {user.prenom || user.nom ? `${user.prenom || ''} ${user.nom || ''}`.trim() : user.email?.split('@')[0] || 'Utilisateur'}
+                          </h3>
+                          <p className="text-sm text-gray-500 dark:text-gray-400 line-clamp-1">
+                            {existingConv?.lastMessage || <span className="italic">Nouvelle conversation</span>}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex flex-col items-end gap-1">
+                        {existingConv?.lastMessageTime && (
+                          <span className="text-xs text-gray-400">
+                            {format(existingConv.lastMessageTime.toDate(), 'HH:mm', { locale: fr })}
+                          </span>
+                        )}
+                        {existingConv?.unreadCounts?.[currentUser.id] ? (
+                          <span className="bg-indigo-600 text-white text-xs font-bold px-2 py-0.5 rounded-full">
+                            {existingConv.unreadCounts[currentUser.id]}
+                          </span>
+                        ) : null}
+                      </div>
+                    </div>
+                  );
+                })
+              ) : (
+                <div className="p-8 text-center text-gray-500 dark:text-gray-400 flex flex-col items-center justify-center h-full">
+                  <MessageCircle size={48} className="text-gray-300 dark:text-gray-600 mb-4" />
+                  <p>Aucun utilisateur trouvé.</p>
+                </div>
+              )}
+            </>
+          ) : (
             <div className="bg-gray-50 dark:bg-gray-800/50">
               <div className="px-4 py-2 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                Groupes
+                Conversations entre élèves
               </div>
-              {groupConversations.map((conv) => (
-                <div 
-                  key={conv.id} 
-                  className="p-4 hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-colors cursor-pointer flex items-center justify-between group"
-                  onClick={() => {
-                    setSelectedConversationId(conv.id);
-                    window.history.pushState({ modal: 'chat' }, '');
-                  }}
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="relative">
-                      <div className="w-12 h-12 rounded-full bg-indigo-100 dark:bg-indigo-900 flex items-center justify-center text-indigo-600 dark:text-indigo-300 font-bold text-lg shrink-0 overflow-hidden">
-                        <Users size={24} />
-                      </div>
-                    </div>
-                    <div>
-                      <h3 className="font-medium text-gray-900 dark:text-white">
-                        {conv.groupName}
-                      </h3>
-                      <p className="text-sm text-gray-500 dark:text-gray-400 line-clamp-1">
-                        {conv.lastMessage}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex flex-col items-end gap-1">
-                    <span className="text-xs text-gray-400">
-                      {conv.lastMessageTime ? format(conv.lastMessageTime.toDate(), 'HH:mm', { locale: fr }) : ''}
-                    </span>
-                    {conv.unreadCounts?.[currentUser.id] ? (
-                      <span className="bg-indigo-600 text-white text-xs font-bold px-2 py-0.5 rounded-full">
-                        {conv.unreadCounts[currentUser.id]}
-                      </span>
-                    ) : null}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+              {studentConversations.length > 0 ? (
+                studentConversations.map((conv) => {
+                  const participants = conv.participants.map(pId => {
+                    const user = allUsers.find(u => u.id === pId) || (pId === currentUser?.id ? currentUser : null);
+                    return user ? `${user.prenom} ${user.nom}` : 'Inconnu';
+                  }).join(' & ');
 
-          <div className="px-4 py-2 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider bg-gray-50 dark:bg-gray-800/50">
-            Utilisateurs
-          </div>
-          {filteredUsers.length > 0 ? (
-            filteredUsers.map((user) => {
-              // Find if there is an existing conversation to show last message
-              const existingConv = conversations.find(c => !c.isGroup && c.participants.includes(user.id));
-              
-              return (
-                <div 
-                  key={user.id} 
-                  className="p-4 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors cursor-pointer flex items-center justify-between group"
-                  onClick={() => handleStartDirectChat(user.id)}
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="relative">
-                      <div className="w-12 h-12 rounded-full bg-indigo-100 dark:bg-indigo-900 flex items-center justify-center text-indigo-600 dark:text-indigo-300 font-bold text-lg shrink-0 overflow-hidden">
-                        {user.photo ? (
-                          <img src={user.photo} alt={user.nom} className="w-full h-full object-cover" />
-                        ) : (
-                          user.prenom || user.nom ? `${user.prenom?.[0] || ''}${user.nom?.[0] || ''}` : user.email?.[0] || 'U'
-                        )}
+                  return (
+                    <div 
+                      key={conv.id} 
+                      className="p-4 hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-colors cursor-pointer flex items-center justify-between group"
+                      onClick={() => {
+                        setSelectedConversationId(conv.id);
+                        window.history.pushState({ modal: 'chat' }, '');
+                      }}
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className="relative">
+                          <div className="w-12 h-12 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center text-amber-600 dark:text-amber-400 font-bold text-lg shrink-0 overflow-hidden">
+                            <MessageCircle size={24} />
+                          </div>
+                        </div>
+                        <div>
+                          <h3 className="font-medium text-gray-900 dark:text-white">
+                            {participants}
+                          </h3>
+                          <p className="text-sm text-gray-500 dark:text-gray-400 line-clamp-1">
+                            {conv.lastMessage || <span className="italic">Aucun message</span>}
+                          </p>
+                        </div>
                       </div>
-                      {user.status === 'online' && (
-                        <div className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-green-500 border-2 border-white dark:border-gray-800 rounded-full"></div>
-                      )}
+                      <div className="flex flex-col items-end gap-1">
+                        <span className="text-xs text-gray-400">
+                          {conv.lastMessageTime ? format(conv.lastMessageTime.toDate(), 'HH:mm', { locale: fr }) : ''}
+                        </span>
+                        <span className="text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded uppercase font-bold">
+                          Surveillance
+                        </span>
+                      </div>
                     </div>
-                    <div>
-                      <h3 className="font-medium text-gray-900 dark:text-white">
-                        {user.prenom || user.nom ? `${user.prenom || ''} ${user.nom || ''}`.trim() : user.email?.split('@')[0] || 'Utilisateur'}
-                      </h3>
-                      <p className="text-sm text-gray-500 dark:text-gray-400 line-clamp-1">
-                        {existingConv?.lastMessage || <span className="italic">Nouvelle conversation</span>}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex flex-col items-end gap-1">
-                    {existingConv?.lastMessageTime && (
-                      <span className="text-xs text-gray-400">
-                        {format(existingConv.lastMessageTime.toDate(), 'HH:mm', { locale: fr })}
-                      </span>
-                    )}
-                    {existingConv?.unreadCounts?.[currentUser.id] ? (
-                      <span className="bg-indigo-600 text-white text-xs font-bold px-2 py-0.5 rounded-full">
-                        {existingConv.unreadCounts[currentUser.id]}
-                      </span>
-                    ) : null}
-                  </div>
+                  );
+                })
+              ) : (
+                <div className="p-8 text-center text-gray-500 dark:text-gray-400 flex flex-col items-center justify-center h-full">
+                  <MessageCircle size={48} className="text-gray-300 dark:text-gray-600 mb-4" />
+                  <p>Aucune conversation entre élèves trouvée.</p>
                 </div>
-              );
-            })
-          ) : (
-            <div className="p-8 text-center text-gray-500 dark:text-gray-400 flex flex-col items-center justify-center h-full">
-              <MessageCircle size={48} className="text-gray-300 dark:text-gray-600 mb-4" />
-              <p>Aucun utilisateur trouvé.</p>
+              )}
             </div>
           )}
         </div>

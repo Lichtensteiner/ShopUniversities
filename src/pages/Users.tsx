@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Filter, Plus, Fingerprint, RefreshCw, Eye, EyeOff, Edit2, Trash2, X, AlertCircle, BellRing, Key, Phone, MapPin, User2, Calendar, GraduationCap, History as HistoryIcon, Mail, Lock, Briefcase, User, Hash } from 'lucide-react';
+import { Search, Filter, Plus, Fingerprint, RefreshCw, Eye, EyeOff, Edit2, Trash2, X, AlertCircle, BellRing, Key, Phone, MapPin, User2, Calendar, GraduationCap, History as HistoryIcon, Mail, Lock, Briefcase, User, Hash, Ban, ShieldOff } from 'lucide-react';
 import { collection, getDocs, doc, updateDoc, deleteDoc, setDoc, addDoc, onSnapshot } from 'firebase/firestore';
 import { initializeApp, getApp, getApps, deleteApp } from 'firebase/app';
 import { getAuth, createUserWithEmailAndPassword, signOut } from 'firebase/auth';
@@ -190,6 +190,30 @@ export default function Users() {
       setError("Erreur lors de la suppression de l'utilisateur.");
     } finally {
       setActionLoading(false);
+    }
+  };
+
+  const handleToggleChatBlock = async (user: any) => {
+    try {
+      await updateDoc(doc(db, 'users', user.id), {
+        chatBlocked: !user.chatBlocked
+      });
+      alert(`Messagerie ${!user.chatBlocked ? 'bloquée' : 'débloquée'} pour ${user.prenom} ${user.nom}`);
+    } catch (err) {
+      console.error("Error toggling chat block:", err);
+      alert("Erreur lors du changement de statut de la messagerie.");
+    }
+  };
+
+  const handleToggleAccessBlock = async (user: any) => {
+    try {
+      await updateDoc(doc(db, 'users', user.id), {
+        accessBlocked: !user.accessBlocked
+      });
+      alert(`Accès ${!user.accessBlocked ? 'bloqué' : 'débloqué'} pour ${user.prenom} ${user.nom}`);
+    } catch (err) {
+      console.error("Error toggling access block:", err);
+      alert("Erreur lors du changement de statut de l'accès.");
     }
   };
 
@@ -424,6 +448,20 @@ export default function Users() {
                     </td>
                     <td className="px-6 py-4 text-right">
                       <div className="flex items-center justify-end gap-2">
+                        <button 
+                          onClick={() => handleToggleChatBlock(user)}
+                          className={`p-2 rounded-lg transition-colors ${user.chatBlocked ? 'text-red-600 bg-red-50' : 'text-gray-400 hover:text-amber-600 hover:bg-amber-50'}`}
+                          title={user.chatBlocked ? "Débloquer la messagerie" : "Bloquer la messagerie"}
+                        >
+                          <Ban size={18} />
+                        </button>
+                        <button 
+                          onClick={() => handleToggleAccessBlock(user)}
+                          className={`p-2 rounded-lg transition-colors ${user.accessBlocked ? 'text-red-600 bg-red-50' : 'text-gray-400 hover:text-red-600 hover:bg-red-50'}`}
+                          title={user.accessBlocked ? "Débloquer l'accès" : "Bloquer l'accès"}
+                        >
+                          <ShieldOff size={18} />
+                        </button>
                         <button 
                           onClick={() => setViewUser(user)}
                           className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
