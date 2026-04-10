@@ -19,8 +19,10 @@ export default function Classes() {
     niveau: '',
     professeur_principal_id: '',
     enseignants_ids: [] as string[],
-    heure_debut: '08:00'
+    heure_debut: '08:00',
+    matieres: [] as string[]
   });
+  const [newMatiere, setNewMatiere] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
 
   useEffect(() => {
@@ -72,10 +74,11 @@ export default function Classes() {
         niveau: classItem.niveau || '',
         professeur_principal_id: classItem.professeur_principal_id || '',
         enseignants_ids: classItem.enseignants_ids || [],
-        heure_debut: classItem.heure_debut || '08:00'
+        heure_debut: classItem.heure_debut || '08:00',
+        matieres: classItem.matieres || []
       });
     } else {
-      setFormData({ nom: '', niveau: '', professeur_principal_id: '', enseignants_ids: [], heure_debut: '08:00' });
+      setFormData({ nom: '', niveau: '', professeur_principal_id: '', enseignants_ids: [], heure_debut: '08:00', matieres: [] });
     }
     setIsModalOpen(true);
     if (mode === 'view') {
@@ -328,6 +331,45 @@ export default function Classes() {
                   onChange={(e) => setFormData({...formData, heure_debut: e.target.value})}
                   className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all"
                 />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Matières de la classe</label>
+                <div className="flex gap-2 mb-2">
+                  <input
+                    type="text"
+                    value={newMatiere}
+                    onChange={(e) => setNewMatiere(e.target.value)}
+                    placeholder="Ajouter une matière (ex: Mathématiques)"
+                    className="flex-1 px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (newMatiere.trim()) {
+                        setFormData({...formData, matieres: [...(formData.matieres || []), newMatiere.trim()]});
+                        setNewMatiere('');
+                      }
+                    }}
+                    className="p-1.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+                  >
+                    <Plus size={18} />
+                  </button>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {(formData.matieres || []).map((m, idx) => (
+                    <span key={idx} className="inline-flex items-center gap-1 px-2 py-1 bg-indigo-50 text-indigo-700 text-xs font-medium rounded-lg border border-indigo-100">
+                      {m}
+                      <button 
+                        type="button"
+                        onClick={() => setFormData({...formData, matieres: formData.matieres.filter((_, i) => i !== idx)})}
+                        className="hover:text-red-600"
+                      >
+                        <X size={12} />
+                      </button>
+                    </span>
+                  ))}
+                </div>
               </div>
 
               <div className="pt-4 flex gap-3">

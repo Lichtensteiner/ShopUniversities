@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Users, UserCheck, UserX, Clock, TrendingUp, RefreshCw, AlertTriangle, ShieldCheck, GraduationCap } from 'lucide-react';
+import { Users, UserCheck, UserX, Clock, TrendingUp, RefreshCw, AlertTriangle, ShieldCheck, GraduationCap, Heart } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, AreaChart, Area } from 'recharts';
 import { collection, getDocs, query, where, onSnapshot } from 'firebase/firestore';
 import { db, isFirebaseConfigured } from '../lib/firebase';
@@ -72,7 +72,7 @@ export default function Dashboard() {
           { name: 'Enseignants', value: teacherCount, color: '#8b5cf6' },
           { name: 'Élèves', value: studentCount, color: '#3b82f6' },
           { name: 'Personnel', value: staffCount, color: '#ef4444' },
-          { name: 'Parents', value: parentCount, color: '#10b981' }
+          { name: 'Parents', value: parentCount, color: '#f59e0b' }
         ]);
 
         setStudentLevelData(
@@ -323,9 +323,9 @@ export default function Dashboard() {
               </div>
 
               {/* Parents Card */}
-              <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4 border-l-4 border-l-emerald-500">
-                <div className="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center">
-                  <Users size={24} />
+              <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4 border-l-4 border-l-amber-400">
+                <div className="w-12 h-12 bg-amber-50 text-amber-600 rounded-xl flex items-center justify-center">
+                  <Heart size={24} />
                 </div>
                 <div>
                   <p className="text-sm font-medium text-gray-500">Parents</p>
