@@ -318,7 +318,7 @@ L'équipe ShopUniversities`);
               <div className="border-b-2 border-indigo-600 pb-6 mb-8 flex justify-between items-start">
                 <div>
                   <div className="flex items-center gap-3 mb-2">
-                    <img src="/logo.jpg" alt="ShopUniversities" className="h-12 object-contain" />
+                    <img src="/logo.png" alt="ShopUniversities" className="h-12 object-contain" />
                   </div>
                 </div>
                 <div className="text-right">

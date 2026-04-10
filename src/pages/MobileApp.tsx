@@ -263,7 +263,7 @@ export default function MobileApp() {
       case 'auth_choice':
         return (
           <div className="flex flex-col items-center justify-center h-full p-6 space-y-8 animate-in fade-in zoom-in duration-300">
-            <img src="/logo.jpg" alt="ShopUniversities" className="h-24 object-contain" />
+            <img src="/logo.png" alt="ShopUniversities" className="h-24 object-contain" />
             <div className="text-center space-y-2">
               <h1 className="text-2xl font-bold text-gray-900">ShopUniversities</h1>
               <p className="text-gray-500">Système de Présence Biométrique</p>

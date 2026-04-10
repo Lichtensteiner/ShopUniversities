@@ -153,7 +153,7 @@ export default function Sidebar({ activeTab, setActiveTab, isMobileOpen, setIsMo
       <div className={`fixed inset-y-0 left-0 z-50 w-72 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col print:hidden transition-transform duration-300 ease-in-out lg:relative lg:translate-x-0 ${isMobileOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         <div className="h-16 flex items-center justify-between px-6 border-b border-gray-200 dark:border-gray-700 shrink-0">
           <div className="flex items-center gap-2">
-            <img src="/logo.jpg" alt="ShopUniversities" className="h-10 object-contain" />
+            <img src="/logo.png" alt="ShopUniversities" className="h-10 object-contain" />
           </div>
           <button 
             onClick={() => setIsMobileOpen && setIsMobileOpen(false)}

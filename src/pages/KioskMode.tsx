@@ -272,7 +272,7 @@ export default function KioskMode({ onExit }: KioskModeProps) {
               <ArrowLeft size={24} />
             </button>
           )}
-          <img src="/logo.jpg" alt="ShopUniversities" className="h-12 object-contain bg-white p-1 rounded-xl" />
+          <img src="/logo.png" alt="ShopUniversities" className="h-12 object-contain bg-white p-1 rounded-xl" />
           <div>
             <h1 className="text-2xl font-bold text-white tracking-tight">Borne de Pointage</h1>
             <p className="text-gray-400">ShopUniversities</p>
