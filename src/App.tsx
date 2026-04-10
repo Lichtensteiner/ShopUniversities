@@ -27,6 +27,7 @@ import Messaging from './pages/Messaging';
 import About from './pages/About';
 import AIAssistant from './pages/AIAssistant';
 import CoursesSubjects from './pages/CoursesSubjects';
+import ParentDashboard from './pages/ParentDashboard';
 import { runMaintenance } from './services/MaintenanceService';
 import { isFirebaseConfigured } from './lib/firebase';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
@@ -128,9 +129,12 @@ function AppContent() {
       case 'kiosk':
         return role === 'admin' ? <KioskMode onExit={() => setActiveTab('users')} /> : <Dashboard />;
       case 'dashboard': 
+        if (role === 'parent') return <ParentDashboard />;
         return ['admin', 'enseignant', 'personnel administratif'].includes(role) ? <Dashboard /> : <StudentDashboard />;
       case 'student_dashboard': 
         return role === 'élève' ? <StudentDashboard /> : <Dashboard />;
+      case 'parent_dashboard':
+        return role === 'parent' ? <ParentDashboard /> : <Dashboard />;
       case 'student_card': 
         return role === 'élève' ? <StudentCard /> : <Dashboard />;
       case 'users': 

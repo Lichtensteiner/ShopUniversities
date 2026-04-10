@@ -41,6 +41,7 @@ export default function Dashboard() {
         let teacherCount = 0;
         let studentCount = 0;
         let staffCount = 0;
+        let parentCount = 0;
         const studentLevelsMap = new Map();
         
         usersSnap.forEach(doc => {
@@ -59,6 +60,8 @@ export default function Dashboard() {
             studentLevelsMap.set(level, (studentLevelsMap.get(level) || 0) + 1);
           } else if (role === 'admin' || role === 'personnel') {
             staffCount++;
+          } else if (role === 'parent') {
+            parentCount++;
           }
           
           const className = data.classe || 'Personnel';
@@ -68,7 +71,8 @@ export default function Dashboard() {
         setUserDistribution([
           { name: 'Enseignants', value: teacherCount, color: '#8b5cf6' },
           { name: 'Élèves', value: studentCount, color: '#3b82f6' },
-          { name: 'Personnel', value: staffCount, color: '#ef4444' }
+          { name: 'Personnel', value: staffCount, color: '#ef4444' },
+          { name: 'Parents', value: parentCount, color: '#10b981' }
         ]);
 
         setStudentLevelData(
@@ -315,6 +319,17 @@ export default function Dashboard() {
                 <div>
                   <p className="text-sm font-medium text-gray-500">Personnel Administratif</p>
                   <h3 className="text-2xl font-bold text-gray-900">{userDistribution.find(d => d.name === 'Personnel')?.value || 0}</h3>
+                </div>
+              </div>
+
+              {/* Parents Card */}
+              <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4 border-l-4 border-l-emerald-500">
+                <div className="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center">
+                  <Users size={24} />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-gray-500">Parents</p>
+                  <h3 className="text-2xl font-bold text-gray-900">{userDistribution.find(d => d.name === 'Parents')?.value || 0}</h3>
                 </div>
               </div>
             </div>

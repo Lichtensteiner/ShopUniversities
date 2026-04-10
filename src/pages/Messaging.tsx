@@ -44,9 +44,14 @@ export default function Messaging({ initialChatTargetId, onClearTarget }: Messag
   useEffect(() => {
     if (!currentUser) return;
     const unsubscribe = onSnapshot(collection(db, 'users'), (snapshot) => {
-      const usersData: any[] = snapshot.docs
+      let usersData: any[] = snapshot.docs
         .map(doc => ({ id: doc.id, ...doc.data() }))
         .filter(u => u.id !== currentUser.id);
+      
+      // Parents can only message staff and admins
+      if (currentUser.role === 'parent') {
+        usersData = usersData.filter(u => ['admin', 'enseignant', 'personnel administratif'].includes(u.role));
+      }
       
       // Sort users: online first, then alphabetically
       usersData.sort((a, b) => {

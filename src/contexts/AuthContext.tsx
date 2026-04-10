@@ -13,7 +13,8 @@ export interface User {
   nom: string;
   prenom: string;
   email: string;
-  role: 'admin' | 'enseignant' | 'élève' | 'personnel administratif';
+  role: 'admin' | 'enseignant' | 'élève' | 'personnel administratif' | 'parent';
+  children_ids?: string[];
   classe?: string;
   classes?: string[];
   matiere?: string;

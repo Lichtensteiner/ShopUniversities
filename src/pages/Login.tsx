@@ -170,6 +170,7 @@ export default function Login() {
                     className="mt-1 block w-full px-4 py-3 border border-gray-300 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm bg-white"
                   >
                     <option value="élève">{t('student')}</option>
+                    <option value="parent">{t('role_parent')}</option>
                     <option value="enseignant">{t('teacher')}</option>
                     <option value="personnel administratif">{t('admin_staff')}</option>
                     <option value="admin">{t('admin')}</option>

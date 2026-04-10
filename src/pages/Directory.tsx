@@ -53,7 +53,10 @@ export default function Directory({ onNavigate }: DirectoryProps) {
       })) as UserProfile[];
 
       const staffUsers = allUsers.filter(u => ['admin', 'enseignant', 'personnel administratif'].includes(u.role));
-      const studentUsers = allUsers.filter(u => u.role === 'élève');
+      let studentUsers = allUsers.filter(u => u.role === 'élève');
+      
+      // If parent, maybe only show students in the same class as their children?
+      // For now, let's just keep it simple or filter if needed.
       
       setStaff(staffUsers);
       setStudents(studentUsers);

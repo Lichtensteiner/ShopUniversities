@@ -29,6 +29,14 @@ service cloud.firestore {
     function isStaff() {
       return isAuthenticated() && getUserData().role == 'personnel administratif';
     }
+    
+    function isParent() {
+      return isAuthenticated() && getUserData().role == 'parent';
+    }
+
+    function isChildOf(childId) {
+      return isParent() && ('children_ids' in getUserData()) && (childId in getUserData().children_ids);
+    }
 
     // ===============================================================
     // Collections
@@ -40,10 +48,11 @@ service cloud.firestore {
       // but they MUST NOT be able to set their role to 'admin' 
       // unless they are already an admin.
       allow create: if isAuthenticated() && 
-        (request.resource.data.role in ['élève', 'enseignant', 'personnel administratif'] || isAdmin());
+        (request.resource.data.role in ['élève', 'enseignant', 'personnel administratif', 'parent'] || isAdmin());
       
       // Users can read their own profile, admins, teachers and staff can read all
-      allow read: if isOwner(userId) || isAdmin() || isTeacher() || isStaff();
+      // Parents can read their children's profiles
+      allow read: if isOwner(userId) || isAdmin() || isTeacher() || isStaff() || isChildOf(userId);
       
       // Only admins can update roles or other sensitive data
       // Users can update their own bio/profile pic but not their role
@@ -61,7 +70,7 @@ service cloud.firestore {
 
     // Attendance Collection
     match /attendance/{attendanceId} {
-      allow read: if isAuthenticated();
+      allow read: if isAuthenticated() && (isAdmin() || isTeacher() || isStaff() || isOwner(resource.data.user_id) || isChildOf(resource.data.user_id));
       allow create: if isAuthenticated(); // Students can clock in
       allow update, delete: if isAdmin() || isTeacher() || isStaff();
     }
@@ -145,7 +154,7 @@ service cloud.firestore {
 
     // Behavior Points Collection
     match /behavior_points/{pointId} {
-      allow read: if isAuthenticated();
+      allow read: if isAuthenticated() && (isAdmin() || isTeacher() || isStaff() || isOwner(resource.data.student_id) || isChildOf(resource.data.student_id));
       allow create: if isAdmin() || isTeacher();
       allow update, delete: if isAdmin() || (isAuthenticated() && request.auth.uid == resource.data.teacher_id);
     }

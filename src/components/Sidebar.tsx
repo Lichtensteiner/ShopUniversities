@@ -89,13 +89,13 @@ export default function Sidebar({ activeTab, setActiveTab, isMobileOpen, setIsMo
     {
       title: t('main_category'),
       items: [
-        { id: 'dashboard', labelKey: 'dashboard', icon: LayoutDashboard, roles: ['admin', 'enseignant', 'personnel administratif'] },
+        { id: 'dashboard', labelKey: 'dashboard', icon: LayoutDashboard, roles: ['admin', 'enseignant', 'personnel administratif', 'parent'] },
         { id: 'student_dashboard', labelKey: 'student_dashboard', icon: LayoutDashboard, roles: ['élève'] },
-        { id: 'newsfeed', labelKey: 'newsfeed', icon: MessageSquare, roles: ['admin', 'enseignant', 'personnel administratif', 'élève'] },
+        { id: 'newsfeed', labelKey: 'newsfeed', icon: MessageSquare, roles: ['admin', 'enseignant', 'personnel administratif', 'élève', 'parent'] },
         { id: 'directory', labelKey: 'directory', icon: BookUser, roles: ['admin', 'enseignant', 'personnel administratif'] },
-        { id: 'messaging', labelKey: 'messaging', icon: MessageCircle, roles: ['admin', 'enseignant', 'personnel administratif', 'élève'] },
-        { id: 'profile', labelKey: 'profile', icon: UserCircle, roles: ['admin', 'enseignant', 'personnel administratif', 'élève'] },
-        { id: 'about', labelKey: 'about', icon: Info, roles: ['admin', 'enseignant', 'personnel administratif', 'élève'] },
+        { id: 'messaging', labelKey: 'messaging', icon: MessageCircle, roles: ['admin', 'enseignant', 'personnel administratif', 'élève', 'parent'] },
+        { id: 'profile', labelKey: 'profile', icon: UserCircle, roles: ['admin', 'enseignant', 'personnel administratif', 'élève', 'parent'] },
+        { id: 'about', labelKey: 'about', icon: Info, roles: ['admin', 'enseignant', 'personnel administratif', 'élève', 'parent'] },
       ]
     },
     {
@@ -114,8 +114,8 @@ export default function Sidebar({ activeTab, setActiveTab, isMobileOpen, setIsMo
       title: t('student_life_category'),
       items: [
         { id: 'student_card', labelKey: 'student_card', icon: IdCard, roles: ['élève'] },
-        { id: 'houses', labelKey: 'houses', icon: Castle, roles: ['admin', 'enseignant', 'élève'] },
-        { id: 'leaderboard', labelKey: 'leaderboard', icon: Trophy, roles: ['admin', 'enseignant', 'élève'] },
+        { id: 'houses', labelKey: 'houses', icon: Castle, roles: ['admin', 'enseignant', 'élève', 'parent'] },
+        { id: 'leaderboard', labelKey: 'leaderboard', icon: Trophy, roles: ['admin', 'enseignant', 'élève', 'parent'] },
       ]
     },
     {
