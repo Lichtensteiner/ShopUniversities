@@ -30,6 +30,9 @@ import CoursesSubjects from './pages/CoursesSubjects';
 import ParentDashboard from './pages/ParentDashboard';
 import Grades from './pages/Grades';
 import Homework from './pages/Homework';
+import Finance from './pages/Finance';
+import Discipline from './pages/Discipline';
+import AuditLogs from './pages/AuditLogs';
 import { runMaintenance } from './services/MaintenanceService';
 import { isFirebaseConfigured } from './lib/firebase';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
@@ -158,7 +161,7 @@ function AppContent() {
       case 'leaderboard': return <Leaderboard />;
       case 'houses': return <Houses />;
       case 'classroom': 
-        return ['enseignant', 'élève'].includes(role) ? <Classroom /> : <Dashboard />;
+        return ['admin', 'enseignant', 'élève'].includes(role) ? <Classroom /> : <Dashboard />;
       case 'courses_subjects':
         return ['admin', 'enseignant'].includes(role) ? <CoursesSubjects initialPrepId={tabParams?.prepId} /> : <Dashboard />;
       case 'calendar': 
@@ -171,6 +174,9 @@ function AppContent() {
       case 'messaging': return <Messaging initialChatTargetId={tabParams?.userId} onClearTarget={() => setTabParams(null)} />;
       case 'grades': return <Grades />;
       case 'homework': return <Homework />;
+      case 'finance': return role === 'admin' ? <Finance /> : <Dashboard />;
+      case 'discipline': return ['admin', 'enseignant', 'personnel administratif'].includes(role) ? <Discipline /> : <Dashboard />;
+      case 'audit_logs': return role === 'admin' ? <AuditLogs /> : <Dashboard />;
       case 'recent_connections': 
         return role === 'admin' ? <RecentConnections /> : <Dashboard />;
       case 'profile': return <Profile />;

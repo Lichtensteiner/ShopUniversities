@@ -510,6 +510,9 @@ const translations: Translations = {
   'homework': { fr: 'Devoirs', en: 'Homework', es: 'Tareas', zh: '作业', ja: '宿題' },
   'cahier_texte': { fr: 'Cahier de textes', en: 'Lesson Log', es: 'Cuaderno de textos', zh: '课程日志', ja: '授業ログ' },
   'publish_to_class': { fr: 'Publier dans la classe', en: 'Publish to class', es: 'Publicar en la clase', zh: '发布到班级', ja: 'クラスに公開' },
+  'finance': { fr: 'Finance', en: 'Finance', es: 'Finanzas', zh: '财务', ja: '財務' },
+  'exams': { fr: 'Examens', en: 'Exams', es: 'Exámenes', zh: '考试', ja: '試験' },
+  'audit_logs': { fr: 'Logs d\'audit', en: 'Audit Logs', es: 'Registros de auditoría', zh: '审计日志', ja: '監査ログ' },
 };
 
 interface LanguageContextType {
