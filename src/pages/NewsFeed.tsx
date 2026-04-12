@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
-import { collection, addDoc, query, orderBy, onSnapshot, doc, updateDoc, deleteDoc, serverTimestamp, arrayUnion, arrayRemove, increment, getDocs } from 'firebase/firestore';
+import { collection, addDoc, query, orderBy, onSnapshot, doc, updateDoc, deleteDoc, serverTimestamp, arrayUnion, arrayRemove, increment, getDocs, where } from 'firebase/firestore';
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '../lib/firebase';
 import { Image, Camera, Video, Paperclip, Smile, Send, Heart, MessageCircle, MoreVertical, Edit, Trash2, Eye, MessageSquare, X } from 'lucide-react';
 import { format } from 'date-fns';
 import { fr, enUS, es } from 'date-fns/locale';
 import { notifyAllUsers } from '../services/NotificationService';
+import { motion, AnimatePresence } from 'motion/react';
 
 interface Comment {
   id: string;
@@ -29,7 +30,15 @@ interface Post {
   createdAt: any;
   likes: string[];
   views: number;
+  viewers?: string[];
   commentsCount?: number;
+}
+
+interface UserInfo {
+  id: string;
+  nom: string;
+  prenom: string;
+  photo?: string;
 }
 
 export default function NewsFeed() {
@@ -50,6 +59,12 @@ export default function NewsFeed() {
   const [comments, setComments] = useState<Record<string, Comment[]>>({});
   const [newCommentText, setNewCommentText] = useState('');
   const [isSubmittingComment, setIsSubmittingComment] = useState(false);
+  
+  // Modal for likes/views
+  const [showUsersModal, setShowUsersModal] = useState(false);
+  const [modalTitle, setModalTitle] = useState('');
+  const [modalUsers, setModalUsers] = useState<UserInfo[]>([]);
+  const [modalLoading, setModalLoading] = useState(false);
 
   const locales = { fr, en: enUS, es };
   const currentLocale = locales[language as keyof typeof locales] || fr;
@@ -252,12 +267,53 @@ export default function NewsFeed() {
   };
 
   const incrementViews = async (postId: string) => {
+    if (!currentUser) return;
     try {
        await updateDoc(doc(db, 'posts', postId), {
-          views: increment(1)
+          views: increment(1),
+          viewers: arrayUnion(currentUser.id)
        });
     } catch (error) {
        console.error('Error incrementing views:', error);
+    }
+  };
+
+  const showInteractionUsers = async (title: string, userIds: string[]) => {
+    if (!userIds || userIds.length === 0) return;
+    
+    setModalTitle(title);
+    setShowUsersModal(true);
+    setModalLoading(true);
+    setModalUsers([]);
+
+    try {
+      // Fetch user details for the IDs
+      // Note: Firestore 'in' query is limited to 30 items. 
+      // For more, we'd need to chunk or fetch individually.
+      const chunks = [];
+      for (let i = 0; i < userIds.length; i += 30) {
+        chunks.push(userIds.slice(i, i + 30));
+      }
+
+      const allUsers: UserInfo[] = [];
+      for (const chunk of chunks) {
+        const q = query(collection(db, 'users'), where('id', 'in', chunk));
+        const snap = await getDocs(q);
+        snap.docs.forEach(doc => {
+          const data = doc.data();
+          allUsers.push({
+            id: doc.id,
+            nom: data.nom || '',
+            prenom: data.prenom || '',
+            photo: data.photo
+          });
+        });
+      }
+      setModalUsers(allUsers);
+    } catch (error) {
+      console.error("Error fetching modal users:", error);
+    } finally {
+      setModalLoading(false);
     }
   };
 
@@ -347,7 +403,16 @@ export default function NewsFeed() {
           const postComments = comments[post.id] || [];
 
           return (
-            <div key={post.id} className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+            <div 
+              key={post.id} 
+              className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden"
+              onMouseEnter={() => {
+                // Increment view if not already viewed by this user
+                if (currentUser && !post.viewers?.includes(currentUser.id)) {
+                  incrementViews(post.id);
+                }
+              }}
+            >
               {/* Post Header */}
               <div className="p-4 flex items-center justify-between">
                 <div className="flex items-center gap-3">
@@ -441,10 +506,13 @@ export default function NewsFeed() {
 
               {/* Post Stats */}
               <div className="px-4 py-2 flex items-center justify-between text-sm text-gray-500 dark:text-gray-400 border-t border-gray-100 dark:border-gray-700">
-                <div className="flex items-center gap-1">
+                <button 
+                  onClick={() => showInteractionUsers("Personnes qui ont aimé", post.likes || [])}
+                  className="flex items-center gap-1 hover:text-indigo-600 transition-colors"
+                >
                   <Heart size={14} className={post.likes?.length > 0 ? "fill-red-500 text-red-500" : ""} />
                   <span>{post.likes?.length || 0}</span>
-                </div>
+                </button>
                 <div className="flex items-center gap-4">
                   <button 
                     onClick={() => setShowCommentsFor(showCommentsFor === post.id ? null : post.id)}
@@ -452,10 +520,13 @@ export default function NewsFeed() {
                   >
                     {post.commentsCount || 0} commentaires
                   </button>
-                  <div className="flex items-center gap-1">
+                  <button 
+                    onClick={() => showInteractionUsers("Personnes qui ont vu", post.viewers || [])}
+                    className="flex items-center gap-1 hover:text-indigo-600 transition-colors"
+                  >
                     <Eye size={14} />
                     <span>{post.views || 0} vues</span>
-                  </div>
+                  </button>
                 </div>
               </div>
 
@@ -556,6 +627,57 @@ export default function NewsFeed() {
           </div>
         )}
       </div>
+
+      {/* Interaction Users Modal */}
+      <AnimatePresence>
+        {showUsersModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl max-w-sm w-full overflow-hidden"
+            >
+              <div className="p-4 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between">
+                <h2 className="font-bold text-gray-900 dark:text-white">{modalTitle}</h2>
+                <button 
+                  onClick={() => setShowUsersModal(false)}
+                  className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+              
+              <div className="max-h-96 overflow-y-auto p-2">
+                {modalLoading ? (
+                  <div className="flex justify-center py-8">
+                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-indigo-600"></div>
+                  </div>
+                ) : modalUsers.length === 0 ? (
+                  <p className="text-center py-8 text-gray-500 text-sm">Aucun utilisateur trouvé.</p>
+                ) : (
+                  <div className="space-y-1">
+                    {modalUsers.map(user => (
+                      <div key={user.id} className="flex items-center gap-3 p-2 hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-xl transition-colors">
+                        {user.photo ? (
+                          <img src={user.photo} alt="" className="w-10 h-10 rounded-full object-cover" />
+                        ) : (
+                          <div className="w-10 h-10 rounded-full bg-indigo-100 dark:bg-indigo-900 flex items-center justify-center text-indigo-600 dark:text-indigo-300 font-bold">
+                            {user.prenom?.[0]}{user.nom?.[0]}
+                          </div>
+                        )}
+                        <div>
+                          <p className="font-medium text-gray-900 dark:text-white">{user.prenom} {user.nom}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
