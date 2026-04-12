@@ -137,7 +137,8 @@ export default function ClassDetailsView({ classId, className, onClose }: ClassD
       where('classe', '==', className)
     );
     const unsubscribeStudents = onSnapshot(studentsQuery, (snapshot) => {
-      setStudents(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Student)));
+      const studentsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Student));
+      setStudents(studentsData.sort((a, b) => `${a.nom || ''} ${a.prenom || ''}`.trim().localeCompare(`${b.nom || ''} ${b.prenom || ''}`.trim())));
     });
 
     // Fetch events

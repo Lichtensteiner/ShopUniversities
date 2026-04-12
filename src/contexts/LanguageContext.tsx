@@ -506,6 +506,9 @@ const translations: Translations = {
   'event_sync_error': { fr: 'Erreur lors de la synchronisation', en: 'Error during sync', es: 'Error durante la sincronización', zh: '同步期间出错', ja: '同期中にエラーが発生しました' },
   'today': { fr: 'Aujourd\'hui', en: 'Today', es: 'Hoy', zh: '今天', ja: '今日' },
   'courses_subjects': { fr: 'Cours / Matières', en: 'Courses / Subjects', es: 'Cursos / Materias', zh: '课程 / 科目', ja: 'コース / 科目' },
+  'grades': { fr: 'Notes', en: 'Grades', es: 'Notas', zh: '成绩', ja: '成績' },
+  'homework': { fr: 'Devoirs', en: 'Homework', es: 'Tareas', zh: '作业', ja: '宿題' },
+  'cahier_texte': { fr: 'Cahier de textes', en: 'Lesson Log', es: 'Cuaderno de textos', zh: '课程日志', ja: '授業ログ' },
   'publish_to_class': { fr: 'Publier dans la classe', en: 'Publish to class', es: 'Publicar en la clase', zh: '发布到班级', ja: 'クラスに公開' },
 };
 

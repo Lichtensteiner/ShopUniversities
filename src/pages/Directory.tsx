@@ -52,8 +52,12 @@ export default function Directory({ onNavigate }: DirectoryProps) {
         ...doc.data()
       })) as UserProfile[];
 
-      const staffUsers = allUsers.filter(u => ['admin', 'enseignant', 'personnel administratif'].includes(u.role));
-      let studentUsers = allUsers.filter(u => u.role === 'élève');
+      const staffUsers = allUsers
+        .filter(u => ['admin', 'enseignant', 'personnel administratif'].includes(u.role))
+        .sort((a, b) => `${a.nom || ''} ${a.prenom || ''}`.trim().localeCompare(`${b.nom || ''} ${b.prenom || ''}`.trim()));
+      let studentUsers = allUsers
+        .filter(u => u.role === 'élève')
+        .sort((a, b) => `${a.nom || ''} ${a.prenom || ''}`.trim().localeCompare(`${b.nom || ''} ${b.prenom || ''}`.trim()));
       
       // If parent, maybe only show students in the same class as their children?
       // For now, let's just keep it simple or filter if needed.
@@ -77,8 +81,12 @@ export default function Directory({ onNavigate }: DirectoryProps) {
         ...doc.data()
       })) as UserProfile[];
 
-      const staffUsers = allUsers.filter(u => ['admin', 'enseignant', 'personnel administratif'].includes(u.role));
-      const studentUsers = allUsers.filter(u => u.role === 'élève');
+      const staffUsers = allUsers
+        .filter(u => ['admin', 'enseignant', 'personnel administratif'].includes(u.role))
+        .sort((a, b) => `${a.nom || ''} ${a.prenom || ''}`.trim().localeCompare(`${b.nom || ''} ${b.prenom || ''}`.trim()));
+      const studentUsers = allUsers
+        .filter(u => u.role === 'élève')
+        .sort((a, b) => `${a.nom || ''} ${a.prenom || ''}`.trim().localeCompare(`${b.nom || ''} ${b.prenom || ''}`.trim()));
       
       setStaff(staffUsers);
       setStudents(studentUsers);

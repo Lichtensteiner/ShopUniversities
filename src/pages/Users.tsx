@@ -223,6 +223,10 @@ export default function Users() {
                           user.matricule?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesRole = filterRole === 'Tous' || user.role === filterRole;
     return matchesSearch && matchesRole;
+  }).sort((a, b) => {
+    const nameA = `${a.nom || ''} ${a.prenom || ''}`.trim().toLowerCase();
+    const nameB = `${b.nom || ''} ${b.prenom || ''}`.trim().toLowerCase();
+    return nameA.localeCompare(nameB);
   });
 
   const handleSendNotification = async (e: React.FormEvent) => {

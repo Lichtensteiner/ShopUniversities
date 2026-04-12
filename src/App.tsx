@@ -28,6 +28,8 @@ import About from './pages/About';
 import AIAssistant from './pages/AIAssistant';
 import CoursesSubjects from './pages/CoursesSubjects';
 import ParentDashboard from './pages/ParentDashboard';
+import Grades from './pages/Grades';
+import Homework from './pages/Homework';
 import { runMaintenance } from './services/MaintenanceService';
 import { isFirebaseConfigured } from './lib/firebase';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
@@ -167,6 +169,8 @@ function AppContent() {
       case 'directory': 
         return ['admin', 'enseignant', 'personnel administratif'].includes(role) ? <Directory onNavigate={handleNavigate} /> : <StudentDashboard />;
       case 'messaging': return <Messaging initialChatTargetId={tabParams?.userId} onClearTarget={() => setTabParams(null)} />;
+      case 'grades': return <Grades />;
+      case 'homework': return <Homework />;
       case 'recent_connections': 
         return role === 'admin' ? <RecentConnections /> : <Dashboard />;
       case 'profile': return <Profile />;

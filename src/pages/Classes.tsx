@@ -40,8 +40,12 @@ export default function Classes() {
     // Fetch users (teachers and students)
     const unsubscribeUsers = onSnapshot(collection(db, 'users'), (snap) => {
       const usersData: any[] = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      setTeachers(usersData.filter(u => u.role === 'enseignant'));
-      setStudents(usersData.filter(u => u.role === 'élève'));
+      setTeachers(usersData
+        .filter(u => u.role === 'enseignant')
+        .sort((a, b) => `${a.nom || ''} ${a.prenom || ''}`.trim().localeCompare(`${b.nom || ''} ${b.prenom || ''}`.trim())));
+      setStudents(usersData
+        .filter(u => u.role === 'élève')
+        .sort((a, b) => `${a.nom || ''} ${a.prenom || ''}`.trim().localeCompare(`${b.nom || ''} ${b.prenom || ''}`.trim())));
       setLoading(false);
     });
 
