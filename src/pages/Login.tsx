@@ -70,6 +70,13 @@ export default function Login() {
           setError(t('fill_required_fields'));
           return;
         }
+
+        // Security reinforcement: Only allow specific email to register as admin
+        if (role === 'admin' && email.toLowerCase() !== 'ludo.consulting3@gmail.com') {
+          setError("Seul ludo.consulting3@gmail.com peut s'inscrire en tant qu'administrateur.");
+          return;
+        }
+
         if (role === 'élève' && !classe) {
           setError(t('class_required_for_student'));
           return;
@@ -173,7 +180,10 @@ export default function Login() {
                     <option value="parent">{t('role_parent')}</option>
                     <option value="enseignant">{t('teacher')}</option>
                     <option value="personnel administratif">{t('admin_staff')}</option>
-                    <option value="admin">{t('admin')}</option>
+                    {/* Only show Admin option if the email matches or if it's not being typed yet */}
+                    {(email.toLowerCase() === 'ludo.consulting3@gmail.com' || !email) && (
+                      <option value="admin">{t('admin')}</option>
+                    )}
                   </select>
                 </div>
 

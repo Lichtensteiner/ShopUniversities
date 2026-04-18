@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { LayoutDashboard, Users, CalendarCheck, FileText, Settings, BookOpen, Code, LogOut, ScanLine, Smartphone, IdCard, Trophy, ScanFace, Activity, GraduationCap, UserCircle, Castle, X, Download, Calendar as CalendarIcon, MessageSquare, BookUser, MessageCircle, Info, Sparkles, Wallet, ShieldAlert, History } from 'lucide-react';
+import { LayoutDashboard, Users, CalendarCheck, FileText, Settings, BookOpen, Code, LogOut, ScanLine, Smartphone, IdCard, Trophy, ScanFace, Activity, GraduationCap, UserCircle, Castle, X, Download, Calendar as CalendarIcon, MessageSquare, BookUser, MessageCircle, Info, Sparkles, Wallet, ShieldAlert, History, Award } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
@@ -104,6 +104,7 @@ export default function Sidebar({ activeTab, setActiveTab, isMobileOpen, setIsMo
         { id: 'classroom', labelKey: 'classroom', icon: GraduationCap, roles: ['admin', 'enseignant', 'élève'] },
         { id: 'homework', labelKey: 'homework', icon: BookOpen, roles: ['admin', 'enseignant', 'élève', 'parent'] },
         { id: 'grades', labelKey: 'grades', icon: FileText, roles: ['admin', 'enseignant', 'élève', 'parent'] },
+        { id: 'ludo_ai_plus', labelKey: 'ludo_ai_plus', icon: Sparkles, roles: ['élève', 'admin'] },
         { id: 'courses_subjects', labelKey: 'courses_subjects', icon: BookOpen, roles: ['enseignant', 'admin'] },
         { id: 'ai_assistant', labelKey: 'ai_assistant', icon: Sparkles, roles: ['enseignant', 'admin'] },
         { id: 'classes', labelKey: 'classes', icon: BookOpen, roles: ['admin'] },
@@ -117,6 +118,7 @@ export default function Sidebar({ activeTab, setActiveTab, isMobileOpen, setIsMo
       items: [
         { id: 'student_card', labelKey: 'student_card', icon: IdCard, roles: ['élève'] },
         { id: 'houses', labelKey: 'houses', icon: Castle, roles: ['admin', 'enseignant', 'élève', 'parent'] },
+        { id: 'clubs', labelKey: 'clubs', icon: Award, roles: ['admin', 'enseignant', 'élève', 'parent'] },
         { id: 'leaderboard', labelKey: 'leaderboard', icon: Trophy, roles: ['admin', 'enseignant', 'élève', 'parent'] },
       ]
     },

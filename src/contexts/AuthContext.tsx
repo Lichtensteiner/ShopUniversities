@@ -94,27 +94,27 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             const userData = docSnap.data();
             
             // Auto-fill admin name if missing
-            if (firebaseUser.email === 'martinienmvezogo@gmail.com' && (!userData.prenom || !userData.nom)) {
+            if (firebaseUser.email === 'ludo.consulting3@gmail.com' && (!userData.prenom || !userData.nom)) {
               console.log("Auto-filling admin name...");
               setDoc(docRef, {
-                prenom: 'Martinien',
-                nom: 'Mvezogo'
+                prenom: 'Admin',
+                nom: 'Ludo'
               }, { merge: true }).catch(err => console.error("Error updating admin name:", err));
               
-              setCurrentUser({ id: docSnap.id, ...userData, prenom: 'Martinien', nom: 'Mvezogo' } as User);
+              setCurrentUser({ id: docSnap.id, ...userData, prenom: 'Admin', nom: 'Ludo' } as User);
             } else {
               setCurrentUser({ id: docSnap.id, ...userData } as User);
             }
           } else {
             console.log("User profile does not exist in Firestore.");
             // Auto-create admin document if it doesn't exist
-            if (firebaseUser.email === 'martinienmvezogo@gmail.com') {
+            if (firebaseUser.email === 'ludo.consulting3@gmail.com') {
               console.log("Creating admin profile...");
               const adminData = {
                 email: firebaseUser.email,
                 role: 'admin',
-                prenom: 'Martinien',
-                nom: 'Mvezogo',
+                prenom: 'Admin',
+                nom: 'Ludo',
                 status: 'online',
                 lastSeen: serverTimestamp()
               };
@@ -197,9 +197,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           let nom = userData.nom;
           let prenom = userData.prenom;
           
-          if (email === 'martinienmvezogo@gmail.com' && (!prenom || !nom)) {
-            prenom = 'Martinien';
-            nom = 'Mvezogo';
+          if (email === 'ludo.consulting3@gmail.com' && (!prenom || !nom)) {
+            prenom = 'Admin';
+            nom = 'Ludo';
           }
           
           await addDoc(collection(db, 'connections'), {
@@ -210,11 +210,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             role: userData.role || 'admin',
             timestamp: new Date().toISOString()
           });
-        } else if (email === 'martinienmvezogo@gmail.com') {
+        } else if (email === 'ludo.consulting3@gmail.com') {
           await addDoc(collection(db, 'connections'), {
             user_id: userCredential.user.uid,
-            nom: 'Mvezogo',
-            prenom: 'Martinien',
+            nom: 'Ludo',
+            prenom: 'Admin',
             email: email,
             role: 'admin',
             timestamp: new Date().toISOString()

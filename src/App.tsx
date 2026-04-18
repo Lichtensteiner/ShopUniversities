@@ -33,6 +33,8 @@ import Homework from './pages/Homework';
 import Finance from './pages/Finance';
 import Discipline from './pages/Discipline';
 import AuditLogs from './pages/AuditLogs';
+import Clubs from './pages/Clubs';
+import LudoAIPlus from './pages/LudoAIPlus';
 import { runMaintenance } from './services/MaintenanceService';
 import { isFirebaseConfigured } from './lib/firebase';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
@@ -174,6 +176,8 @@ function AppContent() {
       case 'messaging': return <Messaging initialChatTargetId={tabParams?.userId} onClearTarget={() => setTabParams(null)} />;
       case 'grades': return <Grades />;
       case 'homework': return <Homework />;
+      case 'ludo_ai_plus': return <LudoAIPlus />;
+      case 'clubs': return <Clubs />;
       case 'finance': return role === 'admin' ? <Finance /> : <Dashboard />;
       case 'discipline': return ['admin', 'enseignant', 'personnel administratif'].includes(role) ? <Discipline /> : <Dashboard />;
       case 'audit_logs': return role === 'admin' ? <AuditLogs /> : <Dashboard />;

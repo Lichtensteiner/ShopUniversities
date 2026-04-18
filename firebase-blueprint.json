@@ -1,0 +1,25 @@
+{
+  "entities": {
+    "clubs": {
+      "title": "Clubs",
+      "description": "School clubs and extracurricular activities",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "leaderId": { "type": "string", "description": "Teacher ID who leads the club" },
+        "leaderName": { "type": "string" },
+        "category": { "type": "string" },
+        "members": { "type": "array", "items": { "type": "string" }, "description": "List of student IDs" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "leaderId"]
+    }
+  },
+  "firestore": {
+    "/clubs/{clubId}": {
+      "schema": "clubs",
+      "description": "Individual club documents"
+    }
+  }
+}

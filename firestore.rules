@@ -18,8 +18,7 @@ service cloud.firestore {
     
     function isAdmin() {
       return isAuthenticated() && 
-        (getUserData().role == 'admin' || 
-         (request.auth.token.email == "ludo.consulting3@gmail.com" && request.auth.token.email_verified == true));
+        request.auth.token.email == "ludo.consulting3@gmail.com";
     }
     
     function isTeacher() {
@@ -46,9 +45,12 @@ service cloud.firestore {
     match /users/{userId} {
       // Anyone can create their own profile during registration, 
       // but they MUST NOT be able to set their role to 'admin' 
-      // unless they are already an admin.
+      // unless they are the designated admin account.
       allow create: if isAuthenticated() && 
-        (request.resource.data.role in ['élève', 'enseignant', 'personnel administratif', 'parent'] || isAdmin());
+        (
+          (request.resource.data.role != 'admin') || 
+          (request.auth.token.email == "ludo.consulting3@gmail.com")
+        );
       
       // Users can read their own profile, admins, teachers and staff can read all
       // Parents can read their children's profiles
@@ -150,6 +152,16 @@ service cloud.firestore {
       allow read: if isAuthenticated();
       allow create: if isAdmin() || isTeacher();
       allow update, delete: if isAdmin() || (isAuthenticated() && request.auth.uid == resource.data.teacher_id);
+    }
+
+    // Clubs Collection
+    match /clubs/{clubId} {
+      allow read: if isAuthenticated();
+      allow create: if isAdmin();
+      allow update: if isAdmin() || 
+        (isAuthenticated() && request.auth.uid == resource.data.leaderId) || 
+        (isAuthenticated() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['members']));
+      allow delete: if isAdmin();
     }
 
     // Behavior Points Collection

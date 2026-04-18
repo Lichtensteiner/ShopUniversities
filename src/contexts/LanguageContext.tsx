@@ -513,6 +513,8 @@ const translations: Translations = {
   'finance': { fr: 'Finance', en: 'Finance', es: 'Finanzas', zh: '财务', ja: '財務' },
   'exams': { fr: 'Examens', en: 'Exams', es: 'Exámenes', zh: '考试', ja: '試験' },
   'audit_logs': { fr: 'Logs d\'audit', en: 'Audit Logs', es: 'Registros de auditoría', zh: '审计日志', ja: '監査ログ' },
+  'ludo_ai_plus': { fr: 'Ludo AI+ Tutorat', en: 'Ludo AI+ Tutoring', es: 'Tutoría Ludo AI+', zh: 'Ludo AI+ 辅导', ja: 'Ludo AI+ チュータリング' },
+  'clubs': { fr: 'Clubs', en: 'Clubs', es: 'Clubes', zh: '俱乐部', ja: 'クラブ' },
 };
 
 interface LanguageContextType {
