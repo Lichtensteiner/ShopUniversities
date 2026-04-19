@@ -56,7 +56,7 @@ export default function About() {
               </div>
               <div className="min-w-0">
                 <p className="text-xs text-indigo-200 font-bold uppercase tracking-wider">E-mail</p>
-                <p className="text-sm font-medium truncate">ludo.consulting3@gmail.com</p>
+                <p className="text-sm font-medium truncate">martinienmvezogo@gmail.com</p>
               </div>
             </div>
             <div className="flex items-center gap-4">

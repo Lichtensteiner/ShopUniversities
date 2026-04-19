@@ -72,8 +72,8 @@ export default function Login() {
         }
 
         // Security reinforcement: Only allow specific email to register as admin
-        if (role === 'admin' && email.toLowerCase() !== 'ludo.consulting3@gmail.com') {
-          setError("Seul ludo.consulting3@gmail.com peut s'inscrire en tant qu'administrateur.");
+        if (role === 'admin' && email.toLowerCase() !== 'martinienmvezogo@gmail.com') {
+          setError("Seul martinienmvezogo@gmail.com peut s'inscrire en tant qu'administrateur.");
           return;
         }
 
@@ -181,7 +181,7 @@ export default function Login() {
                     <option value="enseignant">{t('teacher')}</option>
                     <option value="personnel administratif">{t('admin_staff')}</option>
                     {/* Only show Admin option if the email matches or if it's not being typed yet */}
-                    {(email.toLowerCase() === 'ludo.consulting3@gmail.com' || !email) && (
+                    {(email.toLowerCase() === 'martinienmvezogo@gmail.com' || !email) && (
                       <option value="admin">{t('admin')}</option>
                     )}
                   </select>

@@ -215,6 +215,23 @@ export default function Sidebar({ activeTab, setActiveTab, isMobileOpen, setIsMo
         </div>
 
         <div className="p-4 border-t border-gray-200 dark:border-gray-700 shrink-0 space-y-2">
+          {currentUser && (
+            <div className="flex items-center gap-3 px-4 py-3 bg-gray-50 dark:bg-gray-700/50 rounded-xl border border-gray-100 dark:border-gray-600 mb-2">
+              {currentUser.photo ? (
+                <img src={currentUser.photo} alt="" className="w-10 h-10 rounded-full object-cover shadow-sm" referrerPolicy="no-referrer" />
+              ) : (
+                <div className="w-10 h-10 rounded-full bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-bold text-sm uppercase shadow-sm">
+                  {currentUser.prenom?.[0] || currentUser.email?.[0] || 'U'}
+                </div>
+              )}
+              <div className="min-w-0">
+                <p className="text-sm font-bold text-gray-900 dark:text-white truncate">
+                  {currentUser.prenom || currentUser.nom ? `${currentUser.prenom || ''} ${currentUser.nom || ''}`.trim() : currentUser.email.split('@')[0]}
+                </p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 capitalize truncate">{currentUser.role}</p>
+              </div>
+            </div>
+          )}
           {!isStandalone && (
             <button 
               onClick={handleInstallClick}
