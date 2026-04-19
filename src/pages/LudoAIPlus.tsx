@@ -16,7 +16,8 @@ import {
   AlertCircle,
   Lightbulb,
   CheckCircle2,
-  FileText
+  FileText,
+  Award
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import Markdown from 'react-markdown';
@@ -27,6 +28,7 @@ interface Grade {
   maxScore: number;
   date: any;
   title: string;
+  type?: 'interrogation' | 'evaluation';
 }
 
 interface AnalysisResult {
@@ -42,6 +44,13 @@ interface AnalysisResult {
     day: string;
     tasks: string[];
   }[];
+  metrics: {
+    avgInterrogations: number;
+    avgEvaluations: number;
+    generalAvg: number;
+    percentage: number;
+    mention: string;
+  };
 }
 
 const LudoAIPlus: React.FC = () => {
@@ -104,9 +113,29 @@ const LudoAIPlus: React.FC = () => {
       
       const prompt = `
         En tant que tuteur pédagogique expert nommé Ludo AI+, analyse les notes suivantes d'un élève sur les 3 derniers mois :
-        ${JSON.stringify(data.map(g => ({ subject: g.subject, score: g.score, max: g.maxScore, date: g.date?.toDate?.().toLocaleDateString() || 'N/A' })))}
+        ${JSON.stringify(data.map(g => ({ 
+          subject: g.subject, 
+          score: g.score, 
+          max: g.maxScore, 
+          type: g.type || 'interrogation',
+          date: g.date?.toDate?.().toLocaleDateString() || 'N/A' 
+        })))}
         
         L'élève s'appelle ${currentUser?.prenom}.
+        
+        SYSTÈME DE CALCUL OBLIGATOIRE :
+        1. Sépare les notes en deux groupes : "Interrogations" (petites évaluations) et "Évaluations Période" (devoirs importants).
+        2. Calcule la Moyenne des Interrogations (somme des scores / nombre).
+        3. Calcule la Moyenne des Évaluations Période (somme des scores / nombre).
+        4. Calcule la Moyenne Générale : (Moyenne Interrogations + Moyenne Évaluations) / 2.
+        5. Calcule le Pourcentage : (Moyenne Générale / 20) * 100.
+        6. Détermine la Mention selon l'échelle suivante :
+           - 16+ : Excellent
+           - 14-16 : Très Bien
+           - 12-14 : Bien
+           - 10-12 : Assez Bien
+           - 8-10 : Passable
+           - < 8 : Insuffisant
         
         Ta mission :
         1. Résumer ses performances globales.
@@ -121,7 +150,14 @@ const LudoAIPlus: React.FC = () => {
           "strengths": ["string"],
           "weaknesses": ["string"],
           "recommendations": [{"subject": "string", "action": "string", "priority": "High|Medium|Low"}],
-          "revisionPlan": [{"day": "Lundi", "tasks": ["string"]}]
+          "revisionPlan": [{"day": "Lundi", "tasks": ["string"]}],
+          "metrics": {
+            "avgInterrogations": number,
+            "avgEvaluations": number,
+            "generalAvg": number,
+            "percentage": number,
+            "mention": "string"
+          }
         }
       `;
 
@@ -192,7 +228,7 @@ const LudoAIPlus: React.FC = () => {
           </div>
           <div>
             <h2 className="text-xl font-bold dark:text-white">Analyse en cours...</h2>
-            <p className="text-gray-500 mt-2">Ludo AI+ examine tes {grades.length} dernières évaluations pour construire ton plan.</p>
+            <p className="text-gray-500 mt-2">Ludo AI+ examine tes {grades.length} dernières évaluations selon le système de pondération.</p>
           </div>
         </div>
       ) : error ? (
@@ -207,6 +243,44 @@ const LudoAIPlus: React.FC = () => {
       ) : analysis ? (
         <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
           
+          {/* Key Metrics Section */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+             <div className="bg-white dark:bg-gray-800 p-4 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm text-center">
+                <p className="text-xs text-gray-500 uppercase font-black tracking-widest mb-1">Interrogations</p>
+                <p className="text-2xl font-black text-indigo-600 underline decoration-indigo-200 underline-offset-4 decoration-4">
+                  {analysis.metrics.avgInterrogations.toFixed(2)}<span className="text-sm font-bold text-gray-400 ml-1">/20</span>
+                </p>
+             </div>
+             <div className="bg-white dark:bg-gray-800 p-4 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm text-center">
+                <p className="text-xs text-gray-500 uppercase font-black tracking-widest mb-1">évaluations</p>
+                <p className="text-2xl font-black text-purple-600 underline decoration-purple-200 underline-offset-4 decoration-4">
+                  {analysis.metrics.avgEvaluations.toFixed(2)}<span className="text-sm font-bold text-gray-400 ml-1">/20</span>
+                </p>
+             </div>
+             <div className="bg-white dark:bg-gray-800 p-4 rounded-2xl border border-indigo-600 dark:border-indigo-500 shadow-sm text-center ring-4 ring-indigo-50 dark:ring-indigo-900/20">
+                <p className="text-xs text-gray-500 uppercase font-black tracking-widest mb-1">Moyenne Générale</p>
+                <p className="text-3xl font-black text-gray-900 dark:text-white">
+                  {analysis.metrics.generalAvg.toFixed(2)}<span className="text-sm font-bold text-gray-400 ml-1">/20</span>
+                </p>
+             </div>
+             <div className="bg-indigo-600 p-4 rounded-2xl shadow-xl shadow-indigo-200 dark:shadow-none text-center">
+                <p className="text-xs text-indigo-200 uppercase font-black tracking-widest mb-1 text-white/80">Pourcentage</p>
+                <p className="text-3xl font-black text-white">
+                  {analysis.metrics.percentage.toFixed(1)}<span className="text-lg ml-1 opacity-80">%</span>
+                </p>
+             </div>
+          </div>
+
+          <div className="flex justify-center">
+             <div className="px-8 py-3 bg-white dark:bg-gray-800 rounded-full border-2 border-indigo-600 dark:border-indigo-400 flex items-center gap-4">
+                <Award className="text-indigo-600 dark:text-indigo-400" />
+                <span className="text-sm font-black uppercase tracking-widest text-gray-500 dark:text-gray-400">Mention :</span>
+                <span className="text-xl font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-tighter">
+                  {analysis.metrics.mention}
+                </span>
+             </div>
+          </div>
+
           {/* Summary Card */}
           <section className="bg-white dark:bg-gray-800 rounded-2xl p-6 border border-gray-100 dark:border-gray-700 shadow-sm">
              <div className="flex items-center gap-3 mb-4">
