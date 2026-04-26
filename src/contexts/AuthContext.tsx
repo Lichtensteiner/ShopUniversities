@@ -13,7 +13,7 @@ export interface User {
   nom: string;
   prenom: string;
   email: string;
-  role: 'admin' | 'enseignant' | 'élève' | 'personnel administratif' | 'parent';
+  role: 'admin' | 'enseignant' | 'élève' | 'personnel administratif' | 'parent' | 'cuisinier';
   children_ids?: string[];
   classe?: string;
   classes?: string[];
@@ -116,10 +116,24 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                 prenom: 'Martinien',
                 nom: 'Mvezogo',
                 status: 'online',
-                lastSeen: serverTimestamp()
+                lastSeen: serverTimestamp(),
+                date_creation: new Date().toISOString()
               };
               setDoc(docRef, adminData).catch(err => console.error("Error creating admin doc:", err));
               setCurrentUser({ id: firebaseUser.uid, ...adminData } as User);
+            } else if (firebaseUser.email === 'ludo.consulting3@gmail.com') {
+              console.log("Creating teacher profile for Ludo...");
+              const teacherData = {
+                email: firebaseUser.email,
+                role: 'enseignant',
+                prenom: 'Ludo',
+                nom: 'Consulting',
+                status: 'online',
+                lastSeen: serverTimestamp(),
+                date_creation: new Date().toISOString()
+              };
+              setDoc(docRef, teacherData).catch(err => console.error("Error creating teacher doc:", err));
+              setCurrentUser({ id: firebaseUser.uid, ...teacherData } as User);
             } else {
               setCurrentUser(null);
             }
@@ -200,6 +214,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           if (email === 'martinienmvezogo@gmail.com' && (!prenom || !nom)) {
             prenom = 'Martinien';
             nom = 'Mvezogo';
+          } else if (email === 'ludo.consulting3@gmail.com' && (!prenom || !nom)) {
+            prenom = 'Ludo';
+            nom = 'Consulting';
           }
           
           await addDoc(collection(db, 'connections'), {
@@ -207,7 +224,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             nom: nom,
             prenom: prenom,
             email: userData.email || email,
-            role: userData.role || 'admin',
+            role: userData.role || (email === 'martinienmvezogo@gmail.com' ? 'admin' : userData.role),
             timestamp: new Date().toISOString()
           });
         } else if (email === 'martinienmvezogo@gmail.com') {
@@ -217,6 +234,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             prenom: 'Martinien',
             email: email,
             role: 'admin',
+            timestamp: new Date().toISOString()
+          });
+        } else if (email === 'ludo.consulting3@gmail.com') {
+          await addDoc(collection(db, 'connections'), {
+            user_id: userCredential.user.uid,
+            nom: 'Consulting',
+            prenom: 'Ludo',
+            email: email,
+            role: 'enseignant',
             timestamp: new Date().toISOString()
           });
         } else {

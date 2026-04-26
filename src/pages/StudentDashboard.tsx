@@ -3,6 +3,8 @@ import { useAuth } from '../contexts/AuthContext';
 import { collection, query, where, getDocs, onSnapshot, updateDoc, doc, getDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { LogOut, Clock, CheckCircle2, AlertCircle, RefreshCw, Bell, X, Info, Castle, Trash2, AlertTriangle, CheckCircle } from 'lucide-react';
+import LiveClock from '../components/LiveClock';
+import NewUserAnnouncement from '../components/NewUserAnnouncement';
 
 interface Notification {
   id: string;
@@ -106,7 +108,11 @@ export default function StudentDashboard() {
 
   return (
     <div className="min-h-screen bg-gray-50 p-4 sm:p-6 lg:p-8">
-      <div className="max-w-4xl mx-auto space-y-8">
+      <div className="max-w-4xl mx-auto space-y-6">
+        <div className="flex items-center justify-between">
+          <NewUserAnnouncement />
+          <LiveClock className="items-end" showDate={true} />
+        </div>
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 flex justify-between items-center">
           <div className="flex items-center gap-4">
             {currentUser?.photo ? (

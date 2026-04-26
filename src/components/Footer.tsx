@@ -1,7 +1,11 @@
 import React from 'react';
-import { Mail, Phone, MapPin, Code, Info, Laptop } from 'lucide-react';
+import { Mail, Phone, MapPin, Code, Info, Laptop, ShieldCheck, Scale } from 'lucide-react';
 
-export default function Footer() {
+interface FooterProps {
+  onNavigate?: (tab: string) => void;
+}
+
+export default function Footer({ onNavigate }: FooterProps) {
   return (
     <footer className="bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 mt-8 py-8 px-4 sm:px-6 lg:px-8 rounded-t-xl shadow-sm transition-colors duration-200 print:hidden">
       <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
@@ -17,6 +21,22 @@ export default function Footer() {
             Notre mission est d'accompagner les établissements et les entreprises dans leur transformation digitale 
             en proposant des solutions innovantes, fiables et adaptées à leurs besoins spécifiques.
           </p>
+          <div className="pt-2 flex flex-wrap gap-4 text-xs font-medium text-indigo-600 dark:text-indigo-400">
+            <button 
+              onClick={() => onNavigate?.('terms')}
+              className="hover:underline flex items-center gap-1"
+            >
+              <ShieldCheck size={14} />
+              Conditions d'utilisation
+            </button>
+            <button 
+              onClick={() => onNavigate?.('terms')}
+              className="hover:underline flex items-center gap-1"
+            >
+              <Scale size={14} />
+              Droits Réservés & Lois
+            </button>
+          </div>
         </div>
 
         {/* Section 2: About the Application */}

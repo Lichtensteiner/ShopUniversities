@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { LayoutDashboard, Users, CalendarCheck, FileText, Settings, BookOpen, Code, LogOut, ScanLine, Smartphone, IdCard, Trophy, ScanFace, Activity, GraduationCap, UserCircle, Castle, X, Download, Calendar as CalendarIcon, MessageSquare, BookUser, MessageCircle, Info, Sparkles, Wallet, ShieldAlert, History, Award } from 'lucide-react';
+import { LayoutDashboard, Users, CalendarCheck, FileText, Settings, BookOpen, Code, LogOut, ScanLine, Smartphone, IdCard, Trophy, ScanFace, Activity, GraduationCap, UserCircle, Castle, X, Download, Calendar as CalendarIcon, MessageSquare, BookUser, MessageCircle, Info, Sparkles, Wallet, ShieldAlert, History, Award, ShieldCheck, Scale, Utensils, Library, Vote, FileBadge } from 'lucide-react';
+import LiveClock from './LiveClock';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
@@ -96,6 +97,7 @@ export default function Sidebar({ activeTab, setActiveTab, isMobileOpen, setIsMo
         { id: 'messaging', labelKey: 'messaging', icon: MessageCircle, roles: ['admin', 'enseignant', 'personnel administratif', 'élève', 'parent'] },
         { id: 'profile', labelKey: 'profile', icon: UserCircle, roles: ['admin', 'enseignant', 'personnel administratif', 'élève', 'parent'] },
         { id: 'about', labelKey: 'about', icon: Info, roles: ['admin', 'enseignant', 'personnel administratif', 'élève', 'parent'] },
+        { id: 'terms', labelKey: 'terms_and_conditions', icon: ShieldCheck, roles: ['admin', 'enseignant', 'personnel administratif', 'élève', 'parent'] },
       ]
     },
     {
@@ -120,12 +122,17 @@ export default function Sidebar({ activeTab, setActiveTab, isMobileOpen, setIsMo
         { id: 'houses', labelKey: 'houses', icon: Castle, roles: ['admin', 'enseignant', 'élève', 'parent'] },
         { id: 'clubs', labelKey: 'clubs', icon: Award, roles: ['admin', 'enseignant', 'élève', 'parent'] },
         { id: 'leaderboard', labelKey: 'leaderboard', icon: Trophy, roles: ['admin', 'enseignant', 'élève', 'parent'] },
+        { id: 'library', labelKey: 'library', icon: Library, roles: ['admin', 'enseignant', 'élève', 'parent'] },
+        { id: 'canteen', labelKey: 'canteen', icon: Utensils, roles: ['admin', 'élève', 'parent', 'cuisinier'] },
+        { id: 'surveys', labelKey: 'surveys', icon: Vote, roles: ['admin', 'enseignant', 'élève', 'parent'] },
       ]
     },
     {
       title: t('administration_category'),
       items: [
         { id: 'users', labelKey: 'users', icon: Users, roles: ['admin'] },
+        { id: 'staff', labelKey: 'admin_staff', icon: Scale, roles: ['admin', 'personnel administratif'] },
+        { id: 'document_generator', labelKey: 'document_generator', icon: FileBadge, roles: ['admin', 'personnel administratif'] },
         { id: 'finance', labelKey: 'finance', icon: Wallet, roles: ['admin'] },
         { id: 'discipline', labelKey: 'discipline', icon: ShieldAlert, roles: ['admin', 'enseignant', 'personnel administratif'] },
         { id: 'recent_connections', labelKey: 'recent_connections', icon: Activity, roles: ['admin'] },
@@ -214,7 +221,8 @@ export default function Sidebar({ activeTab, setActiveTab, isMobileOpen, setIsMo
           })}
         </div>
 
-        <div className="p-4 border-t border-gray-200 dark:border-gray-700 shrink-0 space-y-2">
+        <div className="p-4 border-t border-gray-200 dark:border-gray-700 shrink-0 space-y-4">
+          <LiveClock className="px-4 py-2 bg-gray-50 dark:bg-gray-700/30 rounded-xl border border-gray-100 dark:border-gray-600 mb-2" />
           {currentUser && (
             <div className="flex items-center gap-3 px-4 py-3 bg-gray-50 dark:bg-gray-700/50 rounded-xl border border-gray-100 dark:border-gray-600 mb-2">
               {currentUser.photo ? (

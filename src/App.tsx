@@ -35,6 +35,12 @@ import Discipline from './pages/Discipline';
 import AuditLogs from './pages/AuditLogs';
 import Clubs from './pages/Clubs';
 import LudoAIPlus from './pages/LudoAIPlus';
+import TermsAndConditions from './pages/TermsAndConditions';
+import Staff from './pages/Staff';
+import Library from './pages/Library';
+import Canteen from './pages/Canteen';
+import Surveys from './pages/Surveys';
+import DocumentGenerator from './pages/DocumentGenerator';
 import { runMaintenance } from './services/MaintenanceService';
 import { isFirebaseConfigured } from './lib/firebase';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
@@ -183,8 +189,19 @@ function AppContent() {
       case 'audit_logs': return role === 'admin' ? <AuditLogs /> : <Dashboard />;
       case 'recent_connections': 
         return role === 'admin' ? <RecentConnections /> : <Dashboard />;
+      case 'staff':
+        return ['admin', 'personnel administratif'].includes(role) ? <Staff /> : <Dashboard />;
+      case 'library':
+        return <Library />;
+      case 'canteen':
+        return ['admin', 'élève', 'parent', 'cuisinier', 'personnel administratif'].includes(role) ? <Canteen /> : <Dashboard />;
+      case 'surveys':
+        return <Surveys />;
+      case 'document_generator':
+        return ['admin', 'personnel administratif'].includes(role) ? <DocumentGenerator /> : <Dashboard />;
       case 'profile': return <Profile />;
       case 'about': return <About />;
+      case 'terms': return <TermsAndConditions />;
       default: return role === 'élève' ? <StudentDashboard /> : <Dashboard />;
     }
   };
@@ -204,7 +221,7 @@ function AppContent() {
             <div className="flex-1">
               {renderContent()}
             </div>
-            <Footer />
+            <Footer onNavigate={handleNavigate} />
           </div>
         </main>
       </div>

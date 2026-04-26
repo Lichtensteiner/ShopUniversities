@@ -37,6 +37,8 @@ export default function Users() {
     contact: '',
     address: '',
     gender: 'not_specified' as 'male' | 'female' | 'other' | 'not_specified',
+    dateNaissance: '',
+    lieuNaissance: '',
     diploma: '',
     experience_years: '',
     age: '',
@@ -118,6 +120,8 @@ export default function Users() {
         contact: newUser.contact || null,
         address: newUser.address || null,
         gender: newUser.gender || 'not_specified',
+        dateNaissance: newUser.dateNaissance || null,
+        lieuNaissance: newUser.lieuNaissance || null,
         diploma: newUser.diploma || null,
         experience_years: newUser.experience_years ? parseInt(newUser.experience_years as string) : null,
         age: newUser.age ? parseInt(newUser.age as string) : null,
@@ -130,7 +134,7 @@ export default function Users() {
       await deleteApp(secondaryApp);
       
       setShowAddUserModal(false);
-      setNewUser({ nom: '', prenom: '', email: '', password: '', role: 'élève', classe: '', classes: [], matiere: '', matieres: [], matricule: '', contact: '', address: '', gender: 'not_specified', diploma: '', experience_years: '', age: '', house_id: '' });
+      setNewUser({ nom: '', prenom: '', email: '', password: '', role: 'élève', classe: '', classes: [], matiere: '', matieres: [], matricule: '', contact: '', address: '', gender: 'not_specified', dateNaissance: '', lieuNaissance: '', diploma: '', experience_years: '', age: '', house_id: '' });
     } catch (err: any) {
       console.error(err);
       if (err.code === 'auth/email-already-in-use') {
@@ -163,6 +167,8 @@ export default function Users() {
         contact: editUser.contact || null,
         address: editUser.address || null,
         gender: editUser.gender || 'not_specified',
+        dateNaissance: editUser.dateNaissance || null,
+        lieuNaissance: editUser.lieuNaissance || null,
         diploma: editUser.diploma || null,
         experience_years: editUser.experience_years ? parseInt(editUser.experience_years.toString()) : null,
         age: editUser.age ? parseInt(editUser.age.toString()) : null,
@@ -311,6 +317,7 @@ export default function Users() {
               <option value="élève">{tData('élève')}</option>
               <option value="enseignant">{tData('enseignant')}</option>
               <option value="personnel administratif">{tData('personnel administratif')}</option>
+              <option value="cuisinier">Cuisinier</option>
               <option value="admin">{tData('admin')}</option>
             </select>
           </div>
@@ -321,133 +328,110 @@ export default function Users() {
             <thead className="text-xs text-gray-700 uppercase bg-gray-50">
               <tr>
                 <th scope="col" className="px-6 py-4 font-semibold">{t('name')} & {t('firstname')}</th>
+                <th scope="col" className="px-6 py-4 font-semibold">{t('class')} & Prof.</th>
+                <th scope="col" className="px-6 py-4 font-semibold">Né(e) le</th>
                 <th scope="col" className="px-6 py-4 font-semibold">{t('id_number')}</th>
                 <th scope="col" className="px-6 py-4 font-semibold">{t('role')}</th>
                 <th scope="col" className="px-6 py-4 font-semibold">{t('contact')}</th>
-                <th scope="col" className="px-6 py-4 font-semibold">{t('address')}</th>
-                <th scope="col" className="px-6 py-4 font-semibold">{t('gender')}</th>
-                <th scope="col" className="px-6 py-4 font-semibold">{t('age')}</th>
-                <th scope="col" className="px-6 py-4 font-semibold">{t('diploma')}</th>
-                <th scope="col" className="px-6 py-4 font-semibold">{t('experience_years')}</th>
-                <th scope="col" className="px-6 py-4 font-semibold">{t('subject')}</th>
-                <th scope="col" className="px-6 py-4 font-semibold">{t('class')}</th>
-                <th scope="col" className="px-6 py-4 font-semibold">{t('house')}</th>
-                <th scope="col" className="px-6 py-4 font-semibold">{t('biometrics')}</th>
+                <th scope="col" className="px-6 py-4 font-semibold font-bold">Bio</th>
                 <th scope="col" className="px-6 py-4 font-semibold text-right">{t('actions')}</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={13} className="px-6 py-12 text-center">
+                  <td colSpan={8} className="px-6 py-12 text-center">
                     <RefreshCw className="animate-spin mx-auto text-indigo-600 mb-2" size={24} />
                     <p className="text-gray-500">{t('loading_users')}</p>
                   </td>
                 </tr>
               ) : filteredUsers.length === 0 ? (
                 <tr>
-                  <td colSpan={13} className="px-6 py-12 text-center text-gray-500">
+                  <td colSpan={8} className="px-6 py-12 text-center text-gray-500">
                     {t('no_users_found')} {!isFirebaseConfigured && t('configure_firebase')}
                   </td>
                 </tr>
               ) : (
-                filteredUsers.map((user) => (
+                filteredUsers.map((user) => {
+                  const userClass = classes.find(c => c.nom === user.classe);
+                  const teacher = userClass && userClass.professeur_principal_id ? users.find(u => u.id === userClass.professeur_principal_id) : null;
+                  const teacherName = teacher ? `${teacher.prenom || ''} ${teacher.nom || ''}`.trim() : 'N/A';
+
+                  return (
                   <tr key={user.id} className="bg-white border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
                         {user.photo ? (
-                          <img src={user.photo} alt="" className="w-8 h-8 rounded-full object-cover" referrerPolicy="no-referrer" />
+                          <img src={user.photo} alt="" className="w-8 h-8 rounded-full object-cover shadow-sm bg-gray-100" referrerPolicy="no-referrer" />
                         ) : (
-                          <div className="w-8 h-8 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold text-xs uppercase">
+                          <div className="w-8 h-8 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold text-[10px] uppercase">
                             {user.prenom?.[0] || user.email?.[0] || 'U'}
                           </div>
                         )}
                         <div>
-                          <div className="font-medium text-gray-900">
+                          <div className="font-bold text-gray-900 group-hover:text-indigo-600 transition-colors">
                             {user.nom || user.prenom ? `${user.nom || ''} ${user.prenom || ''}`.trim() : user.email?.split('@')[0] || 'Utilisateur'}
                           </div>
-                          <div className="text-xs text-gray-500">{user.email}</div>
+                          <div className="text-[10px] text-gray-400 font-medium lowercase italic">{user.email}</div>
                         </div>
                       </div>
                     </td>
-                    <td className="px-6 py-4 font-mono text-gray-600">
+                    <td className="px-6 py-4">
+                      {user.role === 'élève' ? (
+                        <div className="space-y-0.5">
+                          <div className="text-sm font-bold text-indigo-600">{user.classe || '-'}</div>
+                          <div className="text-[10px] text-gray-400 flex items-center gap-1">
+                            <span className="w-1 h-1 bg-gray-300 rounded-full"></span>
+                            {teacherName}
+                          </div>
+                        </div>
+                      ) : (
+                        <span className="text-gray-400 italic text-xs">N/A</span>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 text-xs text-gray-600 font-medium whitespace-nowrap">
+                      {user.dateNaissance || '-'}
+                    </td>
+                    <td className="px-6 py-4 font-mono text-xs text-gray-600">
                       {user.matricule || '-'}
                     </td>
                     <td className="px-6 py-4">
-                      <span className={`px-2.5 py-1 rounded-full text-xs font-medium capitalize ${
+                      <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
                         user.role === 'élève' ? 'bg-blue-100 text-blue-700' :
                         user.role === 'enseignant' ? 'bg-purple-100 text-purple-700' :
                         user.role === 'admin' ? 'bg-red-100 text-red-700' :
-                        'bg-orange-100 text-orange-700'
+                        'bg-slate-100 text-slate-700'
                       }`}>
                         {tData(user.role)}
                       </span>
                     </td>
-                    <td className="px-6 py-4 text-sm text-gray-600">
-                      <div className="flex items-center gap-1.5">
-                        <Phone size={14} className="text-gray-400" />
-                        {user.contact || '-'}
+                    <td className="px-6 py-4">
+                      <div className="flex flex-col gap-0.5">
+                        <div className="text-xs font-medium text-gray-700 flex items-center gap-1">
+                          <Phone size={10} className="text-gray-400" />
+                          {user.contact || '-'}
+                        </div>
+                        <div className="text-[10px] text-gray-400 truncate max-w-[120px]" title={user.address}>
+                          {user.address || '-'}
+                        </div>
                       </div>
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-600">
-                      <div className="flex items-center gap-1.5">
-                        <MapPin size={14} className="text-gray-400" />
-                        <span className="truncate max-w-[120px]" title={user.address}>{user.address || '-'}</span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-600">
-                      <div className="flex items-center gap-1.5">
-                        <User2 size={14} className="text-gray-400" />
-                        {user.gender ? t(user.gender) : '-'}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-600">
-                      <div className="flex items-center gap-1.5">
-                        <Calendar size={14} className="text-gray-400" />
-                        {user.age || '-'}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-600">
-                      <div className="flex items-center gap-1.5">
-                        <GraduationCap size={14} className="text-gray-400" />
-                        <span className="truncate max-w-[100px]" title={user.diploma}>{user.diploma || '-'}</span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-600">
-                      <div className="flex items-center gap-1.5">
-                        <HistoryIcon size={14} className="text-gray-400" />
-                        {user.experience_years || '-'}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 text-gray-600">
-                      {user.role === 'enseignant' ? (user.matieres?.join(', ') || user.matiere || '-') : '-'}
-                    </td>
-                    <td className="px-6 py-4 text-gray-600">
-                      {user.classe || '-'}
                     </td>
                     <td className="px-6 py-4">
-                      {user.house_id ? (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium" style={{ backgroundColor: `${houses.find(h => h.id === user.house_id)?.color || '#6b7280'}20`, color: houses.find(h => h.id === user.house_id)?.color || '#6b7280' }}>
-                          {houses.find(h => h.id === user.house_id)?.logo?.startsWith('http') ? (
-                            <img src={houses.find(h => h.id === user.house_id)?.logo} alt="" className="w-4 h-4 object-cover rounded-full" referrerPolicy="no-referrer" />
-                          ) : (
-                            <span>{houses.find(h => h.id === user.house_id)?.logo}</span>
+                      {user.face_id || user.fingerprint_id ? (
+                        <div className="flex -space-x-1">
+                          {user.face_id && (
+                            <div className="p-1 bg-emerald-100 text-emerald-600 rounded-full border-2 border-white" title="Visage enregistré">
+                              <User2 size={10} />
+                            </div>
                           )}
-                          {houses.find(h => h.id === user.house_id)?.nom_maison}
-                        </span>
-                      ) : '-'}
-                    </td>
-                    <td className="px-6 py-4">
-                      {user.face_id && user.fingerprint_id ? (
-                        <div className="flex items-center gap-1.5 text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full w-fit text-xs font-medium">
-                          <Fingerprint size={14} />
-                          {t('registered')}
+                          {user.fingerprint_id && (
+                            <div className="p-1 bg-blue-100 text-blue-600 rounded-full border-2 border-white" title="Empreinte enregistrée">
+                              <Fingerprint size={10} />
+                            </div>
+                          )}
                         </div>
                       ) : (
-                        <div className="flex items-center gap-1.5 text-amber-600 bg-amber-50 px-2.5 py-1 rounded-full w-fit text-xs font-medium">
-                          <AlertCircle size={14} />
-                          {t('missing')}
-                        </div>
+                        <div className="text-[10px] text-amber-500 font-bold uppercase">Non configuré</div>
                       )}
                     </td>
                     <td className="px-6 py-4 text-right">
@@ -490,9 +474,10 @@ export default function Users() {
                       </div>
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
+                );
+              })
+            )}
+          </tbody>
           </table>
         </div>
       </div>
@@ -548,6 +533,14 @@ export default function Users() {
                     Informations Personnelles
                   </h5>
                   <div className="space-y-3">
+                    <div className="flex justify-between items-center py-2 border-b border-gray-50 dark:border-gray-700/50">
+                      <span className="text-sm text-gray-500">Date de Naissance</span>
+                      <span className="text-sm font-medium text-gray-900 dark:text-gray-200">{viewUser.dateNaissance || '-'}</span>
+                    </div>
+                    <div className="flex justify-between items-center py-2 border-b border-gray-50 dark:border-gray-700/50">
+                      <span className="text-sm text-gray-500">Lieu de Naissance</span>
+                      <span className="text-sm font-medium text-gray-900 dark:text-gray-200">{viewUser.lieuNaissance || '-'}</span>
+                    </div>
                     <div className="flex justify-between items-center py-2 border-b border-gray-50 dark:border-gray-700/50">
                       <span className="text-sm text-gray-500">{t('gender')}</span>
                       <span className="text-sm font-medium text-gray-900 dark:text-gray-200">{viewUser.gender ? t(viewUser.gender) : '-'}</span>
@@ -771,6 +764,27 @@ export default function Users() {
 
                     <div className="grid grid-cols-2 gap-4">
                       <div>
+                        <label className="block text-xs font-medium text-gray-500 mb-1.5 ml-1 uppercase">Date de Naissance</label>
+                        <input
+                          type="date"
+                          value={editUser.dateNaissance || ''}
+                          onChange={(e) => setEditUser({...editUser, dateNaissance: e.target.value})}
+                          className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-500 mb-1.5 ml-1 uppercase">Lieu de Naissance</label>
+                        <input
+                          type="text"
+                          value={editUser.lieuNaissance || ''}
+                          onChange={(e) => setEditUser({...editUser, lieuNaissance: e.target.value})}
+                          className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-sm"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
                         <label className="block text-xs font-medium text-gray-500 mb-1.5 ml-1 uppercase">{t('gender')}</label>
                         <select
                           value={editUser.gender || 'not_specified'}
@@ -871,6 +885,7 @@ export default function Users() {
                         <option value="élève">{tData('élève')}</option>
                         <option value="enseignant">{tData('enseignant')}</option>
                         <option value="personnel administratif">{tData('personnel administratif')}</option>
+                        <option value="cuisinier">Cuisinier</option>
                         <option value="admin">{tData('admin')}</option>
                       </select>
                     </div>
@@ -1212,6 +1227,27 @@ export default function Users() {
 
                     <div className="grid grid-cols-2 gap-4">
                       <div>
+                        <label className="block text-xs font-medium text-gray-500 mb-1.5 ml-1 uppercase">Date de Naissance</label>
+                        <input
+                          type="date"
+                          value={newUser.dateNaissance}
+                          onChange={(e) => setNewUser({...newUser, dateNaissance: e.target.value})}
+                          className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-500 mb-1.5 ml-1 uppercase">Lieu de Naissance</label>
+                        <input
+                          type="text"
+                          value={newUser.lieuNaissance}
+                          onChange={(e) => setNewUser({...newUser, lieuNaissance: e.target.value})}
+                          className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-sm"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
                         <label className="block text-xs font-medium text-gray-500 mb-1.5 ml-1 uppercase">{t('contact')}</label>
                         <div className="relative">
                           <Phone className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
@@ -1307,6 +1343,7 @@ export default function Users() {
                           <option value="élève">{tData('élève')}</option>
                           <option value="enseignant">{tData('enseignant')}</option>
                           <option value="personnel administratif">{tData('personnel administratif')}</option>
+                          <option value="cuisinier">Cuisinier</option>
                           <option value="admin">{tData('admin')}</option>
                         </select>
                       </div>

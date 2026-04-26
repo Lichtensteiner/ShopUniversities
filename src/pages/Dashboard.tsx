@@ -3,8 +3,10 @@ import { Users, UserCheck, UserX, Clock, TrendingUp, RefreshCw, AlertTriangle, S
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, AreaChart, Area } from 'recharts';
 import { collection, getDocs, query, where, onSnapshot } from 'firebase/firestore';
 import { db, isFirebaseConfigured } from '../lib/firebase';
+import LiveClock from '../components/LiveClock';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
+import NewUserAnnouncement from '../components/NewUserAnnouncement';
 
 const COLORS = ['#4f46e5', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
 
@@ -218,11 +220,12 @@ export default function Dashboard() {
           <h1 className="text-2xl font-bold text-gray-900 tracking-tight">{t('dashboard')}</h1>
           <p className="text-sm text-gray-500 mt-1">{t('overview_attendance_today')}</p>
         </div>
-        <div className="flex items-center gap-2 text-sm text-gray-500 bg-white px-4 py-2 rounded-lg border border-gray-200 shadow-sm">
-          <Clock size={16} />
-          <span>{new Date().toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</span>
+        <div className="flex items-center gap-2 bg-white dark:bg-gray-800 px-4 py-2 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm transition-colors duration-200">
+          <LiveClock showDate={true} />
         </div>
       </div>
+      
+      <NewUserAnnouncement />
 
       {loading ? (
         <div className="flex items-center justify-center p-12">

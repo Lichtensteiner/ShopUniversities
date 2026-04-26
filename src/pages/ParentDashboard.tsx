@@ -16,6 +16,8 @@ import {
   Castle,
   MessageSquare
 } from 'lucide-react';
+import LiveClock from '../components/LiveClock';
+import NewUserAnnouncement from '../components/NewUserAnnouncement';
 
 interface Child {
   id: string;
@@ -144,6 +146,10 @@ export default function ParentDashboard() {
 
   return (
     <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <NewUserAnnouncement />
+        <LiveClock className="items-end" showDate={true} />
+      </div>
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{t('parent_dashboard')}</h1>
