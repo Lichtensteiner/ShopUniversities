@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { LayoutDashboard, Users, CalendarCheck, FileText, Settings, BookOpen, Code, LogOut, ScanLine, Smartphone, IdCard, Trophy, ScanFace, Activity, GraduationCap, UserCircle, Castle, X, Download, Calendar as CalendarIcon, MessageSquare, BookUser, MessageCircle, Info, Sparkles, Wallet, ShieldAlert, History, Award, ShieldCheck, Scale, Utensils, Library, Vote, FileBadge } from 'lucide-react';
-import LiveClock from './LiveClock';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
@@ -222,7 +221,6 @@ export default function Sidebar({ activeTab, setActiveTab, isMobileOpen, setIsMo
         </div>
 
         <div className="p-4 border-t border-gray-200 dark:border-gray-700 shrink-0 space-y-4">
-          <LiveClock className="px-4 py-2 bg-gray-50 dark:bg-gray-700/30 rounded-xl border border-gray-100 dark:border-gray-600 mb-2" />
           {currentUser && (
             <div className="flex items-center gap-3 px-4 py-3 bg-gray-50 dark:bg-gray-700/50 rounded-xl border border-gray-100 dark:border-gray-600 mb-2">
               {currentUser.photo ? (
