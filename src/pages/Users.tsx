@@ -268,6 +268,18 @@ export default function Users() {
     }
   };
 
+  const handleQuickAssignClass = async (userId: string, className: string) => {
+    if (!className) return;
+    try {
+      await updateDoc(doc(db, 'users', userId), { 
+        classe: className,
+        role: 'élève' // Ensure it stays élève if it was already
+      });
+    } catch (err) {
+      console.error("Error assigning class:", err);
+    }
+  };
+
   const filteredUsers = users.filter(user => {
     const matchesSearch = user.nom?.toLowerCase().includes(searchTerm.toLowerCase()) || 
                           user.prenom?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -373,7 +385,8 @@ export default function Users() {
             <thead className="text-xs text-gray-700 uppercase bg-gray-50">
               <tr>
                 <th scope="col" className="px-6 py-4 font-semibold">{t('name')} & {t('firstname')}</th>
-                <th scope="col" className="px-6 py-4 font-semibold">{t('class')} & Prof.</th>
+                <th scope="col" className="px-6 py-4 font-semibold">{t('class')}</th>
+                <th scope="col" className="px-6 py-4 font-semibold">{t('principal_teacher')}</th>
                 <th scope="col" className="px-6 py-4 font-semibold">Né(e) le</th>
                 <th scope="col" className="px-6 py-4 font-semibold">{t('id_number')}</th>
                 <th scope="col" className="px-6 py-4 font-semibold">{t('role')}</th>
@@ -423,12 +436,27 @@ export default function Users() {
                     </td>
                     <td className="px-6 py-4">
                       {user.role === 'élève' ? (
-                        <div className="space-y-0.5">
-                          <div className="text-sm font-bold text-indigo-600">{user.classe || '-'}</div>
-                          <div className="text-[10px] text-gray-400 flex items-center gap-1">
-                            <span className="w-1 h-1 bg-gray-300 rounded-full"></span>
-                            {teacherName}
-                          </div>
+                        user.classe ? (
+                          <div className="text-sm font-bold text-indigo-600">{user.classe}</div>
+                        ) : (
+                          <select 
+                            onChange={(e) => handleQuickAssignClass(user.id, e.target.value)}
+                            className="text-[10px] p-1.5 bg-amber-50 text-amber-700 border border-amber-200 rounded-lg outline-none focus:ring-2 focus:ring-amber-500 transition-all font-bold"
+                          >
+                            <option value="">{t('assign_class') || 'Assigner Classe'}</option>
+                            {classes.map(cls => (
+                              <option key={cls.id} value={cls.nom}>{cls.nom}</option>
+                            ))}
+                          </select>
+                        )
+                      ) : (
+                        <span className="text-gray-400 italic text-xs">N/A</span>
+                      )}
+                    </td>
+                    <td className="px-6 py-4">
+                      {user.role === 'élève' ? (
+                        <div className="text-xs text-gray-600 font-medium whitespace-nowrap">
+                          {teacherName}
                         </div>
                       ) : (
                         <span className="text-gray-400 italic text-xs">N/A</span>

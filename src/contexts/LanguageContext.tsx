@@ -339,6 +339,8 @@ const translations: Translations = {
   'firstname': { fr: 'Prénom', en: 'First name', es: 'Nombre', zh: '名字', ja: '名' },
   'class': { fr: 'Classe', en: 'Class', es: 'Clase', zh: '班级', ja: 'クラス' },
   'id_number': { fr: 'Matricule', en: 'ID Number', es: 'Matrícula', zh: '学号', ja: '学籍番号' },
+  'assign_class': { fr: 'Assigner Classe', en: 'Assign Class', es: 'Asignar Clase', zh: '分配班级', ja: 'クラスを割り当てる' },
+  'principal_teacher': { fr: 'Prof. Principal', en: 'Head Teacher', es: 'Profesor Principal', zh: '班主任', ja: '担任' },
   'actions': { fr: 'Actions', en: 'Actions', es: 'Acciones', zh: '操作', ja: 'アクション' },
   'subject': { fr: 'Matière', en: 'Subject', es: 'Materia', zh: '科目', ja: '科目' },
   'subjects': { fr: 'Matières', en: 'Subjects', es: 'Materias', zh: '科目', ja: '科目' },

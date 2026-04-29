@@ -47,10 +47,18 @@ export default function DocumentGenerator() {
   const [students, setStudents] = useState<Student[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedClass, setSelectedClass] = useState('Tous');
   const [generating, setGenerating] = useState<string | null>(null);
   const [logoDataUrl, setLogoDataUrl] = useState<string | null>(null);
   const [classes, setClasses] = useState<{id: string, name: string}[]>([]);
   const [teachers, setTeachers] = useState<{id: string, name: string}[]>([]);
+  
+  // Global generation params
+  const [globalConfig, setGlobalConfig] = useState({
+    academicYear: '2026-2027',
+    period: 'Trimestre 1',
+    principalName: 'M. LE DIRECTEUR'
+  });
   
   // Customization state
   const [editDoc, setEditDoc] = useState<{
@@ -111,16 +119,25 @@ export default function DocumentGenerator() {
         setClasses(classesList);
 
         // Fetch students
-        const q = query(collection(db, 'users'), where('role', '==', 'élève'));
+        const q = query(collection(db, 'users'), where('role', 'in', ['élève', 'eleve']));
         const snapshot = await getDocs(q);
         
         const studentsList = snapshot.docs.map(doc => {
           const data = doc.data();
-          const classInfo = data.classId ? classesMap.get(data.classId) : null;
+          // Resolution of class info from ID or name
+          let classInfo = data.classId ? classesMap.get(data.classId) : null;
+          
+          if (!classInfo && (data.classe || data.className)) {
+            // Try to match the 'classe' string with the names in our classesMap
+            const targetName = data.classe || data.className;
+            const foundClass = Array.from(classesMap.values()).find((c: any) => c.name === targetName);
+            if (foundClass) classInfo = foundClass;
+          }
+
           return { 
             id: doc.id, 
             ...data,
-            className: classInfo ? classInfo.name : (data.className || 'Non assignée'),
+            className: classInfo ? classInfo.name : (data.classe || data.className || 'Non assignée'),
             mainTeacher: classInfo ? classInfo.mainTeacher : 'Non assigné',
             houseName: data.house_id ? housesMap.get(data.house_id) : 'N/A'
           } as Student;
@@ -367,18 +384,54 @@ export default function DocumentGenerator() {
     setGenerating(student.id + '_report');
     
     try {
-      console.log("Generating report for:", student.nom);
+      console.log("Generating report for:", student.nom, student.prenom, "ID:", student.id);
+      
+      // Try multiple possible ID keys to be more resilient
       const q = query(collection(db, 'grades'), where('studentId', '==', student.id));
       const gradeSnapshot = await getDocs(q);
-      const studentGrades = gradeSnapshot.docs.map(doc => doc.data());
+      let studentGrades = gradeSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+      // Fallback 1: Try searching by student name if ID search returns nothing
+      if (studentGrades.length === 0) {
+        console.log("No grades found by studentId, trying fallback search by name...");
+        const nameQuery = query(
+          collection(db, 'grades'), 
+          where('studentName', '==', `${student.prenom} ${student.nom}`)
+        );
+        const nameSnapshot = await getDocs(nameQuery);
+        studentGrades = nameSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      }
+
+      // Fallback 2: Try alternate field name student_id
+      if (studentGrades.length === 0) {
+        const altQuery = query(collection(db, 'grades'), where('student_id', '==', student.id));
+        const altSnapshot = await getDocs(altQuery);
+        studentGrades = altSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      }
+
+      console.log("Found grades count:", studentGrades.length);
 
       if (studentGrades.length === 0) {
-        alert("Aucune donnée de notation disponible pour cet élève.");
+        // Final fallback: try search all grades and filter manually (expensive but better than nothing for a single student)
+        const allGradesSnap = await getDocs(collection(db, 'grades'));
+        studentGrades = allGradesSnap.docs
+          .map(doc => ({ id: doc.id, ...doc.data() } as any))
+          .filter(g => 
+            g.studentId === student.id || 
+            g.student_id === student.id ||
+            g.studentName?.toLowerCase() === `${student.prenom} ${student.nom}`.toLowerCase()
+          );
+      }
+
+      if (studentGrades.length === 0) {
+        alert(`Aucune donnée de notation disponible pour ${student.prenom} ${student.nom}. Veuillez vérifier que ses notes ont bien été saisies.`);
         setGenerating(null);
         return;
       }
 
       const subjectAverages: { [key: string]: { weightedSum: number, totalCoef: number, count: number } } = {};
+      
+      // Group by subject and calculate averages
       studentGrades.forEach((g: any) => {
         const subject = g.subject || 'Inconnu';
         if (!subjectAverages[subject]) {
@@ -398,25 +451,25 @@ export default function DocumentGenerator() {
       });
 
       const tableData = Object.entries(subjectAverages).map(([subject, stats]) => {
-          const average = stats.weightedSum / stats.totalCoef;
-          const percentage = (average / 20) * 100;
+        const average = stats.totalCoef > 0 ? stats.weightedSum / stats.totalCoef : 0;
+        const percentage = (average / 20) * 100;
         
         let comment = "";
         if (average >= 16) {
-          comment = "Excellent travail sur l'ensemble du trimestre. L'élève fait preuve d'une compréhension approfondie des concepts et d'une rigueur constante dans ses productions.\n\nFélicitations pour cet investissement exemplaire qui tire la classe vers le haut et témoigne d'un potentiel académique remarquable.";
+          comment = "Excellent travail sur l'ensemble de la période. L'élève fait preuve d'une compréhension approfondie des concepts et d'une rigueur constante.";
         } else if (average >= 14) {
-          comment = "Très bon trimestre. Les résultats sont solides et témoignent d'un travail sérieux et d'une bonne maîtrise des compétences.\n\nContinuez sur cette lancée pour atteindre l'excellence au prochain trimestre. Une participation plus active en classe pourrait encore renforcer ces acquis.";
+          comment = "Très bon trimestre. Les résultats sont solides et témoignent d'un travail sérieux et d'une bonne maîtrise des compétences.";
         } else if (average >= 12) {
-          comment = "Bon travail. Les acquis sont là et les résultats sont satisfaisants. On sent une réelle volonté de bien faire et une progression constante.\n\nIl faudra toutefois veiller à approfondir certains points théoriques pour stabiliser ces résultats et gagner en autonomie lors des évaluations.";
+          comment = "Bon travail. Les acquis sont là et les résultats sont satisfaisants. On sent une réelle volonté de bien faire.";
         } else if (average >= 10) {
-          comment = "Résultats corrects mais parfois irréguliers. L'élève atteint les objectifs minimaux mais possède encore une marge de progression importante.\n\nUn travail plus régulier et approfondi à la maison, ainsi qu'une meilleure concentration en classe, permettraient de gagner en assurance et d'élever la moyenne.";
+          comment = "Résultats corrects mais parfois irréguliers. L'élève atteint les objectifs minimaux mais possède encore une marge de progression.";
         } else {
-          comment = "Ensemble insuffisant ce trimestre. Les lacunes accumulées dans les bases fondamentales empêchent pour l'instant une bonne maîtrise du programme.\n\nUn redoublement d'efforts immédiat et un suivi plus soutenu sont impératifs pour redresser la situation et éviter le décrochage scolaire.";
+          comment = "Ensemble insuffisant ce trimestre. Les lacunes accumulées empêchent pour l'instant une bonne maîtrise du programme.";
         }
 
         return [
-          subject, 
-          stats.totalCoef.toString(), 
+          subject.toUpperCase(), 
+          stats.totalCoef.toFixed(0), 
           average.toFixed(2), 
           percentage.toFixed(0) + "%", 
           comment
@@ -444,45 +497,67 @@ export default function DocumentGenerator() {
       doc.setFont("helvetica", "normal");
       doc.setTextColor(148, 163, 184);
       doc.text("SHOP UNIVERSITIES - GESTION DES ÉVALUATIONS", 105, 33, { align: 'center' });
-      doc.text(`${config.academicYear || "ANNÉE 2026-2027"} | ${config.period?.toUpperCase() || "TRIMESTRE 1"}`, 105, 40, { align: 'center' });
+      doc.text(`${config.academicYear || "ANNÉE ACADÉMIQUE 2026-2027"} | ${config.period?.toUpperCase() || "TRIMESTRE 1"}`, 105, 40, { align: 'center' });
 
-      // Student Summary Info
+      // Student Summary Info - WELL STRUCTURED
       doc.setFillColor(248, 250, 252);
-      doc.roundedRect(15, 55, 180, 28, 2, 2, 'F');
+      doc.setDrawColor(226, 232, 240);
+      doc.roundedRect(15, 55, 180, 35, 2, 2, 'FD');
       
       doc.setTextColor(30, 41, 59);
-      doc.setFontSize(9);
+      doc.setFontSize(8);
       doc.setFont("helvetica", "bold");
       
-      // Left Column
-      doc.text(`ÉTUDIANT :`, 20, 63);
-      doc.text(`MATRICULE :`, 20, 70);
-      doc.text(`NÉ(E) LE :`, 20, 77);
+      // Headers
+      const colL1 = 20;  // Left Header
+      const colL2 = 48;  // Left Value
+      const colR1 = 110; // Right Header
+      const colR2 = 145; // Right Value
       
-      // Right Column
-      doc.text(`CLASSE :`, 110, 63);
-      doc.text(`PROF. PRINCIPAL :`, 110, 70);
-      doc.text(`SEXE :`, 110, 77);
-        doc.text(`${String(student.nom || '').toUpperCase()} ${String(student.prenom || '')}`, 45, 63);
-      doc.text(String(student.matricule || student.id.substring(0, 10)).toUpperCase(), 45, 70);
-      doc.text(`${String(student.dateNaissance || 'N/A')} à ${String(student.lieuNaissance || 'Non spécifié').toUpperCase()}`, 45, 77);
+      let currentY = 63;
+      const stepY = 8;
+
+      doc.text(`ÉTUDIANT :`, colL1, currentY);
+      doc.text(`CLASSE :`, colR1, currentY);
       
-      // Right Column Values
-      doc.text(String(config.className || student.className || 'NON DÉFINIE').toUpperCase(), 145, 63);
-      doc.text(String(config.mainTeacher || student.mainTeacher || 'NON ASSIGNÉ').toUpperCase(), 145, 70);
-      doc.text(student.gender === 'male' ? 'MASCULIN' : student.gender === 'female' ? 'FÉMININ' : 'N/A', 145, 77);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(71, 85, 105);
+      doc.text(`${String(student.nom || '').toUpperCase()} ${String(student.prenom || '')}`, colL2, currentY);
+      doc.text(String(config.className || student.className || 'NON DÉFINIE').toUpperCase(), colR2, currentY);
+      
+      currentY += stepY;
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(30, 41, 59);
+      doc.text(`MATRICULE :`, colL1, currentY);
+      doc.text(`PROF. PRINCIPAL :`, colR1, currentY);
+      
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(71, 85, 105);
+      doc.text(String(student.matricule || student.id.substring(0, 10)).toUpperCase(), colL2, currentY);
+      doc.text(String(config.mainTeacher || student.mainTeacher || 'NON ASSIGNÉ').toUpperCase(), colR2, currentY);
+      
+      currentY += stepY;
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(30, 41, 59);
+      doc.text(`NÉ(E) LE :`, colL1, currentY);
+      doc.text(`SEXE :`, colR1, currentY);
+      
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(71, 85, 105);
+      doc.text(`${String(student.dateNaissance || 'N/A')} à ${String(student.lieuNaissance || 'Non spécifié').toUpperCase()}`, colL2, currentY);
+      doc.text(student.gender === 'male' ? 'MASCULIN' : student.gender === 'female' ? 'FÉMININ' : 'N/A', colR2, currentY);
 
       autoTable(doc, {
-        startY: 95,
+        startY: 100,
         head: [['DISCIPLINE', 'COEFF', 'MOY /20', '%', 'APPRÉCIATIONS DÉTAILLÉES']],
         body: tableData,
         theme: 'striped',
-        headStyles: { fillColor: [15, 23, 42], textColor: 255, halign: 'center', fontSize: 9 },
+        headStyles: { fillColor: [15, 23, 42], textColor: 255, halign: 'center', fontSize: 9, fontStyle: 'bold' },
         styles: { fontSize: 8, cellPadding: 4, overflow: 'linebreak' },
         columnStyles: {
-          0: { fontStyle: 'bold', cellWidth: 35 },
+          0: { fontStyle: 'bold', cellWidth: 40 },
           1: { halign: 'center', cellWidth: 15 },
-          2: { halign: 'center', cellWidth: 20 },
+          2: { halign: 'center', cellWidth: 20, fontStyle: 'bold' },
           3: { halign: 'center', cellWidth: 15 },
           4: { fontStyle: 'italic', cellWidth: 'auto' }
         }
@@ -500,13 +575,13 @@ export default function DocumentGenerator() {
       doc.setTextColor(255);
       doc.setFontSize(13);
       doc.setFont("helvetica", "bold");
-      doc.text(`RÉSULTAT GLOBAL : ${generalAvg.toFixed(2)} / 20`, 105, finalY + 10, { align: 'center' });
+      doc.text(`MOYENNE GÉNÉRALE : ${generalAvg.toFixed(2)} / 20`, 105, finalY + 10, { align: 'center' });
 
       // Bottom Signatures
       doc.setTextColor(30, 41, 59);
       doc.setFontSize(10);
-      doc.text("Visa Parent/Tuteur", 30, finalY + 40);
-      doc.text("Visa de l'Établissement", 140, finalY + 40);
+      doc.text("Le Parent / Tuteur", 30, finalY + 40);
+      doc.text("Le Directeur de l'Établissement", 130, finalY + 40);
       
       doc.setDrawColor(200);
       doc.rect(25, finalY + 45, 50, 20, 'D');
@@ -516,17 +591,20 @@ export default function DocumentGenerator() {
       console.log("Report saved successfully");
     } catch (err) {
       console.error("Error generating report card:", err);
-      alert("Une erreur est survenue lors de la génération du bulletin. Veuillez vérifier les données de l'élève.");
+      alert("Une erreur est survenue lors de la génération du bulletin. Veuillez vérifier la console pour plus d'infos.");
     } finally {
       setGenerating(null);
       setEditDoc(null);
     }
   };
 
-  const filteredStudents = students.filter(s => 
-    `${s.prenom} ${s.nom}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    s.matricule?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+
+  const filteredStudents = students.filter(s => {
+    const matchesSearch = `${s.prenom} ${s.nom}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                          s.matricule?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesClass = selectedClass === 'Tous' || s.className === selectedClass;
+    return matchesSearch && matchesClass;
+  });
 
   return (
     <div className="space-y-6">
@@ -543,18 +621,65 @@ export default function DocumentGenerator() {
           </p>
         </div>
       </div>
+      
+      {/* GLOBAL SETTINGS */}
+      <div className="bg-white dark:bg-gray-800 rounded-3xl p-6 border border-gray-100 dark:border-gray-700 shadow-sm grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div>
+          <label className="block text-[10px] font-black text-gray-400 uppercase mb-2 tracking-widest">Année Académique</label>
+          <input 
+            type="text" 
+            value={globalConfig.academicYear}
+            onChange={(e) => setGlobalConfig({...globalConfig, academicYear: e.target.value})}
+            className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-900 border-none rounded-xl font-bold text-sm outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
+        <div>
+          <label className="block text-[10px] font-black text-gray-400 uppercase mb-2 tracking-widest">Période par défaut</label>
+          <input 
+            type="text" 
+            value={globalConfig.period}
+            onChange={(e) => setGlobalConfig({...globalConfig, period: e.target.value})}
+            className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-900 border-none rounded-xl font-bold text-sm outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
+        <div>
+          <label className="block text-[10px] font-black text-gray-400 uppercase mb-2 tracking-widest">Nom du Signataire</label>
+          <input 
+            type="text" 
+            value={globalConfig.principalName}
+            onChange={(e) => setGlobalConfig({...globalConfig, principalName: e.target.value})}
+            className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-900 border-none rounded-xl font-bold text-sm outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
+      </div>
 
       <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
-        <div className="p-6 border-b border-gray-100 dark:border-gray-700">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-            <input
-              type="text"
-              placeholder="Rechercher un élève par nom ou matricule..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-3 bg-gray-50 dark:bg-gray-900 border-none rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none text-sm"
-            />
+        <div className="p-6 border-b border-gray-100 dark:border-gray-700 flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex-1 flex flex-col md:flex-row gap-4">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+              <input
+                type="text"
+                placeholder="Rechercher un élève par nom ou matricule..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-10 pr-4 py-3 bg-gray-50 dark:bg-gray-900 border-none rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none text-sm"
+              />
+            </div>
+            <select
+              value={selectedClass}
+              onChange={(e) => setSelectedClass(e.target.value)}
+              className="px-4 py-3 bg-gray-50 dark:bg-gray-900 border-none rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none text-sm font-bold appearance-none min-w-[150px]"
+            >
+              <option value="Tous">Toutes les classes</option>
+              {classes.map(cls => (
+                <option key={cls.id} value={cls.name}>{cls.name}</option>
+              ))}
+            </select>
+          </div>
+          <div className="flex items-center gap-2 px-4 py-2 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 rounded-xl">
+             <Users size={18} />
+             <span className="text-xs font-black uppercase tracking-widest">{filteredStudents.length} élèves affichés</span>
           </div>
         </div>
 
@@ -566,10 +691,10 @@ export default function DocumentGenerator() {
                 <th className="px-6 py-4">Né(e) le</th>
                 <th className="px-6 py-4">Classe</th>
                 <th className="px-6 py-4">Prof. Principal</th>
-                <th className="px-6 py-4 text-center">Générer avec Options</th>
+                <th className="px-6 py-4 text-center">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+            <tbody className="divide-y divide-gray-100 dark:divide-gray-700 font-medium">
               {filteredStudents.map((student) => (
                 <tr key={student.id} className="hover:bg-gray-50/50 dark:hover:bg-gray-700/20 transition-colors">
                   <td className="px-6 py-4">
@@ -581,33 +706,43 @@ export default function DocumentGenerator() {
                           {student.prenom[0]}{student.nom[0]}
                         </div>
                       )}
-                      <p className="text-sm font-bold text-gray-900 dark:text-white uppercase italic">{student.prenom} {student.nom}</p>
+                      <div>
+                        <p className="text-sm font-bold text-gray-900 dark:text-white uppercase italic">{student.prenom} {student.nom}</p>
+                        <p className="text-[10px] text-gray-400 font-mono tracking-tighter">ID: {student.matricule || student.id.substring(0, 10)}</p>
+                      </div>
                     </div>
                   </td>
-                  <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400 font-mono italic">
+                  <td className="px-6 py-4 text-[13px] text-gray-600 dark:text-gray-400 font-mono italic">
                     {student.dateNaissance || '---'}
                   </td>
-                  <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400 uppercase font-bold">{student.className || '---'}</td>
-                  <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-500 italic">{student.mainTeacher || '---'}</td>
+                  <td className="px-6 py-4 text-[13px] text-gray-800 dark:text-gray-200 uppercase font-black tracking-tighter">{student.className || '---'}</td>
+                  <td className="px-6 py-4 text-xs text-indigo-600 dark:text-indigo-400 italic font-bold">
+                    <span className="bg-indigo-50 dark:bg-indigo-900/20 px-2 py-1 rounded-md">
+                      {student.mainTeacher || '---'}
+                    </span>
+                  </td>
                   <td className="px-6 py-4">
                     <div className="flex items-center justify-center gap-2">
                        <button 
-                        onClick={() => setEditDoc({ type: 'card', student, config: { academicYear: '2026-2027', className: student.className || '', mainTeacher: student.mainTeacher || '' } })}
-                        className="px-3 py-1.5 bg-purple-100 text-purple-700 text-[10px] font-black rounded-lg hover:scale-105 transition-all"
+                        onClick={() => setEditDoc({ type: 'card', student, config: { ...globalConfig, className: student.className || '', mainTeacher: student.mainTeacher || '' } })}
+                        className="p-2 text-purple-600 bg-purple-50 hover:bg-purple-100 rounded-xl transition-all"
+                        title="Carte E-QR"
                       >
-                        CARTE E-QR
+                        <IdCard size={18} />
                       </button>
                       <button 
-                         onClick={() => setEditDoc({ type: 'cert', student, config: { academicYear: '2026-2027', principalName: 'M. LE DIRECTEUR', className: student.className || '', mainTeacher: student.mainTeacher || '' } })}
-                        className="px-3 py-1.5 bg-blue-100 text-blue-700 text-[10px] font-black rounded-lg hover:scale-105 transition-all"
+                         onClick={() => setEditDoc({ type: 'cert', student, config: { ...globalConfig, className: student.className || '', mainTeacher: student.mainTeacher || '' } })}
+                        className="p-2 text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-xl transition-all"
+                        title="Certificat"
                       >
-                        CERTIFICAT
+                        <FileText size={18} />
                       </button>
                       <button 
-                        onClick={() => setEditDoc({ type: 'report', student, config: { academicYear: '2026-2027', period: 'Trimestre 1', className: student.className || '', mainTeacher: student.mainTeacher || '' } })}
-                        className="px-3 py-1.5 bg-indigo-100 text-indigo-700 text-[10px] font-black rounded-lg hover:scale-105 transition-all"
+                        onClick={() => setEditDoc({ type: 'report', student, config: { ...globalConfig, className: student.className || '', mainTeacher: student.mainTeacher || '' } })}
+                        className="p-2 text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-xl transition-all"
+                        title="Bulletin"
                       >
-                        BULLETIN
+                        <FileBadge size={18} />
                       </button>
                     </div>
                   </td>

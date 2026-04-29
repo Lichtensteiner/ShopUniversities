@@ -144,6 +144,27 @@ export default function Classes() {
     return teacher ? (teacher.prenom || teacher.nom ? `${teacher.prenom || ''} ${teacher.nom || ''}`.trim() : teacher.email?.split('@')[0] || 'Utilisateur') : 'Non assigné';
   };
 
+  const handleQuickAssignTeacher = async (classId: string, teacherId: string) => {
+    if (!teacherId || !classId) return;
+    try {
+      await updateDoc(doc(db, 'classes', classId), { 
+        professeur_principal_id: teacherId,
+        updatedAt: new Date().toISOString()
+      });
+      
+      // Optionally also update the teacher's record to link them to this class
+      const classItem = classes.find(c => c.id === classId);
+      if (classItem) {
+        await updateDoc(doc(db, 'users', teacherId), {
+          classe: classItem.nom,
+          // If they have multiple classes, we might want to append, but usually a "principal" is for one.
+        });
+      }
+    } catch (err) {
+      console.error("Error assigned principal teacher:", err);
+    }
+  };
+
   const getClassStudents = (className: string) => {
     return students.filter(s => s.classe === className);
   };
@@ -218,7 +239,22 @@ export default function Classes() {
                   <h3 className="text-xl font-bold text-gray-900 mb-1">{cls.nom}</h3>
                   <div className="flex items-center gap-2 text-sm text-indigo-600 font-semibold mb-2">
                     <User size={14} />
-                    <span>{getTeacherName(cls.professeur_principal_id, cls.nom)}</span>
+                    {cls.professeur_principal_id ? (
+                      <span>{getTeacherName(cls.professeur_principal_id, cls.nom)}</span>
+                    ) : (
+                      <select
+                        onClick={(e) => e.stopPropagation()}
+                        onChange={(e) => handleQuickAssignTeacher(cls.id, e.target.value)}
+                        className="text-[11px] py-1 px-2 bg-amber-50 text-amber-700 border border-amber-200 rounded-lg outline-none focus:ring-2 focus:ring-amber-500 transition-all font-bold"
+                      >
+                        <option value="">Assigner Prof. Principal</option>
+                        {teachers.map(t => (
+                          <option key={t.id} value={t.id}>
+                            {t.prenom || t.nom ? `${t.prenom || ''} ${t.nom || ''}`.trim() : t.email?.split('@')[0]}
+                          </option>
+                        ))}
+                      </select>
+                    )}
                   </div>
                   <p className="text-sm text-gray-500 mb-6">{cls.niveau || 'Niveau non spécifié'}</p>
                   
