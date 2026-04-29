@@ -315,13 +315,19 @@ L'équipe ShopUniversities`);
           {selectedReport ? (
             <div className="max-w-3xl mx-auto">
               {/* Header */}
-              <div className="border-b-2 border-indigo-600 pb-6 mb-8 flex justify-between items-start">
-                <div>
+              <div className="border-b-2 border-indigo-600 pb-6 mb-8 flex flex-col md:flex-row justify-between items-center md:items-start text-center md:text-left gap-4">
+                <div className="flex flex-col items-center md:items-start">
                   <div className="flex items-center gap-3 mb-2">
-                    <img src="/logo.png" alt="ShopUniversities" className="h-12 object-contain" />
+                    <img src="/logo.png" alt="ShopUniversities" className="h-16 object-contain" />
+                  </div>
+                  <div className="text-[10px] text-gray-500 space-y-0.5">
+                    <p className="font-bold text-gray-800 text-xs">Ecole Internationale Du Centre Pédagogique ShopUniversities</p>
+                    <p>529 Avenue Félix HOUPHOUËT-BOIGNY, Trois Quartier, Libreville GABON</p>
+                    <p>Contact: +241 011 44 9292 / 062 24 8425 / 077022307 / 062641120</p>
+                    <p>Email: ludo.consulting3@gmail.com</p>
                   </div>
                 </div>
-                <div className="text-right">
+                <div className="md:text-right">
                   <h1 className="text-2xl font-bold text-gray-900 uppercase tracking-tight">Rapport de Présence</h1>
                   <p className="text-gray-500 mt-1">{selectedReport.semaine}</p>
                 </div>

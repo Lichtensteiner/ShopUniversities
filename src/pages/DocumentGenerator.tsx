@@ -210,14 +210,14 @@ export default function DocumentGenerator() {
       await drawLogo(doc, 5, 5, 12);
       
       doc.setTextColor(255, 255, 255);
-      doc.setFontSize(10);
+      doc.setFontSize(8);
       doc.setFont("helvetica", "bold");
-      doc.text("SHOP UNIVERSITIES", 19, 10);
+      doc.text("CENTRE PÉDAGOGIQUE SHOPUNIVERSITIES", 19, 10);
       
       doc.setFontSize(4);
       doc.setFont("helvetica", "normal");
       doc.setCharSpace(0.5);
-      doc.text("OFFICIAL ACADEMIC IDENTITY CARD", 19, 14);
+      doc.text("ECOLE INTERNATIONALE - CARTE D'IDENTITÉ", 19, 14);
       doc.setCharSpace(0);
 
       // Photo Section
@@ -299,15 +299,17 @@ export default function DocumentGenerator() {
       
       await drawLogo(doc, 20, 15, 22);
       
-      doc.setFontSize(22);
+      doc.setFontSize(16);
       doc.setTextColor(30, 41, 59);
       doc.setFont("helvetica", "bold");
-      doc.text("SHOP UNIVERSITIES", 48, 26);
+      doc.text("ECOLE INTERNATIONALE DU CENTRE PÉDAGOGIQUE", 48, 22);
+      doc.text("SHOPUNIVERSITIES", 48, 28);
       
-      doc.setFontSize(10);
+      doc.setFontSize(8);
       doc.setFont("helvetica", "normal");
-      doc.text("CENTRE D'EXCELLENCE ACADÉMIQUE PROFESSIONNEL", 48, 32);
-      doc.text("Libreville, Gabon | Contact: +241 01 02 03 04", 48, 37);
+      doc.text("529 Avenue Félix HOUPHOUËT-BOIGNY, Trois Quartier, Libreville GABON", 48, 33);
+      doc.text("E-mail: ludo.consulting3@gmail.com", 48, 37);
+      doc.text("Tél: +241 011 44 9292 / 062 24 8425 / 077022307 / 062641120", 48, 41);
 
       doc.setDrawColor(226, 232, 240);
       doc.line(20, 45, 190, 45);
@@ -489,15 +491,21 @@ export default function DocumentGenerator() {
       }
       
       doc.setTextColor(255);
-      doc.setFontSize(22);
+      doc.setFontSize(18);
       doc.setFont("helvetica", "bold");
-      doc.text("BULLETIN DE NOTES", 105, 25, { align: 'center' });
+      doc.text("BULLETIN DE NOTES", 105, 20, { align: 'center' });
       
-      doc.setFontSize(10);
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(255, 255, 255);
+      doc.text("ECOLE INTERNATIONALE DU CENTRE PÉDAGOGIQUE SHOPUNIVERSITIES", 105, 28, { align: 'center' });
+      
+      doc.setFontSize(7);
       doc.setFont("helvetica", "normal");
       doc.setTextColor(148, 163, 184);
-      doc.text("SHOP UNIVERSITIES - GESTION DES ÉVALUATIONS", 105, 33, { align: 'center' });
-      doc.text(`${config.academicYear || "ANNÉE ACADÉMIQUE 2026-2027"} | ${config.period?.toUpperCase() || "TRIMESTRE 1"}`, 105, 40, { align: 'center' });
+      doc.text("529 Avenue Félix HOUPHOUËT-BOIGNY, TROIS QUARTIER, LIBREVILLE GABON", 105, 34, { align: 'center' });
+      doc.text("Email: ludo.consulting3@gmail.com | Tél: +241 011 44 9292 / 062 24 8425", 105, 38, { align: 'center' });
+      doc.text(`${config.academicYear || "ANNÉE ACADÉMIQUE 2026-2027"} | ${config.period?.toUpperCase() || "TRIMESTRE 1"}`, 105, 43, { align: 'center' });
 
       // Student Summary Info - WELL STRUCTURED
       doc.setFillColor(248, 250, 252);
