@@ -74,7 +74,26 @@ service cloud.firestore {
     match /attendance/{attendanceId} {
       allow read: if isAuthenticated() && (isAdmin() || isTeacher() || isStaff() || isOwner(resource.data.user_id) || isChildOf(resource.data.user_id));
       allow create: if isAuthenticated(); // Students can clock in
-      allow update, delete: if isAdmin() || isTeacher() || isStaff();
+      allow update, delete: if isAdmin(); // ONLY Admin can modify/delete summary records
+    }
+
+    // Attendance Logs Collection (Detailed scans)
+    match /attendance_logs/{logId} {
+      allow read: if isAuthenticated() && (isAdmin() || isTeacher() || isStaff() || isOwner(resource.data.user_id) || isChildOf(resource.data.user_id));
+      allow create: if isAuthenticated(); // Scanners can create logs
+      allow update, delete: if isAdmin(); // ONLY Admin can modify/delete logs
+    }
+
+    // Grades Collection
+    match /grades/{gradeId} {
+      allow read: if isAuthenticated() && (isAdmin() || isTeacher() || isOwner(resource.data.studentId) || isChildOf(resource.data.studentId));
+      allow write: if isAdmin() || isTeacher();
+    }
+
+    // Sanctions Collection
+    match /sanctions/{sanctionId} {
+      allow read: if isAuthenticated() && (isAdmin() || isTeacher() || isOwner(resource.data.studentId) || isChildOf(resource.data.studentId));
+      allow write: if isAdmin() || isTeacher();
     }
 
     // Feedback Collection

@@ -3,7 +3,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { auth, db, storage } from '../lib/firebase';
 import { updatePassword, EmailAuthProvider, reauthenticateWithCredential } from 'firebase/auth';
-import { doc, updateDoc } from 'firebase/firestore';
+import { collection, doc, updateDoc, query, where, onSnapshot } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { User, Lock, Mail, Shield, BookOpen, Fingerprint, AlertCircle, CheckCircle2, RefreshCw, Briefcase, Target, Calendar, Edit2, Save, Camera, Plus, X, Phone, MapPin, User2, GraduationCap, History, UserCircle } from 'lucide-react';
 import { resizeImage } from '../lib/imageUtils';
@@ -40,6 +40,27 @@ export default function Profile() {
   
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [uploadingCover, setUploadingCover] = useState(false);
+  const [viewTab, setViewTab] = useState<'info' | 'history'>('info');
+  const [userLogs, setUserLogs] = useState<any[]>([]);
+
+  React.useEffect(() => {
+    if (!currentUser) return;
+
+    const q = query(
+      collection(db, 'attendance_logs'),
+      where('user_id', '==', currentUser.id)
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const logs = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }) as any).sort((a: any, b: any) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+      setUserLogs(logs);
+    });
+
+    return () => unsubscribe();
+  }, [currentUser]);
 
   if (!currentUser) {
     return null;
@@ -369,10 +390,29 @@ export default function Profile() {
           </div>
         </div>
 
-        {/* Security / Password Change and Role Info */}
-        <div className="md:col-span-2 space-y-6">
-          {/* Personal Info Grid Section */}
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+        {/* Tabs for Info / History */}
+        <div className="md:col-span-2">
+          <div className="flex bg-white rounded-t-2xl border-x border-t border-gray-100 overflow-hidden">
+            <button 
+              onClick={() => setViewTab('info')}
+              className={`flex-1 py-4 text-sm font-bold transition-all ${viewTab === 'info' ? 'text-indigo-600 bg-white border-b-2 border-indigo-600' : 'text-gray-500 bg-gray-50 hover:bg-gray-100'}`}
+            >
+              Mon Profil
+            </button>
+            <button 
+              onClick={() => setViewTab('history')}
+              className={`flex-1 py-4 text-sm font-bold transition-all flex items-center justify-center gap-2 ${viewTab === 'history' ? 'text-indigo-600 bg-white border-b-2 border-indigo-600' : 'text-gray-500 bg-gray-50 hover:bg-gray-100'}`}
+            >
+              <History size={16} />
+              Historique de Présence
+            </button>
+          </div>
+
+          <div className="space-y-6">
+            {viewTab === 'info' ? (
+              <>
+                {/* Personal Info Grid Section */}
+                <div className="bg-white rounded-b-2xl border border-gray-100 shadow-sm p-6 space-y-6">
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-indigo-50 text-indigo-600 rounded-lg">
@@ -772,8 +812,60 @@ export default function Profile() {
               </div>
             </form>
           </div>
-        </div>
+        </>
+      ) : (
+        <div className="bg-white rounded-b-2xl border border-gray-100 shadow-sm p-6">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                <History size={20} className="text-indigo-600" />
+                Mes Pointages Récents
+              </h2>
+              <span className="text-[10px] font-black uppercase text-gray-400 tracking-widest">{userLogs.length} scans enregistrés</span>
+            </div>
+
+            <div className="overflow-hidden border border-gray-100 rounded-2xl">
+              <table className="w-full text-sm text-left text-gray-500">
+                <thead className="text-[10px] text-gray-400 uppercase bg-gray-50">
+                  <tr>
+                    <th className="px-4 py-3 font-black">Date</th>
+                    <th className="px-4 py-3 font-black">Heure</th>
+                    <th className="px-4 py-3 font-black">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-50 font-medium">
+                  {userLogs.length === 0 ? (
+                    <tr>
+                      <td colSpan={3} className="px-4 py-12 text-center text-gray-400 italic">
+                        Aucun pointage enregistré pour le moment.
+                      </td>
+                    </tr>
+                  ) : (
+                    userLogs.map((log) => (
+                      <tr key={log.id} className="hover:bg-gray-50 transition-colors">
+                        <td className="px-4 py-3 text-gray-600">
+                          {new Date(log.date).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' })}
+                        </td>
+                        <td className="px-4 py-3 font-mono text-gray-900">
+                          {log.time}
+                        </td>
+                        <td className="px-4 py-3 font-mono">
+                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-tighter ${
+                            log.type === 'entrée' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'
+                          }`}>
+                            {log.type} {log.isLate && <span className="ml-1 text-red-600">(RETARD)</span>}
+                          </span>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
       </div>
     </div>
+  </div>
+</div>
   );
 }

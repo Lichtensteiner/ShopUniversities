@@ -12,6 +12,7 @@ export default function Attendance() {
   const [filterStatus, setFilterStatus] = useState('Tous');
   const [attendance, setAttendance] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
@@ -29,38 +30,55 @@ export default function Attendance() {
     const fetchInitialDataAndSubscribe = async () => {
       try {
         const usersSnap = await getDocs(collection(db, 'users'));
+        const userSnapshotData: any[] = [];
         const usersMap = new Map();
+
         usersSnap.forEach(doc => {
           const data = doc.data();
-          // Si enseignant, on ne garde que les élèves de sa classe
+          const role = data.role?.toLowerCase();
+          
+          // Filter if teacher
           if (currentUser.role === 'enseignant' && data.classe !== currentUser.classe) {
             return;
           }
-          usersMap.set(doc.id, { id: doc.id, ...data });
+
+          // We only expect attendance for certain roles
+          if (role === 'enseignant' || role === 'élève' || role === 'eleve' || role === 'personnel' || role === 'admin') {
+            usersMap.set(doc.id, { id: doc.id, ...data });
+            userSnapshotData.push({ id: doc.id, ...data });
+          }
         });
 
         unsubscribeAttendance = onSnapshot(collection(db, 'attendance'), (snapshot) => {
-          const attData = snapshot.docs
-            .map(doc => {
-              const data = doc.data();
-              return {
-                id: doc.id,
-                ...data,
-                user: usersMap.get(data.user_id)
-              } as any;
-            })
-            .filter((record: any) => record.user); // Ne garder que les présences des utilisateurs autorisés
+          const rawAtt = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
           
-          // Sort by timestamp descending
-          attData.sort((a, b) => {
-            if (!a.timestamp || !b.timestamp) return 0;
-            return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime();
+          // Combine: for each user, find their attendance or set as absent
+          const combined = userSnapshotData.map(user => {
+            const attRecord = rawAtt.find((r: any) => r.user_id === user.id && r.date === selectedDate);
+            
+            if (attRecord) {
+              return {
+                ...attRecord,
+                user
+              };
+            } else {
+              // Synthetic "Absent" record if date is today or past
+              return {
+                id: `absent-${user.id}`,
+                user_id: user.id,
+                nom: user.nom,
+                prenom: user.prenom,
+                date: selectedDate,
+                heure_arrivee: '-',
+                heure_depart: '-',
+                statut: 'Absent',
+                current_state: 'sorti',
+                user
+              };
+            }
           });
           
-          setAttendance(attData);
-          setLoading(false);
-        }, (error) => {
-          console.error("Erreur lors de la récupération en temps réel des présences:", error);
+          setAttendance(combined);
           setLoading(false);
         });
 
@@ -77,7 +95,7 @@ export default function Attendance() {
         unsubscribeAttendance();
       }
     };
-  }, [currentUser]);
+  }, [currentUser, selectedDate]);
 
   const handleDelete = async (id: string) => {
     setActionLoading(id);
@@ -225,7 +243,8 @@ export default function Attendance() {
               <Calendar size={18} className="text-gray-400" />
               <input 
                 type="date" 
-                defaultValue={new Date().toISOString().split('T')[0]}
+                value={selectedDate}
+                onChange={(e) => setSelectedDate(e.target.value)}
                 className="bg-white border border-gray-200 text-gray-700 text-sm rounded-xl focus:ring-indigo-500 focus:border-indigo-500 block w-full p-2"
               />
             </div>
@@ -254,8 +273,9 @@ export default function Attendance() {
                 <th scope="col" className="px-6 py-4 font-semibold">{t('role')}</th>
                 <th scope="col" className="px-6 py-4 font-semibold">{t('arrival')}</th>
                 <th scope="col" className="px-6 py-4 font-semibold">{t('departure')}</th>
+                <th scope="col" className="px-6 py-4 font-semibold text-center">État Actuel</th>
                 <th scope="col" className="px-6 py-4 font-semibold text-right">{t('status')}</th>
-                <th scope="col" className="px-6 py-4 font-semibold text-right">{t('actions')}</th>
+                {currentUser?.role === 'admin' && <th scope="col" className="px-6 py-4 font-semibold text-right">{t('actions')}</th>}
               </tr>
             </thead>
             <tbody>
@@ -350,33 +370,42 @@ export default function Attendance() {
                           <span className="text-gray-400">-</span>
                         )}
                       </td>
+                      <td className="px-6 py-4 text-center">
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest ${
+                          record.current_state === 'présent' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'
+                        }`}>
+                          {record.current_state || 'Inconnu'}
+                        </span>
+                      </td>
                       <td className="px-6 py-4 text-right">
                         <span className={`px-2.5 py-1 rounded-full text-xs font-medium border ${getStatusColor(record.statut)}`}>
                           {record.statut === 'Présent' ? t('present') : record.statut === 'Retard' ? t('late') : record.statut === 'Absent' ? t('absent') : record.statut}
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-right">
-                        {confirmDeleteId === record.id ? (
-                          <div className="flex items-center justify-end gap-2">
-                            <span className="text-xs text-red-600 font-medium mr-1">{t('delete_question')}</span>
-                            <button onClick={() => handleDelete(record.id)} className="p-1.5 text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors" disabled={actionLoading === record.id} title={t('confirm')}>
-                              {actionLoading === record.id ? <RefreshCw size={16} className="animate-spin" /> : <Check size={16} />}
-                            </button>
-                            <button onClick={() => setConfirmDeleteId(null)} className="p-1.5 text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors" disabled={actionLoading === record.id} title={t('cancel')}>
-                              <X size={16} />
-                            </button>
-                          </div>
-                        ) : (
-                          <div className="flex items-center justify-end gap-1">
-                            <button onClick={() => startEdit(record)} className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors" title={t('edit')}>
-                              <Edit2 size={16} />
-                            </button>
-                            <button onClick={() => setConfirmDeleteId(record.id)} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors" disabled={actionLoading === record.id} title={t('delete')}>
-                              {actionLoading === record.id ? <RefreshCw size={16} className="animate-spin" /> : <Trash2 size={16} />}
-                            </button>
-                          </div>
-                        )}
-                      </td>
+                      {currentUser?.role === 'admin' && (
+                        <td className="px-6 py-4 text-right">
+                          {confirmDeleteId === record.id ? (
+                            <div className="flex items-center justify-end gap-2">
+                              <span className="text-xs text-red-600 font-medium mr-1">{t('delete_question')}</span>
+                              <button onClick={() => handleDelete(record.id)} className="p-1.5 text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors" disabled={actionLoading === record.id} title={t('confirm')}>
+                                {actionLoading === record.id ? <RefreshCw size={16} className="animate-spin" /> : <Check size={16} />}
+                              </button>
+                              <button onClick={() => setConfirmDeleteId(null)} className="p-1.5 text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors" disabled={actionLoading === record.id} title={t('cancel')}>
+                                <X size={16} />
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="flex items-center justify-end gap-1">
+                              <button onClick={() => startEdit(record)} className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors" title={t('edit')}>
+                                <Edit2 size={16} />
+                              </button>
+                              <button onClick={() => setConfirmDeleteId(record.id)} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors" disabled={actionLoading === record.id} title={t('delete')}>
+                                {actionLoading === record.id ? <RefreshCw size={16} className="animate-spin" /> : <Trash2 size={16} />}
+                              </button>
+                            </div>
+                          )}
+                        </td>
+                      )}
                     </tr>
                   )
                 ))

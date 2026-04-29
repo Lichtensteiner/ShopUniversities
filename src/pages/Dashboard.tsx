@@ -23,195 +23,175 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!isFirebaseConfigured || !currentUser) {
+    if (!currentUser || !isFirebaseConfigured) {
       setLoading(false);
       return;
     }
 
-    let unsubscribeAttendance: () => void;
+    const today = new Date().toISOString().split('T')[0];
 
-    const fetchInitialDataAndSubscribe = async () => {
-      try {
-        const today = new Date().toISOString().split('T')[0];
-        
-        // 1. Fetch all users (only once, as they change less frequently)
-        const usersSnap = await getDocs(collection(db, 'users'));
-        let totalUsers = 0;
-        const usersMap = new Map();
-        const classCountMap = new Map();
-        
-        // User distribution stats
-        let teacherCount = 0;
-        let studentCount = 0;
-        let staffCount = 0;
-        let parentCount = 0;
-        const studentLevelsMap = new Map();
-        
-        usersSnap.forEach(doc => {
-          const data = doc.data();
-          totalUsers++;
-          usersMap.set(doc.id, data);
-          
-          const role = data.role?.toLowerCase() || '';
-          if (role === 'enseignant') {
-            teacherCount++;
-          } else if (role === 'élève' || role === 'eleve') {
-            studentCount++;
-            // Group students by level (e.g., "6ème A" -> "6ème")
-            const className = data.classe || 'Non classé';
-            const level = className.split(' ')[0];
-            studentLevelsMap.set(level, (studentLevelsMap.get(level) || 0) + 1);
-          } else if (role === 'admin' || role === 'personnel') {
-            staffCount++;
-          } else if (role === 'parent') {
-            parentCount++;
-          }
-          
-          const className = data.classe || 'Personnel';
-          classCountMap.set(className, (classCountMap.get(className) || 0) + 1);
-        });
+    // Listen to users and attendance simultaneously for live stats
+    const unsubUsers = onSnapshot(collection(db, 'users'), (userSnapshot) => {
+      const usersMap = new Map();
+      let expectedTotal = 0;
+      
+      const teacherCount = userSnapshot.docs.filter(d => d.data().role === 'enseignant').length;
+      const studentCount = userSnapshot.docs.filter(d => d.data().role === 'élève' || d.data().role === 'eleve').length;
+      const staffCount = userSnapshot.docs.filter(d => d.data().role === 'admin' || d.data().role === 'personnel').length;
+      const parentCount = userSnapshot.docs.filter(d => d.data().role === 'parent').length;
 
-        setUserDistribution([
-          { name: 'Enseignants', value: teacherCount, color: '#8b5cf6' },
-          { name: 'Élèves', value: studentCount, color: '#3b82f6' },
-          { name: 'Personnel', value: staffCount, color: '#ef4444' },
-          { name: 'Parents', value: parentCount, color: '#f59e0b' }
-        ]);
-
-        setStudentLevelData(
-          Array.from(studentLevelsMap.entries())
-            .map(([name, value]) => ({ name, value }))
-            .sort((a, b) => a.name.localeCompare(b.name))
-        );
-
-        // 2. Setup date range for the current week
-        const currentWeekDays: string[] = [];
-        const todayObj = new Date();
-        const currentDay = todayObj.getDay();
-        const distanceToMonday = currentDay === 0 ? -6 : 1 - currentDay;
-        
-        const monday = new Date(todayObj);
-        monday.setDate(todayObj.getDate() + distanceToMonday);
-        
-        for (let i = 0; i < 5; i++) {
-          const d = new Date(monday);
-          d.setDate(monday.getDate() + i);
-          currentWeekDays.push(d.toISOString().split('T')[0]);
+      userSnapshot.forEach(doc => {
+        const data = doc.data();
+        usersMap.set(doc.id, data);
+        // We only expect attendance for Students, Teachers, and Staff
+        const role = data.role?.toLowerCase();
+        if (role === 'enseignant' || role === 'élève' || role === 'eleve' || role === 'personnel' || role === 'admin') {
+          expectedTotal++;
         }
+      });
 
-        const dayNames = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven'];
+      setUserDistribution([
+        { name: 'Enseignants', value: teacherCount, color: '#8b5cf6' },
+        { name: 'Élèves', value: studentCount, color: '#3b82f6' },
+        { name: 'Personnel', value: staffCount, color: '#ef4444' },
+        { name: 'Parents', value: parentCount, color: '#f59e0b' }
+      ]);
 
-        // 3. Subscribe to real-time attendance data for the current week
-        const attQueryWeek = query(collection(db, 'attendance'), where('date', '>=', currentWeekDays[0]));
+      // Calculate level distribution for students
+      const studentLevelsMap = new Map();
+      userSnapshot.forEach(doc => {
+        const data = doc.data();
+        if (data.role === 'élève' || data.role === 'eleve') {
+          const level = (data.classe || 'Non classé').split(' ')[0];
+          studentLevelsMap.set(level, (studentLevelsMap.get(level) || 0) + 1);
+        }
+      });
+      setStudentLevelData(
+        Array.from(studentLevelsMap.entries())
+          .map(([name, value]) => ({ name, value }))
+          .sort((a, b) => a.name.localeCompare(b.name))
+      );
+
+      // Listen to today's attendance
+      const qAtt = query(collection(db, 'attendance'), where('date', '==', today));
+      const unsubAtt = onSnapshot(qAtt, (attSnapshot) => {
+        let presentsToday = 0;
+        let retardsToday = 0;
         
-        unsubscribeAttendance = onSnapshot(attQueryWeek, (snapshot) => {
-          let presentsToday = 0;
-          let retardsToday = 0;
-          
-          const weeklyStatsMap = new Map();
-          currentWeekDays.forEach((date, index) => {
-            weeklyStatsMap.set(date, { name: dayNames[index], presents: 0, retards: 0, absents: totalUsers });
-          });
-
-          const studentRetardsMap = new Map();
-          const classPresenceMap = new Map();
-
-          snapshot.forEach(doc => {
-            const data = doc.data();
-            if (usersMap.has(data.user_id)) {
-              
-              // Stats for today
-              if (data.date === today) {
-                if (data.statut === 'Présent') presentsToday++;
-                if (data.statut === 'Retard') retardsToday++;
-                
-                // Class presence for today
-                if (data.statut === 'Présent' || data.statut === 'Retard') {
-                  const user = usersMap.get(data.user_id);
-                  const className = user.classe || 'Personnel';
-                  classPresenceMap.set(className, (classPresenceMap.get(className) || 0) + 1);
-                }
-              }
-
-              // Weekly chart data
-              if (weeklyStatsMap.has(data.date)) {
-                const dayStat = weeklyStatsMap.get(data.date);
-                if (data.statut === 'Présent') {
-                  dayStat.presents++;
-                  dayStat.absents--;
-                } else if (data.statut === 'Retard') {
-                  dayStat.retards++;
-                  dayStat.absents--;
-                }
-              }
-
-              // Discipline logic (Retards count for the week)
-              if (data.statut === 'Retard') {
-                studentRetardsMap.set(data.user_id, (studentRetardsMap.get(data.user_id) || 0) + 1);
-              }
-            }
-          });
-
-          const absentsToday = totalUsers - (presentsToday + retardsToday);
-          setStats({ 
-            presents: presentsToday, 
-            retards: retardsToday, 
-            absents: absentsToday > 0 ? absentsToday : 0, 
-            total: totalUsers 
-          });
-
-          setWeeklyData(Array.from(weeklyStatsMap.values()));
-
-          // Generate alerts
-          const newAlerts: any[] = [];
-          studentRetardsMap.forEach((count, userId) => {
-            if (count >= 3) {
-              const user = usersMap.get(userId);
-              if (user) {
-                const userName = user.prenom || user.nom ? `${user.prenom || ''} ${user.nom || ''}`.trim() : user.email?.split('@')[0] || 'Utilisateur';
-                newAlerts.push({
-                  id: userId,
-                  name: userName,
-                  count,
-                  message: `L'élève ${userName} a accumulé ${count} retards cette semaine.`
-                });
-              }
-            }
-          });
-          setAlerts(newAlerts);
-
-          // Calculate distribution by class (percentage of total students)
-          const classChartData: any[] = [];
-          const totalStudents = studentCount || 1; // Avoid division by zero
-          
-          classCountMap.forEach((countInClass, className) => {
-            // Only include classes (not personnel) in this specific chart
-            if (className !== 'Personnel') {
-              const percentage = Math.round((countInClass / totalStudents) * 100);
-              classChartData.push({ name: className, value: countInClass, percentage });
-            }
-          });
-
-          setClassData(classChartData.sort((a, b) => b.value - a.value).slice(0, 6)); // Top 6 classes
-          setLoading(false);
-        }, (error) => {
-          console.error("Erreur lors de la récupération en temps réel des statistiques:", error);
-          setLoading(false);
+        attSnapshot.docs.forEach(doc => {
+          const data = doc.data();
+          if (usersMap.has(data.user_id)) {
+            if (data.statut === 'Présent') presentsToday++;
+            if (data.statut === 'Retard') retardsToday++;
+          }
         });
 
-      } catch (err) {
-        console.error("Erreur d'initialisation des statistiques:", err);
+        const absentsToday = Math.max(0, expectedTotal - (presentsToday + retardsToday));
+        
+        setStats({ 
+          presents: presentsToday, 
+          retards: retardsToday, 
+          absents: absentsToday, 
+          total: expectedTotal 
+        });
+      });
+
+      // Listen to current week's attendance for charts and alerts
+      const monday = new Date();
+      monday.setDate(monday.getDate() - (monday.getDay() === 0 ? 6 : monday.getDay() - 1));
+      monday.setHours(0, 0, 0, 0);
+      
+      const currentWeekDays: string[] = [];
+      const dayNames = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven'];
+      for (let i = 0; i < 5; i++) {
+        const d = new Date(monday);
+        d.setDate(monday.getDate() + i);
+        currentWeekDays.push(d.toISOString().split('T')[0]);
+      }
+
+      const qAttWeek = query(collection(db, 'attendance'), where('date', '>=', currentWeekDays[0]));
+      const unsubAttWeek = onSnapshot(qAttWeek, (snapshot) => {
+        const weeklyStatsMap = new Map();
+        currentWeekDays.forEach((date, index) => {
+          weeklyStatsMap.set(date, { name: dayNames[index], presents: 0, retards: 0, absents: expectedTotal });
+        });
+
+        const studentRetardsMap = new Map();
+        const classPresenceMap = new Map();
+
+        snapshot.forEach(doc => {
+          const data = doc.data();
+          if (usersMap.has(data.user_id)) {
+            if (weeklyStatsMap.has(data.date)) {
+              const dayStat = weeklyStatsMap.get(data.date);
+              if (data.statut === 'Présent') {
+                dayStat.presents++;
+                dayStat.absents--;
+              } else if (data.statut === 'Retard') {
+                dayStat.retards++;
+                dayStat.absents--;
+              }
+            }
+
+            if (data.statut === 'Retard') {
+              studentRetardsMap.set(data.user_id, (studentRetardsMap.get(data.user_id) || 0) + 1);
+            }
+
+            if (data.date === today && (data.statut === 'Présent' || data.statut === 'Retard')) {
+              const user = usersMap.get(data.user_id);
+              const className = user.classe || 'Personnel';
+              classPresenceMap.set(className, (classPresenceMap.get(className) || 0) + 1);
+            }
+          }
+        });
+
+        setWeeklyData(Array.from(weeklyStatsMap.values()));
+
+        // Generate alerts (3+ retards)
+        const newAlerts: any[] = [];
+        studentRetardsMap.forEach((count, userId) => {
+          if (count >= 3) {
+            const user = usersMap.get(userId);
+            if (user) {
+              const userName = `${user.prenom || ''} ${user.nom || ''}`.trim() || 'Utilisateur';
+              newAlerts.push({
+                id: userId,
+                message: `L'élève ${userName} a accumulé ${count} retards cette semaine.`
+              });
+            }
+          }
+        });
+        setAlerts(newAlerts);
+
+        // Class distribution
+        const classChartData: any[] = [];
+        const studentOnlyCount = userSnapshot.docs.filter(d => d.data().role === 'élève' || d.data().role === 'eleve').length || 1;
+        
+        const classCountByTotal = new Map();
+        userSnapshot.forEach(doc => {
+          const data = doc.data();
+          if (data.role === 'élève' || data.role === 'eleve') {
+            const className = data.classe || 'Sans classe';
+            classCountByTotal.set(className, (classCountByTotal.get(className) || 0) + 1);
+          }
+        });
+
+        classCountByTotal.forEach((count, className) => {
+          const percentage = Math.round((count / studentOnlyCount) * 100);
+          classChartData.push({ name: className, value: count, percentage });
+        });
+
+        setClassData(classChartData.sort((a, b) => b.value - a.value).slice(0, 6));
         setLoading(false);
-      }
-    };
+      });
 
-    fetchInitialDataAndSubscribe();
+      return () => {
+        unsubAtt();
+        unsubAttWeek();
+      };
+    });
 
-    return () => {
-      if (unsubscribeAttendance) {
-        unsubscribeAttendance();
-      }
-    };
+    return () => unsubUsers();
   }, [currentUser]);
 
   const [ecoStats, setEcoStats] = useState({ trees: 0, water: 0, paper: 0 });
@@ -463,7 +443,17 @@ export default function Dashboard() {
           )}
 
           {/* Stats Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4">
+              <div className="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center">
+                <Users size={24} />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-gray-500">Effectif Attendu</p>
+                <h3 className="text-2xl font-bold text-gray-900">{stats.total}</h3>
+              </div>
+            </div>
+
             <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4">
               <div className="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center">
                 <UserCheck size={24} />
@@ -475,22 +465,22 @@ export default function Dashboard() {
             </div>
             
             <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4">
-              <div className="w-12 h-12 bg-red-50 text-red-600 rounded-xl flex items-center justify-center">
-                <UserX size={24} />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-gray-500">{t('absents')}</p>
-                <h3 className="text-2xl font-bold text-gray-900">{stats.absents}</h3>
-              </div>
-            </div>
-
-            <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4">
               <div className="w-12 h-12 bg-amber-50 text-amber-600 rounded-xl flex items-center justify-center">
                 <Clock size={24} />
               </div>
               <div>
                 <p className="text-sm font-medium text-gray-500">{t('lates')}</p>
                 <h3 className="text-2xl font-bold text-gray-900">{stats.retards}</h3>
+              </div>
+            </div>
+
+            <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4">
+              <div className="w-12 h-12 bg-red-50 text-red-600 rounded-xl flex items-center justify-center">
+                <UserX size={24} />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-gray-500">{t('absents')}</p>
+                <h3 className="text-2xl font-bold text-gray-900">{stats.absents}</h3>
               </div>
             </div>
           </div>

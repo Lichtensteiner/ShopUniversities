@@ -397,23 +397,21 @@ export default function DocumentGenerator() {
         }
       });
 
-      const tableData = Object.entries(subjectAverages)
-        .filter(([_, stats]) => stats.totalCoef > 0)
-        .map(([subject, stats]) => {
+      const tableData = Object.entries(subjectAverages).map(([subject, stats]) => {
           const average = stats.weightedSum / stats.totalCoef;
           const percentage = (average / 20) * 100;
         
         let comment = "";
         if (average >= 16) {
-          comment = "Excellent travail sur l'ensemble du trimestre. L'élève fait preuve d'une compréhension approfondie des concepts et d'une rigueur constante dans ses productions.\n\nFélicitations pour cet investissement exemplaire qui tire la classe vers le haut.";
+          comment = "Excellent travail sur l'ensemble du trimestre. L'élève fait preuve d'une compréhension approfondie des concepts et d'une rigueur constante dans ses productions.\n\nFélicitations pour cet investissement exemplaire qui tire la classe vers le haut et témoigne d'un potentiel académique remarquable.";
         } else if (average >= 14) {
-          comment = "Très bon trimestre. Les résultats sont solides et témoignent d'un travail sérieux et d'une bonne maîtrise des compétences.\n\nContinuez sur cette lancée pour atteindre l'excellence au prochain trimestre.";
+          comment = "Très bon trimestre. Les résultats sont solides et témoignent d'un travail sérieux et d'une bonne maîtrise des compétences.\n\nContinuez sur cette lancée pour atteindre l'excellence au prochain trimestre. Une participation plus active en classe pourrait encore renforcer ces acquis.";
         } else if (average >= 12) {
-          comment = "Bon travail. Les acquis sont là et les résultats sont satisfaisants. On sent une réelle volonté de bien faire.\n\nIl faudra toutefois veiller à approfondir certains points pour stabiliser ces résultats.";
+          comment = "Bon travail. Les acquis sont là et les résultats sont satisfaisants. On sent une réelle volonté de bien faire et une progression constante.\n\nIl faudra toutefois veiller à approfondir certains points théoriques pour stabiliser ces résultats et gagner en autonomie lors des évaluations.";
         } else if (average >= 10) {
-          comment = "Résultats corrects mais parfois irréguliers. L'élève atteint les objectifs minimaux mais possède encore une marge de progression importante.\n\nUn travail plus régulier et approfondi à la maison permettrait de gagner en assurance.";
+          comment = "Résultats corrects mais parfois irréguliers. L'élève atteint les objectifs minimaux mais possède encore une marge de progression importante.\n\nUn travail plus régulier et approfondi à la maison, ainsi qu'une meilleure concentration en classe, permettraient de gagner en assurance et d'élever la moyenne.";
         } else {
-          comment = "Ensemble insuffisant ce trimestre. Les lacunes accumulées empêchent pour l'instant une bonne maîtrise du programme.\n\nUn redoublement d'efforts et un suivi plus soutenu sont nécessaires pour redresser la situation rapidement.";
+          comment = "Ensemble insuffisant ce trimestre. Les lacunes accumulées dans les bases fondamentales empêchent pour l'instant une bonne maîtrise du programme.\n\nUn redoublement d'efforts immédiat et un suivi plus soutenu sont impératifs pour redresser la situation et éviter le décrochage scolaire.";
         }
 
         return [
@@ -431,7 +429,11 @@ export default function DocumentGenerator() {
       doc.setFillColor(15, 23, 42); 
       doc.rect(0, 0, 210, 50, 'F');
       
-      await drawLogo(doc, 15, 10, 25);
+      try {
+        await drawLogo(doc, 15, 10, 25);
+      } catch (e) {
+        console.warn("Skipping logo in PDF due to error");
+      }
       
       doc.setTextColor(255);
       doc.setFontSize(22);
@@ -446,7 +448,7 @@ export default function DocumentGenerator() {
 
       // Student Summary Info
       doc.setFillColor(248, 250, 252);
-      doc.roundedRect(15, 55, 180, 32, 2, 2, 'F');
+      doc.roundedRect(15, 55, 180, 28, 2, 2, 'F');
       
       doc.setTextColor(30, 41, 59);
       doc.setFontSize(9);
@@ -454,21 +456,16 @@ export default function DocumentGenerator() {
       
       // Left Column
       doc.text(`ÉTUDIANT :`, 20, 63);
-      doc.text(`ID / MATRICULE :`, 20, 70);
+      doc.text(`MATRICULE :`, 20, 70);
       doc.text(`NÉ(E) LE :`, 20, 77);
-      doc.text(`À :`, 20, 84);
       
       // Right Column
       doc.text(`CLASSE :`, 110, 63);
       doc.text(`PROF. PRINCIPAL :`, 110, 70);
       doc.text(`SEXE :`, 110, 77);
-      
-      doc.setFont("helvetica", "normal");
-      // Left Column Values
-      doc.text(`${String(student.nom || '').toUpperCase()} ${String(student.prenom || '')}`, 50, 63);
-      doc.text(String(student.matricule || student.id.substring(0, 10)).toUpperCase(), 50, 70);
-      doc.text(String(student.dateNaissance || 'N/A'), 50, 77);
-      doc.text(String(student.lieuNaissance || 'N/A').toUpperCase(), 50, 84);
+        doc.text(`${String(student.nom || '').toUpperCase()} ${String(student.prenom || '')}`, 45, 63);
+      doc.text(String(student.matricule || student.id.substring(0, 10)).toUpperCase(), 45, 70);
+      doc.text(`${String(student.dateNaissance || 'N/A')} à ${String(student.lieuNaissance || 'Non spécifié').toUpperCase()}`, 45, 77);
       
       // Right Column Values
       doc.text(String(config.className || student.className || 'NON DÉFINIE').toUpperCase(), 145, 63);

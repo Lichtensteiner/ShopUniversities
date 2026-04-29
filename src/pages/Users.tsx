@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Filter, Plus, Fingerprint, RefreshCw, Eye, EyeOff, Edit2, Trash2, X, AlertCircle, BellRing, Key, Phone, MapPin, User2, Calendar, GraduationCap, History as HistoryIcon, Mail, Lock, Briefcase, User, Hash, Ban, ShieldOff } from 'lucide-react';
-import { collection, getDocs, doc, updateDoc, deleteDoc, setDoc, addDoc, onSnapshot } from 'firebase/firestore';
+import { collection, getDocs, doc, updateDoc, deleteDoc, setDoc, addDoc, onSnapshot, query, where } from 'firebase/firestore';
 import { initializeApp, getApp, getApps, deleteApp } from 'firebase/app';
 import { getAuth, createUserWithEmailAndPassword, signOut } from 'firebase/auth';
 import { db, isFirebaseConfigured, firebaseConfig } from '../lib/firebase';
@@ -17,6 +17,8 @@ export default function Users() {
 
   // Modals state
   const [viewUser, setViewUser] = useState<any>(null);
+  const [userLogs, setUserLogs] = useState<any[]>([]);
+  const [viewTab, setViewTab] = useState<'profile' | 'attendance'>('profile');
   const [editUser, setEditUser] = useState<any>(null);
   const [deleteUser, setDeleteUser] = useState<any>(null);
   const [showAddUserModal, setShowAddUserModal] = useState(false);
@@ -79,6 +81,49 @@ export default function Users() {
       unsubscribeClasses();
     };
   }, []);
+
+  useEffect(() => {
+    if (!viewUser || !isFirebaseConfigured) {
+      setUserLogs([]);
+      setViewTab('profile');
+      return;
+    }
+
+    const q = query(
+      collection(db, 'attendance_logs'),
+      where('user_id', '==', viewUser.id)
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const logs = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }) as any).sort((a: any, b: any) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+      setUserLogs(logs);
+    });
+
+    return () => unsubscribe();
+  }, [viewUser]);
+
+  const handleDeleteLog = async (logId: string) => {
+    if (!window.confirm("Êtes-vous sûr de vouloir supprimer ce pointage ? Cette action est irréversible.")) return;
+    try {
+      await deleteDoc(doc(db, 'attendance_logs', logId));
+      alert("Pointage supprimé.");
+    } catch (err) {
+      console.error("Error deleting log:", err);
+      alert("Erreur lors de la suppression.");
+    }
+  };
+
+  const handleUpdateLogType = async (logId: string, currentType: string) => {
+    const newType = currentType === 'entrée' ? 'sortie' : 'entrée';
+    try {
+      await updateDoc(doc(db, 'attendance_logs', logId), { type: newType });
+    } catch (err) {
+      console.error("Error updating log:", err);
+    }
+  };
 
   const generatePassword = () => {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*';
@@ -497,192 +542,283 @@ export default function Users() {
                 <X size={24} />
               </button>
             </div>
-            <div className="p-6 space-y-6 max-h-[70vh] overflow-y-auto custom-scrollbar">
-              <div className="flex flex-col md:flex-row items-center gap-6 p-6 bg-indigo-50/50 dark:bg-indigo-900/10 rounded-2xl border border-indigo-100 dark:border-indigo-900/30">
-                {viewUser.photo ? (
-                  <img src={viewUser.photo} alt="" className="w-24 h-24 rounded-2xl object-cover shadow-lg border-4 border-white dark:border-gray-800" referrerPolicy="no-referrer" />
-                ) : (
-                  <div className="w-24 h-24 rounded-2xl bg-indigo-600 text-white flex items-center justify-center font-bold text-3xl uppercase shadow-lg border-4 border-white dark:border-gray-800">
-                    {viewUser.prenom?.[0]}{viewUser.nom?.[0]}
-                  </div>
-                )}
-                <div className="text-center md:text-left">
-                  <h4 className="text-2xl font-bold text-gray-900 dark:text-white">{viewUser.prenom} {viewUser.nom}</h4>
-                  <div className="flex flex-wrap justify-center md:justify-start gap-2 mt-2">
-                    <span className="px-3 py-1 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-full text-xs font-bold uppercase tracking-wider">
-                      {tData(viewUser.role)}
-                    </span>
-                    {viewUser.matricule && (
-                      <span className="px-3 py-1 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 rounded-full text-xs font-mono">
-                        #{viewUser.matricule}
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-gray-500 dark:text-gray-400 mt-3 flex items-center justify-center md:justify-start gap-2 text-sm">
-                    <Mail size={14} />
-                    {viewUser.email}
-                  </p>
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                {/* Personal Information */}
-                <div className="space-y-4">
-                  <h5 className="text-xs font-bold text-gray-400 uppercase tracking-wider flex items-center gap-2">
-                    <User size={14} />
-                    Informations Personnelles
-                  </h5>
-                  <div className="space-y-3">
-                    <div className="flex justify-between items-center py-2 border-b border-gray-50 dark:border-gray-700/50">
-                      <span className="text-sm text-gray-500">Date de Naissance</span>
-                      <span className="text-sm font-medium text-gray-900 dark:text-gray-200">{viewUser.dateNaissance || '-'}</span>
-                    </div>
-                    <div className="flex justify-between items-center py-2 border-b border-gray-50 dark:border-gray-700/50">
-                      <span className="text-sm text-gray-500">Lieu de Naissance</span>
-                      <span className="text-sm font-medium text-gray-900 dark:text-gray-200">{viewUser.lieuNaissance || '-'}</span>
-                    </div>
-                    <div className="flex justify-between items-center py-2 border-b border-gray-50 dark:border-gray-700/50">
-                      <span className="text-sm text-gray-500">{t('gender')}</span>
-                      <span className="text-sm font-medium text-gray-900 dark:text-gray-200">{viewUser.gender ? t(viewUser.gender) : '-'}</span>
-                    </div>
-                    <div className="flex justify-between items-center py-2 border-b border-gray-50 dark:border-gray-700/50">
-                      <span className="text-sm text-gray-500">{t('age')}</span>
-                      <span className="text-sm font-medium text-gray-900 dark:text-gray-200">{viewUser.age || '-'} ans</span>
-                    </div>
-                    <div className="flex justify-between items-center py-2 border-b border-gray-50 dark:border-gray-700/50">
-                      <span className="text-sm text-gray-500">{t('address')}</span>
-                      <span className="text-sm font-medium text-gray-900 dark:text-gray-200 flex items-center gap-1">
-                        <MapPin size={14} className="text-gray-400" />
-                        {viewUser.address || '-'}
-                      </span>
-                    </div>
-                    <div className="flex justify-between items-center py-2 border-b border-gray-50 dark:border-gray-700/50">
-                      <span className="text-sm text-gray-500">{t('contact')}</span>
-                      <span className="text-sm font-medium text-gray-900 dark:text-gray-200 flex items-center gap-1">
-                        <Phone size={14} className="text-gray-400" />
-                        {viewUser.contact || '-'}
-                      </span>
-                    </div>
-                  </div>
-                </div>
 
-                {/* Professional/Academic Information */}
-                <div className="space-y-4">
-                  <h5 className="text-xs font-bold text-gray-400 uppercase tracking-wider flex items-center gap-2">
-                    <Briefcase size={14} />
-                    Profil {viewUser.role === 'élève' ? 'Académique' : 'Professionnel'}
-                  </h5>
-                  <div className="space-y-3">
-                    {viewUser.role === 'élève' ? (
-                      <>
+            {/* Tabs */}
+            <div className="flex border-b border-gray-100 dark:border-gray-700">
+              <button 
+                onClick={() => setViewTab('profile')}
+                className={`flex-1 py-3 text-sm font-bold transition-all ${viewTab === 'profile' ? 'text-indigo-600 border-b-2 border-indigo-600 bg-indigo-50/30' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'}`}
+              >
+                {t('profile')}
+              </button>
+              <button 
+                onClick={() => setViewTab('attendance')}
+                className={`flex-1 py-3 text-sm font-bold transition-all flex items-center justify-center gap-2 ${viewTab === 'attendance' ? 'text-indigo-600 border-b-2 border-indigo-600 bg-indigo-50/30' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'}`}
+              >
+                <HistoryIcon size={16} />
+                Historique des Pointages
+              </button>
+            </div>
+
+            <div className="p-6 space-y-6 max-h-[70vh] overflow-y-auto custom-scrollbar">
+              {viewTab === 'profile' ? (
+                <>
+                  <div className="flex flex-col md:flex-row items-center gap-6 p-6 bg-indigo-50/50 dark:bg-indigo-900/10 rounded-2xl border border-indigo-100 dark:border-indigo-900/30">
+                    {viewUser.photo ? (
+                      <img src={viewUser.photo} alt="" className="w-24 h-24 rounded-2xl object-cover shadow-lg border-4 border-white dark:border-gray-800" referrerPolicy="no-referrer" />
+                    ) : (
+                      <div className="w-24 h-24 rounded-2xl bg-indigo-600 text-white flex items-center justify-center font-bold text-3xl uppercase shadow-lg border-4 border-white dark:border-gray-800">
+                        {viewUser.prenom?.[0]}{viewUser.nom?.[0]}
+                      </div>
+                    )}
+                    <div className="text-center md:text-left">
+                      <h4 className="text-2xl font-bold text-gray-900 dark:text-white">{viewUser.prenom} {viewUser.nom}</h4>
+                      <div className="flex flex-wrap justify-center md:justify-start gap-2 mt-2">
+                        <span className="px-3 py-1 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-full text-xs font-bold uppercase tracking-wider">
+                          {tData(viewUser.role)}
+                        </span>
+                        {viewUser.matricule && (
+                          <span className="px-3 py-1 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 rounded-full text-xs font-mono">
+                            #{viewUser.matricule}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-gray-500 dark:text-gray-400 mt-3 flex items-center justify-center md:justify-start gap-2 text-sm">
+                        <Mail size={14} />
+                        {viewUser.email}
+                      </p>
+                    </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    {/* Personal Information */}
+                    <div className="space-y-4">
+                      <h5 className="text-xs font-bold text-gray-400 uppercase tracking-wider flex items-center gap-2">
+                        <User size={14} />
+                        Informations Personnelles
+                      </h5>
+                      <div className="space-y-3">
                         <div className="flex justify-between items-center py-2 border-b border-gray-50 dark:border-gray-700/50">
-                          <span className="text-sm text-gray-500">{t('class')}</span>
-                          <span className="text-sm font-bold text-indigo-600 dark:text-indigo-400">{viewUser.classe || t('not_defined')}</span>
+                          <span className="text-sm text-gray-500">Date de Naissance</span>
+                          <span className="text-sm font-medium text-gray-900 dark:text-gray-200">{viewUser.dateNaissance || '-'}</span>
                         </div>
                         <div className="flex justify-between items-center py-2 border-b border-gray-50 dark:border-gray-700/50">
-                          <span className="text-sm text-gray-500">{t('house')}</span>
-                          <span className="text-sm font-medium">
-                            {viewUser.house_id && houses.find(h => h.id === viewUser.house_id) ? (
-                              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium" style={{ backgroundColor: `${houses.find(h => h.id === viewUser.house_id)?.color}20`, color: houses.find(h => h.id === viewUser.house_id)?.color }}>
-                                {houses.find(h => h.id === viewUser.house_id)?.logo?.startsWith('http') ? (
-                                  <img src={houses.find(h => h.id === viewUser.house_id)?.logo} alt="" className="w-4 h-4 object-cover rounded-full" referrerPolicy="no-referrer" />
-                                ) : (
-                                  <span>{houses.find(h => h.id === viewUser.house_id)?.logo}</span>
-                                )}
-                                {houses.find(h => h.id === viewUser.house_id)?.nom_maison}
-                              </span>
-                            ) : t('not_defined')}
+                          <span className="text-sm text-gray-500">Lieu de Naissance</span>
+                          <span className="text-sm font-medium text-gray-900 dark:text-gray-200">{viewUser.lieuNaissance || '-'}</span>
+                        </div>
+                        <div className="flex justify-between items-center py-2 border-b border-gray-50 dark:border-gray-700/50">
+                          <span className="text-sm text-gray-500">{t('gender')}</span>
+                          <span className="text-sm font-medium text-gray-900 dark:text-gray-200">{viewUser.gender ? t(viewUser.gender) : '-'}</span>
+                        </div>
+                        <div className="flex justify-between items-center py-2 border-b border-gray-50 dark:border-gray-700/50">
+                          <span className="text-sm text-gray-500">{t('age')}</span>
+                          <span className="text-sm font-medium text-gray-900 dark:text-gray-200">{viewUser.age || '-'} ans</span>
+                        </div>
+                        <div className="flex justify-between items-center py-2 border-b border-gray-50 dark:border-gray-700/50">
+                          <span className="text-sm text-gray-500">{t('address')}</span>
+                          <span className="text-sm font-medium text-gray-900 dark:text-gray-200 flex items-center gap-1">
+                            <MapPin size={14} className="text-gray-400" />
+                            {viewUser.address || '-'}
                           </span>
                         </div>
-                      </>
-                    ) : (
-                      <>
                         <div className="flex justify-between items-center py-2 border-b border-gray-50 dark:border-gray-700/50">
-                          <span className="text-sm text-gray-500">{t('diploma')}</span>
-                          <span className="text-sm font-medium text-gray-900 dark:text-gray-200">{viewUser.diploma || '-'}</span>
+                          <span className="text-sm text-gray-500">{t('contact')}</span>
+                          <span className="text-sm font-medium text-gray-900 dark:text-gray-200 flex items-center gap-1">
+                            <Phone size={14} className="text-gray-400" />
+                            {viewUser.contact || '-'}
+                          </span>
                         </div>
-                        <div className="flex justify-between items-center py-2 border-b border-gray-50 dark:border-gray-700/50">
-                          <span className="text-sm text-gray-500">{t('experience_years')}</span>
-                          <span className="text-sm font-medium text-gray-900 dark:text-gray-200">{viewUser.experience_years || '-'} ans</span>
-                        </div>
-                      </>
-                    )}
-                    <div className="flex justify-between items-center py-2 border-b border-gray-50 dark:border-gray-700/50">
-                      <span className="text-sm text-gray-500">{t('registration_date')}</span>
-                      <span className="text-sm font-medium text-gray-900 dark:text-gray-200">
-                        {viewUser.date_creation ? new Date(viewUser.date_creation).toLocaleDateString() : t('unknown')}
-                      </span>
+                      </div>
                     </div>
-                  </div>
-                </div>
-              </div>
 
-              {/* Specific sections for teachers */}
-              {viewUser.role === 'enseignant' && (
-                <div className="pt-4 border-t border-gray-100 dark:border-gray-700 space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                    <div className="space-y-3">
+                    {/* Professional/Academic Information */}
+                    <div className="space-y-4">
                       <h5 className="text-xs font-bold text-gray-400 uppercase tracking-wider flex items-center gap-2">
                         <Briefcase size={14} />
-                        Matières Enseignées
+                        Profil {viewUser.role === 'élève' ? 'Académique' : 'Professionnel'}
                       </h5>
-                      <div className="flex flex-wrap gap-2">
-                        {viewUser.matieres && viewUser.matieres.length > 0 ? (
-                          viewUser.matieres.map((m: string) => (
-                            <span key={m} className="px-3 py-1 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 rounded-lg text-xs font-bold border border-blue-100 dark:border-blue-800">
-                              {m}
-                            </span>
-                          ))
+                      <div className="space-y-3">
+                        {viewUser.role === 'élève' ? (
+                          <>
+                            <div className="flex justify-between items-center py-2 border-b border-gray-50 dark:border-gray-700/50">
+                              <span className="text-sm text-gray-500">{t('class')}</span>
+                              <span className="text-sm font-bold text-indigo-600 dark:text-indigo-400">{viewUser.classe || t('not_defined')}</span>
+                            </div>
+                            <div className="flex justify-between items-center py-2 border-b border-gray-50 dark:border-gray-700/50">
+                              <span className="text-sm text-gray-500">{t('house')}</span>
+                              <span className="text-sm font-medium">
+                                {viewUser.house_id && houses.find(h => h.id === viewUser.house_id) ? (
+                                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium" style={{ backgroundColor: `${houses.find(h => h.id === viewUser.house_id)?.color}20`, color: houses.find(h => h.id === viewUser.house_id)?.color }}>
+                                    {houses.find(h => h.id === viewUser.house_id)?.logo?.startsWith('http') ? (
+                                      <img src={houses.find(h => h.id === viewUser.house_id)?.logo} alt="" className="w-4 h-4 object-cover rounded-full" referrerPolicy="no-referrer" />
+                                    ) : (
+                                      <span>{houses.find(h => h.id === viewUser.house_id)?.logo}</span>
+                                    )}
+                                    {houses.find(h => h.id === viewUser.house_id)?.nom_maison}
+                                  </span>
+                                ) : t('not_defined')}
+                              </span>
+                            </div>
+                          </>
                         ) : (
-                          <span className="text-gray-400 italic text-xs">Aucune matière définie</span>
+                          <>
+                            <div className="flex justify-between items-center py-2 border-b border-gray-50 dark:border-gray-700/50">
+                              <span className="text-sm text-gray-500">{t('diploma')}</span>
+                              <span className="text-sm font-medium text-gray-900 dark:text-gray-200">{viewUser.diploma || '-'}</span>
+                            </div>
+                            <div className="flex justify-between items-center py-2 border-b border-gray-50 dark:border-gray-700/50">
+                              <span className="text-sm text-gray-500">{t('experience_years')}</span>
+                              <span className="text-sm font-medium text-gray-900 dark:text-gray-200">{viewUser.experience_years || '-'} ans</span>
+                            </div>
+                          </>
                         )}
+                        <div className="flex justify-between items-center py-2 border-b border-gray-50 dark:border-gray-700/50">
+                          <span className="text-sm text-gray-500">{t('registration_date')}</span>
+                          <span className="text-sm font-medium text-gray-900 dark:text-gray-200">
+                            {viewUser.date_creation ? new Date(viewUser.date_creation).toLocaleDateString() : t('unknown')}
+                          </span>
+                        </div>
                       </div>
                     </div>
-                    <div className="space-y-3">
-                      <h5 className="text-xs font-bold text-gray-400 uppercase tracking-wider flex items-center gap-2">
-                        <GraduationCap size={14} />
-                        Classes Assignées
-                      </h5>
-                      <div className="flex flex-wrap gap-2">
-                        {viewUser.classes && viewUser.classes.length > 0 ? (
-                          viewUser.classes.map((c: string) => (
-                            <span key={c} className="px-3 py-1 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 rounded-lg text-xs font-bold border border-emerald-100 dark:border-emerald-800">
-                              {c}
-                            </span>
-                          ))
-                        ) : (
-                          <span className="text-gray-400 italic text-xs">Aucune classe assignée</span>
-                        )}
+                  </div>
+
+                  {/* Specific sections for teachers */}
+                  {viewUser.role === 'enseignant' && (
+                    <div className="pt-4 border-t border-gray-100 dark:border-gray-700 space-y-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        <div className="space-y-3">
+                          <h5 className="text-xs font-bold text-gray-400 uppercase tracking-wider flex items-center gap-2">
+                            <Briefcase size={14} />
+                            Matières Enseignées
+                          </h5>
+                          <div className="flex flex-wrap gap-2">
+                            {viewUser.matieres && viewUser.matieres.length > 0 ? (
+                              viewUser.matieres.map((m: string) => (
+                                <span key={m} className="px-3 py-1 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 rounded-lg text-xs font-bold border border-blue-100 dark:border-blue-800">
+                                  {m}
+                                </span>
+                              ))
+                            ) : (
+                              <span className="text-gray-400 italic text-xs">Aucune matière définie</span>
+                            )}
+                          </div>
+                        </div>
+                        <div className="space-y-3">
+                          <h5 className="text-xs font-bold text-gray-400 uppercase tracking-wider flex items-center gap-2">
+                            <GraduationCap size={14} />
+                            Classes Assignées
+                          </h5>
+                          <div className="flex flex-wrap gap-2">
+                            {viewUser.classes && viewUser.classes.length > 0 ? (
+                              viewUser.classes.map((c: string) => (
+                                <span key={c} className="px-3 py-1 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 rounded-lg text-xs font-bold border border-emerald-100 dark:border-emerald-800">
+                                  {c}
+                                </span>
+                              ))
+                            ) : (
+                              <span className="text-gray-400 italic text-xs">Aucune classe assignée</span>
+                            )}
+                          </div>
+                        </div>
                       </div>
                     </div>
+                  )}
+
+                  {/* Biometric Status */}
+                  <div className="pt-4 border-t border-gray-100 dark:border-gray-700">
+                    <h5 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+                      <Fingerprint size={14} />
+                      Statut Biométrique
+                    </h5>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className={`p-4 rounded-xl border flex items-center gap-3 ${viewUser.face_id ? 'bg-emerald-50 dark:bg-emerald-900/10 border-emerald-100 dark:border-emerald-900/30 text-emerald-700 dark:text-emerald-400' : 'bg-gray-50 dark:bg-gray-900 border-gray-100 dark:border-gray-800 text-gray-400'}`}>
+                        <User size={20} className={viewUser.face_id ? 'text-emerald-600' : 'text-gray-300'} />
+                        <div>
+                          <p className="text-xs font-bold uppercase tracking-tight">Reconnaissance Faciale</p>
+                          <p className="text-[10px]">{viewUser.face_id ? 'Enregistré' : 'Non configuré'}</p>
+                        </div>
+                      </div>
+                      <div className={`p-4 rounded-xl border flex items-center gap-3 ${viewUser.fingerprint_id ? 'bg-emerald-50 dark:bg-emerald-900/10 border-emerald-100 dark:border-emerald-900/30 text-emerald-700 dark:text-emerald-400' : 'bg-gray-50 dark:bg-gray-900 border-gray-100 dark:border-gray-800 text-gray-400'}`}>
+                        <Fingerprint size={20} className={viewUser.fingerprint_id ? 'text-emerald-600' : 'text-gray-300'} />
+                        <div>
+                          <p className="text-xs font-bold uppercase tracking-tight">Empreinte Digitale</p>
+                          <p className="text-[10px]">{viewUser.fingerprint_id ? 'Enregistré' : 'Non configuré'}</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center">
+                    <h5 className="text-sm font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                      <HistoryIcon size={16} className="text-indigo-600" />
+                      Tous les mouvements enregistrés
+                    </h5>
+                    <span className="text-[10px] font-black uppercase text-gray-400 tracking-widest">{userLogs.length} scans au total</span>
+                  </div>
+
+                  <div className="overflow-hidden border border-gray-100 dark:border-gray-700 rounded-2xl">
+                    <table className="w-full text-sm text-left text-gray-500">
+                      <thead className="text-[10px] text-gray-400 uppercase bg-gray-50 dark:bg-gray-800/50">
+                        <tr>
+                          <th className="px-4 py-3 font-black">Date</th>
+                          <th className="px-4 py-3 font-black">Heure</th>
+                          <th className="px-4 py-3 font-black">Action</th>
+                          <th className="px-4 py-3 font-black text-right">Actions Admin</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-50 dark:divide-gray-700/50 font-medium">
+                        {userLogs.length === 0 ? (
+                          <tr>
+                            <td colSpan={4} className="px-4 py-12 text-center text-gray-400 italic">
+                              Aucun pointage enregistré pour le moment.
+                            </td>
+                          </tr>
+                        ) : (
+                          userLogs.map((log) => (
+                            <tr key={log.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors">
+                              <td className="px-4 py-3 text-gray-600 dark:text-gray-300">
+                                {new Date(log.date).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' })}
+                              </td>
+                              <td className="px-4 py-3 font-mono text-gray-900 dark:text-white">
+                                {log.time}
+                              </td>
+                              <td className="px-4 py-3">
+                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-tighter ${
+                                  log.type === 'entrée' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'
+                                }`}>
+                                  {log.type} {log.isLate && <span className="ml-1 text-red-600">(RETARD)</span>}
+                                </span>
+                              </td>
+                              <td className="px-4 py-3 text-right">
+                                <div className="flex justify-end gap-1">
+                                  <button 
+                                    onClick={() => handleUpdateLogType(log.id, log.type)}
+                                    className="p-1.5 text-gray-400 hover:text-indigo-600 transition-colors"
+                                    title="Changer type"
+                                  >
+                                    <RefreshCw size={14} />
+                                  </button>
+                                  <button 
+                                    onClick={() => handleDeleteLog(log.id)}
+                                    className="p-1.5 text-gray-400 hover:text-red-600 transition-colors"
+                                    title="Supprimer"
+                                  >
+                                    <Trash2 size={14} />
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
                   </div>
                 </div>
               )}
-
-              {/* Biometric Status */}
-              <div className="pt-4 border-t border-gray-100 dark:border-gray-700">
-                <h5 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 flex items-center gap-2">
-                  <Fingerprint size={14} />
-                  Statut Biométrique
-                </h5>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className={`p-4 rounded-xl border flex items-center gap-3 ${viewUser.face_id ? 'bg-emerald-50 dark:bg-emerald-900/10 border-emerald-100 dark:border-emerald-900/30 text-emerald-700 dark:text-emerald-400' : 'bg-gray-50 dark:bg-gray-900 border-gray-100 dark:border-gray-800 text-gray-400'}`}>
-                    <User size={20} className={viewUser.face_id ? 'text-emerald-600' : 'text-gray-300'} />
-                    <div>
-                      <p className="text-xs font-bold uppercase tracking-tight">Reconnaissance Faciale</p>
-                      <p className="text-[10px]">{viewUser.face_id ? 'Enregistré' : 'Non configuré'}</p>
-                    </div>
-                  </div>
-                  <div className={`p-4 rounded-xl border flex items-center gap-3 ${viewUser.fingerprint_id ? 'bg-emerald-50 dark:bg-emerald-900/10 border-emerald-100 dark:border-emerald-900/30 text-emerald-700 dark:text-emerald-400' : 'bg-gray-50 dark:bg-gray-900 border-gray-100 dark:border-gray-800 text-gray-400'}`}>
-                    <Fingerprint size={20} className={viewUser.fingerprint_id ? 'text-emerald-600' : 'text-gray-300'} />
-                    <div>
-                      <p className="text-xs font-bold uppercase tracking-tight">Empreinte Digitale</p>
-                      <p className="text-[10px]">{viewUser.fingerprint_id ? 'Enregistré' : 'Non configuré'}</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
             </div>
+
             <div className="p-6 bg-gray-50 dark:bg-gray-900/50 border-t border-gray-100 dark:border-gray-700 flex justify-end">
               <button 
                 onClick={() => setViewUser(null)}

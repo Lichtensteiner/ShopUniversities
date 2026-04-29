@@ -78,40 +78,78 @@ export default function Scanner() {
 
       const now = new Date();
       const timeString = now.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
-      const isLate = now.getHours() >= 8;
-      const status = isLate ? 'Retard' : 'Présent';
+      const hours = now.getHours();
+      const minutes = now.getMinutes();
+      const isLate = hours > 8 || (hours === 8 && minutes > 0);
       const today = now.toISOString().split('T')[0];
 
-      // Vérifier si une présence existe déjà aujourd'hui
+      // 1. Get detailed logs for today to determine if entry or exit
+      const logQuery = query(
+        collection(db, 'attendance_logs'),
+        where('user_id', '==', user.id),
+        where('date', '==', today)
+      );
+      const logSnap = await getDocs(logQuery);
+      const isFirstScan = logSnap.empty;
+
+      // Determine action: first scan is always entry, subsequent scans toggle based on last scan
+      let currentAction: 'entrée' | 'sortie' = 'entrée';
+      if (!isFirstScan) {
+        const sortedLogs = logSnap.docs
+          .map(d => ({ ...(d.data() as any), id: d.id }))
+          .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+        
+        const lastAction = sortedLogs[0].type;
+        currentAction = lastAction === 'entrée' ? 'sortie' : 'entrée';
+      }
+
+      // 2. Add detailed log
+      await addDoc(collection(db, 'attendance_logs'), {
+        user_id: user.id,
+        user_name: `${user.prenom} ${user.nom}`,
+        date: today,
+        timestamp: now.toISOString(),
+        time: timeString,
+        type: currentAction,
+        isLate: isFirstScan && currentAction === 'entrée' ? isLate : false
+      });
+
+      // 3. Update or Create daily summary
       const attQuery = query(collection(db, 'attendance'), 
         where('user_id', '==', user.id),
         where('date', '==', today)
       );
       const attSnap = await getDocs(attQuery);
 
-      let currentAction: 'arrivée' | 'départ' = 'arrivée';
+      const status = isFirstScan ? (isLate ? 'Retard' : 'Présent') : null;
 
       if (attSnap.empty) {
-        // Check-in
         await addDoc(collection(db, 'attendance'), {
           user_id: user.id,
+          nom: user.nom,
+          prenom: user.prenom,
+          role: user.role,
+          classe: user.classe || null,
           date: today,
           heure_arrivee: timeString,
           heure_depart: null,
           statut: status,
+          current_state: 'présent',
           timestamp: now.toISOString()
         });
       } else {
-        // Check-out
         const docId = attSnap.docs[0].id;
-        await updateDoc(doc(db, 'attendance', docId), {
-          heure_depart: timeString,
-          timestamp_depart: now.toISOString()
-        });
-        currentAction = 'départ';
+        const updateData: any = {
+          current_state: currentAction === 'entrée' ? 'présent' : 'sorti',
+          timestamp: now.toISOString()
+        };
+        if (currentAction === 'sortie') {
+          updateData.heure_depart = timeString;
+        }
+        await updateDoc(doc(db, 'attendance', docId), updateData);
       }
 
-      setActionType(currentAction);
+      setActionType(currentAction === 'entrée' ? 'arrivée' : 'départ');
 
       setScannedUserData({
         nom: user.nom,
@@ -119,7 +157,7 @@ export default function Scanner() {
         role: user.role,
         classe: user.classe,
         heure: timeString,
-        statut: status
+        statut: isFirstScan ? (isLate ? 'Retard' : 'Présent') : (currentAction === 'entrée' ? 'Ré-entrée' : 'Sortie')
       });
       
       setScanStatus('success');

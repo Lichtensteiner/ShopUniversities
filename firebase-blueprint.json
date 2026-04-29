@@ -1,5 +1,56 @@
 {
   "entities": {
+    "users": {
+      "title": "Users",
+      "description": "User profiles including students, teachers and admins",
+      "type": "object",
+      "properties": {
+        "nom": { "type": "string" },
+        "prenom": { "type": "string" },
+        "email": { "type": "string" },
+        "role": { "type": "string", "enum": ["admin", "enseignant", "élève", "parent"] },
+        "classe": { "type": "string" },
+        "matricule": { "type": "string" },
+        "photo": { "type": "string" },
+        "gender": { "type": "string" },
+        "age": { "type": "number" },
+        "address": { "type": "string" },
+        "contact": { "type": "string" },
+        "date_creation": { "type": "string", "format": "date-time" },
+        "face_id": { "type": "string" },
+        "fingerprint_id": { "type": "string" },
+        "credential_id": { "type": "string" },
+        "maison": { "type": "string" }
+      }
+    },
+    "attendance": {
+      "title": "Daily Attendance Summary",
+      "description": "Summary of user attendance per day",
+      "type": "object",
+      "properties": {
+        "user_id": { "type": "string" },
+        "date": { "type": "string", "format": "date" },
+        "heure_arrivee": { "type": "string" },
+        "heure_depart": { "type": "string" },
+        "statut": { "type": "string", "enum": ["Présent", "Retard", "Absent"] },
+        "current_state": { "type": "string", "enum": ["présent", "sorti"] },
+        "timestamp": { "type": "string", "format": "date-time" }
+      }
+    },
+    "attendance_logs": {
+      "title": "Detailed Attendance Logs",
+      "description": "Individual scan entries for entry and exit",
+      "type": "object",
+      "properties": {
+        "user_id": { "type": "string" },
+        "user_name": { "type": "string" },
+        "date": { "type": "string", "format": "date" },
+        "time": { "type": "string" },
+        "type": { "type": "string", "enum": ["entrée", "sortie"] },
+        "isLate": { "type": "boolean" },
+        "timestamp": { "type": "string", "format": "date-time" }
+      }
+    },
     "clubs": {
       "title": "Clubs",
       "description": "School clubs and extracurricular activities",
@@ -7,19 +58,48 @@
       "properties": {
         "name": { "type": "string" },
         "description": { "type": "string" },
-        "leaderId": { "type": "string", "description": "Teacher ID who leads the club" },
+        "leaderId": { "type": "string" },
         "leaderName": { "type": "string" },
         "category": { "type": "string" },
-        "members": { "type": "array", "items": { "type": "string" }, "description": "List of student IDs" },
+        "members": { "type": "array", "items": { "type": "string" } },
         "createdAt": { "type": "string", "format": "date-time" }
-      },
-      "required": ["name", "leaderId"]
+      }
+    },
+    "grades": {
+      "title": "Grades",
+      "description": "Student evaluation scores",
+      "type": "object",
+      "properties": {
+        "studentId": { "type": "string" },
+        "subject": { "type": "string" },
+        "score": { "type": "number" },
+        "maxScore": { "type": "number" },
+        "title": { "type": "string" },
+        "type": { "type": "string", "enum": ["interrogation", "evaluation"] },
+        "date": { "type": "string", "format": "date-time" }
+      }
+    },
+    "sanctions": {
+      "title": "Discipline Sanctions",
+      "description": "Disciplinary records for students",
+      "type": "object",
+      "properties": {
+        "studentId": { "type": "string" },
+        "studentName": { "type": "string" },
+        "type": { "type": "string", "enum": ["warning", "detention", "exclusion"] },
+        "reason": { "type": "string" },
+        "status": { "type": "string", "enum": ["active", "completed", "cancelled"] },
+        "recordedBy": { "type": "string" },
+        "date": { "type": "string", "format": "date-time" }
+      }
     }
   },
   "firestore": {
-    "/clubs/{clubId}": {
-      "schema": "clubs",
-      "description": "Individual club documents"
-    }
+    "/users/{userId}": { "schema": "users", "description": "User documents" },
+    "/attendance/{attId}": { "schema": "attendance", "description": "Daily summaries" },
+    "/attendance_logs/{logId}": { "schema": "attendance_logs", "description": "Scans logs" },
+    "/clubs/{clubId}": { "schema": "clubs", "description": "Club documents" },
+    "/grades/{gradeId}": { "schema": "grades", "description": "Grade entries" },
+    "/sanctions/{sanctionId}": { "schema": "sanctions", "description": "Discipline entries" }
   }
 }
