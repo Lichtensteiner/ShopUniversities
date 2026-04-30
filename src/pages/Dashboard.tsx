@@ -293,7 +293,7 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-6 pb-20 sm:pb-0">
-      <div className="flex flex-col sm:row sm:items-end sm:justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white tracking-tight">{t('dashboard')}</h1>
           <p className="text-sm text-gray-500 mt-1">{t('overview_attendance_today')}</p>

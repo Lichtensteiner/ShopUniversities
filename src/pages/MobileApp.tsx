@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Fingerprint, ScanFace, CheckCircle2, AlertCircle, Camera, ChevronLeft, UserPlus, LogIn, ShieldCheck, RefreshCw } from 'lucide-react';
+import { Fingerprint, ScanFace, CheckCircle2, AlertCircle, Camera, ChevronLeft, UserPlus, LogIn, ShieldCheck, RefreshCw, Camera as CameraIcon, Scan, Smartphone, Download } from 'lucide-react';
 import { collection, addDoc, getDocs, doc, updateDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, storage, isFirebaseConfigured } from '../lib/firebase';
 import { useLanguage } from '../contexts/LanguageContext';
+import { motion } from 'motion/react';
 
 type Screen = 'auth_choice' | 'register_step1' | 'register_step2' | 'scan_choice' | 'scanner' | 'result';
 type ScanMode = 'face' | 'fingerprint';
@@ -11,6 +12,7 @@ type ScanMode = 'face' | 'fingerprint';
 export default function MobileApp() {
   const { t } = useLanguage();
   const [currentScreen, setCurrentScreenState] = useState<Screen>('auth_choice');
+  const [activeView, setActiveView] = useState<'simulator' | 'guide'>('simulator');
 
   useEffect(() => {
     // Initialize history state
@@ -83,8 +85,7 @@ export default function MobileApp() {
 
   useEffect(() => {
     if ((currentScreen === 'scanner' || currentScreen === 'register_step2') && scanMode === 'face') {
-      // Don't start automatically to avoid user gesture issues in iframes
-      // startCamera();
+      // Camera handled manually in the sim
     } else {
       stopCamera();
     }
@@ -113,8 +114,6 @@ export default function MobileApp() {
       };
 
       const docRef = await addDoc(collection(db, 'users'), newUser);
-      
-      // Update with user_id
       await updateDoc(docRef, { user_id: docRef.id });
 
       setCurrentUser({
@@ -153,7 +152,6 @@ export default function MobileApp() {
             const storageRef = ref(storage, `users/${currentUser.id}/photo_biometric_${Date.now()}`);
             await uploadBytes(storageRef, blob);
             const downloadURL = await getDownloadURL(storageRef);
-            
             const userRef = doc(db, 'users', currentUser.id);
             await updateDoc(userRef, { photo: downloadURL });
           }
@@ -195,11 +193,8 @@ export default function MobileApp() {
 
   const handleScanPresence = async () => {
     setScanStatus('scanning');
-    
     setTimeout(async () => {
       try {
-        // Simuler la reconnaissance en prenant un utilisateur au hasard dans la base
-        // qui a complété son inscription biométrique
         const usersSnap = await getDocs(collection(db, 'users'));
         const validUsers = usersSnap.docs.filter(doc => {
           const data = doc.data();
@@ -231,9 +226,7 @@ export default function MobileApp() {
           timestamp: now.toISOString()
         });
 
-        // Simuler l'envoi d'une notification aux parents
         if (recognizedUser.role === 'élève') {
-          console.log(`[NOTIFICATION] Envoi d'un SMS/Email aux parents de ${recognizedUser.prenom} ${recognizedUser.nom} : "Votre enfant est arrivé à l'école à ${timeString} (${status})."`);
           await addDoc(collection(db, 'notifications'), {
             user_id: recognizedUser.id,
             type: 'attendance',
@@ -262,22 +255,22 @@ export default function MobileApp() {
     switch (currentScreen) {
       case 'auth_choice':
         return (
-          <div className="flex flex-col items-center justify-center h-full p-6 space-y-8 animate-in fade-in zoom-in duration-300">
-            <img src="/logo.png" alt="ShopUniversities" className="h-24 object-contain" />
+          <div className="flex flex-col items-center justify-center h-full p-6 space-y-8 animate-in fade-in zoom-in duration-300 bg-white dark:bg-gray-900">
+            <img src="/logo.png" alt="Logo" className="h-24 object-contain" />
             <div className="text-center space-y-2">
-              <h1 className="text-2xl font-bold text-gray-900">ShopUniversities</h1>
-              <p className="text-gray-500">Système de Présence Biométrique</p>
+              <h1 className="text-2xl font-bold text-gray-900 dark:text-white">ShopUniversities</h1>
+              <p className="text-gray-500 dark:text-gray-400">Système de Présence Biométrique</p>
             </div>
             <div className="w-full space-y-4 mt-8">
               <button 
                 onClick={() => setCurrentScreen('scan_choice')}
-                className="w-full bg-indigo-600 text-white py-4 rounded-2xl font-bold text-lg shadow-lg shadow-indigo-200 flex items-center justify-center gap-3"
+                className="w-full bg-indigo-600 text-white py-4 rounded-2xl font-bold text-lg shadow-lg flex items-center justify-center gap-3"
               >
                 <ScanFace size={20} /> Scanner ma présence
               </button>
               <button 
                 onClick={() => setCurrentScreen('register_step1')}
-                className="w-full bg-white text-indigo-600 border-2 border-indigo-100 py-4 rounded-2xl font-bold text-lg flex items-center justify-center gap-3"
+                className="w-full bg-white dark:bg-gray-800 text-indigo-600 dark:text-indigo-400 border-2 border-indigo-100 dark:border-indigo-900/50 py-4 rounded-2xl font-bold text-lg flex items-center justify-center gap-3"
               >
                 <UserPlus size={20} /> Créer un compte
               </button>
@@ -287,126 +280,73 @@ export default function MobileApp() {
 
       case 'register_step1':
         return (
-          <div className="flex flex-col h-full p-6 animate-in slide-in-from-right duration-300 overflow-y-auto">
+          <div className="flex flex-col h-full p-6 animate-in slide-in-from-right duration-300 overflow-y-auto bg-white dark:bg-gray-900">
             <button onClick={() => setCurrentScreen('auth_choice')} className="mb-6 text-gray-500 flex items-center gap-2">
               <ChevronLeft size={20} /> Retour
             </button>
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">Étape 1 : Informations</h2>
-            <p className="text-gray-500 mb-6">Saisissez vos informations de base.</p>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Inscription</h2>
+            <p className="text-gray-500 dark:text-gray-400 mb-6">Saisissez vos informations de base.</p>
             
             <form onSubmit={handleRegisterStep1} className="space-y-4">
               {error && <div className="p-3 bg-red-50 text-red-600 rounded-xl text-sm">{error}</div>}
-              
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Nom</label>
-                <input type="text" required value={formData.nom} onChange={e => setFormData({...formData, nom: e.target.value})} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500" />
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nom</label>
+                <input type="text" required value={formData.nom} onChange={e => setFormData({...formData, nom: e.target.value})} className="w-full p-3 bg-gray-50 dark:bg-gray-800 border dark:border-gray-700 rounded-xl" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Prénom</label>
-                <input type="text" required value={formData.prenom} onChange={e => setFormData({...formData, prenom: e.target.value})} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500" />
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Prénom</label>
+                <input type="text" required value={formData.prenom} onChange={e => setFormData({...formData, prenom: e.target.value})} className="w-full p-3 bg-gray-50 dark:bg-gray-800 border dark:border-gray-700 rounded-xl" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                <input type="email" required value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500" />
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Email</label>
+                <input type="email" required value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} className="w-full p-3 bg-gray-50 dark:bg-gray-800 border dark:border-gray-700 rounded-xl" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Matricule (Optionnel)</label>
-                <input type="text" value={formData.matricule} onChange={e => setFormData({...formData, matricule: e.target.value})} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Rôle</label>
-                <select value={formData.role} onChange={e => setFormData({...formData, role: e.target.value})} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Rôle</label>
+                <select value={formData.role} onChange={e => setFormData({...formData, role: e.target.value})} className="w-full p-3 bg-gray-50 dark:bg-gray-800 border dark:border-gray-700 rounded-xl">
                   <option value="élève">Élève</option>
                   <option value="enseignant">Enseignant</option>
-                  <option value="personnel administratif">Personnel Administratif</option>
+                  <option value="personnel administratif">Administration</option>
                 </select>
               </div>
-              {formData.role === 'élève' && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Classe</label>
-                  <input type="text" required value={formData.classe} onChange={e => setFormData({...formData, classe: e.target.value})} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500" placeholder="Ex: 6ème A" />
-                </div>
-              )}
-              <button disabled={loading} type="submit" className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white py-4 rounded-2xl font-bold text-lg shadow-lg shadow-indigo-200 mt-8 flex justify-center items-center gap-2">
-                {loading ? <RefreshCw className="animate-spin" size={20} /> : t('continue_to_biometrics')}
+              <button disabled={loading} type="submit" className="w-full bg-indigo-600 text-white py-4 rounded-2xl font-bold text-lg mt-4 flex justify-center items-center gap-2">
+                {loading ? <RefreshCw className="animate-spin" size={20} /> : "Continuer"}
               </button>
             </form>
           </div>
         );
 
       case 'register_step2':
-        if (registrationSuccess) {
-          return (
-            <div className="flex flex-col items-center justify-center h-full p-6 text-center animate-in zoom-in duration-300">
-              <div className="w-24 h-24 bg-emerald-100 text-emerald-500 rounded-full flex items-center justify-center mb-6 shadow-xl shadow-emerald-100">
-                <CheckCircle2 size={48} />
-              </div>
-              <h2 className="text-2xl font-bold text-gray-900 mb-2">{t('account_created_success')}</h2>
-              <p className="text-gray-500">{t('biometrics_recorded_success')}</p>
-            </div>
-          );
-        }
-
         return (
-          <div className="flex flex-col h-full p-6 animate-in slide-in-from-right duration-300">
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">{t('step2_biometrics')}</h2>
-            <p className="text-gray-500 mb-6 text-sm">{t('biometrics_mandatory_desc')}</p>
+          <div className="flex flex-col h-full p-6 animate-in slide-in-from-right duration-300 bg-white dark:bg-gray-900">
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Biométrie</h2>
+            <p className="text-gray-500 mb-6 text-sm">Enregistrez vos données pour le pointage futur.</p>
             
             <div className="flex-1 space-y-6">
-              {/* Face Registration */}
-              <div className="bg-white p-4 rounded-2xl border border-gray-200 shadow-sm flex flex-col items-center">
-                <div className="w-full h-40 bg-gray-900 rounded-xl overflow-hidden relative mb-4">
+              <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-2xl border dark:border-gray-700 flex flex-col items-center">
+                <div className="w-full h-40 bg-black rounded-xl overflow-hidden relative mb-4">
                   {scanMode === 'face' && !faceRegistered ? (
-                    <>
-                      {stream ? (
-                        <>
-                          <video ref={videoRef} autoPlay playsInline muted className="absolute inset-0 w-full h-full object-cover" />
-                          {scanStatus === 'scanning' && <div className="absolute top-0 left-0 w-full h-1 bg-indigo-500 shadow-[0_0_20px_rgba(99,102,241,1)] animate-[scan_1.5s_ease-in-out_infinite]"></div>}
-                        </>
-                      ) : (
-                        <div className="absolute inset-0 flex flex-col items-center justify-center text-gray-500 p-2 text-center">
-                          <Camera size={24} className="mb-2 opacity-50" />
-                          <button 
-                            onClick={startCamera}
-                            className="px-3 py-1 bg-indigo-600 text-white rounded-lg text-xs font-bold"
-                          >
-                            Activer caméra
-                          </button>
-                        </div>
-                      )}
-                    </>
-                  ) : faceRegistered ? (
-                    <div className="absolute inset-0 bg-emerald-50 flex items-center justify-center text-emerald-500">
-                      <CheckCircle2 size={48} />
-                    </div>
-                  ) : (
-                    <div className="absolute inset-0 flex items-center justify-center text-gray-500">
-                      <Camera size={32} />
-                    </div>
-                  )}
+                    stream ? <video ref={videoRef} autoPlay playsInline muted className="absolute inset-0 w-full h-full object-cover" /> : 
+                    <button onClick={startCamera} className="absolute inset-0 flex items-center justify-center text-white"><CameraIcon size={32} /></button>
+                  ) : faceRegistered ? <div className="absolute inset-0 bg-emerald-500/20 flex items-center justify-center text-emerald-500"><CheckCircle2 size={48} /></div> : null}
                 </div>
                 <button 
                   onClick={() => { setScanMode('face'); simulateBiometricRegistration('face'); }}
-                  disabled={faceRegistered || scanStatus === 'scanning'}
-                  className="w-full bg-indigo-50 text-indigo-700 py-3 rounded-xl font-bold flex items-center justify-center gap-2 disabled:opacity-50"
+                  className="w-full bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 py-3 rounded-xl font-bold"
                 >
-                  <ScanFace size={20} /> {faceRegistered ? t('face_registered') : t('scan_face')}
+                  {faceRegistered ? "Visage enregistré" : "Scanner Visage"}
                 </button>
               </div>
 
-              {/* Fingerprint Registration */}
-              <div className="bg-white p-4 rounded-2xl border border-gray-200 shadow-sm flex flex-col items-center">
-                <div className={`w-20 h-20 rounded-full flex items-center justify-center mb-4 transition-colors ${
-                  fingerprintRegistered ? 'bg-emerald-50 text-emerald-500' : 'bg-gray-100 text-gray-400'
-                }`}>
-                  {fingerprintRegistered ? <CheckCircle2 size={32} /> : <Fingerprint size={32} className={scanMode === 'fingerprint' && scanStatus === 'scanning' ? 'animate-pulse text-indigo-500' : ''} />}
+              <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-2xl border dark:border-gray-700 flex flex-col items-center">
+                <div className={`w-20 h-20 rounded-full flex items-center justify-center mb-4 ${fingerprintRegistered ? 'bg-emerald-500/20 text-emerald-500' : 'bg-gray-200 text-gray-400'}`}>
+                  <Fingerprint size={32} />
                 </div>
                 <button 
                   onClick={() => { setScanMode('fingerprint'); simulateBiometricRegistration('fingerprint'); }}
-                  disabled={fingerprintRegistered || scanStatus === 'scanning'}
-                  className="w-full bg-gray-900 text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2 disabled:opacity-50"
+                  className="w-full bg-gray-900 text-white py-3 rounded-xl font-bold"
                 >
-                  <Fingerprint size={20} /> {fingerprintRegistered ? t('fingerprint_registered') : t('scan_fingerprint')}
+                  {fingerprintRegistered ? "Empreinte enregistrée" : "Scanner Empreinte"}
                 </button>
               </div>
             </div>
@@ -414,36 +354,34 @@ export default function MobileApp() {
             <button 
               onClick={handleFinalizeRegistration}
               disabled={!faceRegistered || !fingerprintRegistered || loading}
-              className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-300 text-white py-4 rounded-2xl font-bold text-lg shadow-lg mt-6 flex justify-center items-center gap-2 transition-colors"
+              className="w-full bg-indigo-600 text-white py-4 rounded-2xl font-bold mt-6"
             >
-              {loading ? <RefreshCw className="animate-spin" size={20} /> : t('activate_account')}
+              {loading ? <RefreshCw className="animate-spin" size={20} /> : "Activer mon compte"}
             </button>
           </div>
         );
 
       case 'scan_choice':
         return (
-          <div className="flex flex-col h-full p-6 animate-in fade-in duration-300">
+          <div className="flex flex-col h-full p-6 animate-in fade-in duration-300 bg-white dark:bg-gray-900">
             <button onClick={() => setCurrentScreen('auth_choice')} className="mb-6 text-gray-500 flex items-center gap-2">
-              <ChevronLeft size={20} /> {t('cancel')}
+              <ChevronLeft size={20} /> Retour
             </button>
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">{t('clocking')}</h2>
-            <p className="text-gray-500 mb-8">{t('choose_scan_method')}</p>
-            
-            <div className="grid grid-cols-1 gap-4">
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Pointer</h2>
+            <div className="grid grid-cols-1 gap-4 mt-8">
               <button 
                 onClick={() => { setScanMode('face'); setCurrentScreen('scanner'); }}
-                className="bg-indigo-600 text-white p-6 rounded-3xl flex flex-col items-center justify-center gap-4 shadow-xl shadow-indigo-200 aspect-square hover:scale-[1.02] transition-transform"
+                className="bg-indigo-600 text-white p-8 rounded-3xl flex flex-col items-center gap-4"
               >
-                <ScanFace size={64} className="opacity-90" />
-                <span className="font-bold text-xl">{t('facial_recognition')}</span>
+                <ScanFace size={48} />
+                <span className="font-bold text-xl">Reconnaissance Faciale</span>
               </button>
               <button 
                 onClick={() => { setScanMode('fingerprint'); setCurrentScreen('scanner'); }}
-                className="bg-gray-900 text-white p-6 rounded-3xl flex flex-col items-center justify-center gap-4 shadow-xl shadow-gray-200 aspect-square hover:scale-[1.02] transition-transform"
+                className="bg-gray-900 text-white p-8 rounded-3xl flex flex-col items-center gap-4"
               >
-                <Fingerprint size={64} className="opacity-90" />
-                <span className="font-bold text-xl">{t('fingerprint')}</span>
+                <Fingerprint size={48} />
+                <span className="font-bold text-xl">Empreinte Digitale</span>
               </button>
             </div>
           </div>
@@ -451,135 +389,55 @@ export default function MobileApp() {
 
       case 'scanner':
         return (
-          <div className="flex flex-col h-full bg-black text-white animate-in zoom-in-95 duration-300 relative overflow-hidden">
-            <button onClick={() => setCurrentScreen('scan_choice')} className="absolute top-6 left-6 z-20 text-white flex items-center gap-2 bg-black/50 px-4 py-2 rounded-full backdrop-blur-md">
-              <ChevronLeft size={20} /> {t('cancel')}
+          <div className="flex flex-col h-full bg-black text-white animate-in zoom-in-95 duration-300 relative">
+            <button onClick={() => setCurrentScreen('scan_choice')} className="absolute top-6 left-6 z-20 bg-white/20 p-2 rounded-full backdrop-blur-md">
+              <ChevronLeft size={20} />
             </button>
-
-            {scanMode === 'face' ? (
-              <>
-                {stream ? (
-                  <>
-                    <video ref={videoRef} autoPlay playsInline muted className="absolute inset-0 w-full h-full object-cover" />
-                    <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
-                      <div className="w-64 h-80 border-2 border-white/30 rounded-[3rem] relative">
-                        <div className="absolute -top-1 -left-1 w-12 h-12 border-t-4 border-l-4 border-indigo-500 rounded-tl-[3rem]"></div>
-                        <div className="absolute -top-1 -right-1 w-12 h-12 border-t-4 border-r-4 border-indigo-500 rounded-tr-[3rem]"></div>
-                        <div className="absolute -bottom-1 -left-1 w-12 h-12 border-b-4 border-l-4 border-indigo-500 rounded-bl-[3rem]"></div>
-                        <div className="absolute -bottom-1 -right-1 w-12 h-12 border-b-4 border-r-4 border-indigo-500 rounded-br-[3rem]"></div>
-                        {scanStatus === 'scanning' && <div className="absolute top-0 left-0 w-full h-1 bg-indigo-500 shadow-[0_0_20px_rgba(99,102,241,1)] animate-[scan_1.5s_ease-in-out_infinite]"></div>}
-                      </div>
-                    </div>
-                  </>
-                ) : (
-                  <div className="flex-1 flex flex-col items-center justify-center p-6 text-center">
-                    <Camera size={64} className="mb-4 text-gray-700 opacity-50" />
-                    <p className="text-gray-400 mb-6">L'accès à la caméra est nécessaire.</p>
-                    <button 
-                      onClick={startCamera}
-                      className="bg-indigo-600 text-white px-8 py-3 rounded-xl font-bold"
-                    >
-                      Activer la caméra
-                    </button>
-                  </div>
-                )}
-              </>
-            ) : (
-              <div className="flex-1 flex flex-col items-center justify-center p-6">
-                <div className={`w-48 h-48 rounded-full flex items-center justify-center mb-8 transition-all duration-500 ${
-                  scanStatus === 'scanning' ? 'bg-indigo-900/50 shadow-[0_0_50px_rgba(99,102,241,0.5)] scale-110' : 'bg-gray-900'
-                }`}>
-                  <Fingerprint size={80} className={scanStatus === 'scanning' ? 'text-indigo-400 animate-pulse' : 'text-gray-600'} />
-                </div>
-                <p className="text-center text-gray-400">{t('place_finger_on_sensor')}</p>
+            <div className="flex-1 flex flex-col items-center justify-center p-6">
+              <div className="w-64 h-64 border-2 border-indigo-500/50 rounded-full flex items-center justify-center relative overflow-hidden">
+                {scanMode === 'face' ? (
+                   stream ? <video ref={videoRef} autoPlay playsInline muted className="absolute inset-0 w-full h-full object-cover" /> : 
+                   <button onClick={startCamera} className="p-4 bg-white/10 rounded-full"><CameraIcon size={32} /></button>
+                ) : <Fingerprint size={80} className={scanStatus === 'scanning' ? 'animate-pulse text-indigo-400' : ''} />}
+                {scanStatus === 'scanning' && <div className="absolute top-0 left-0 w-full h-1 bg-indigo-500 animate-bounce"></div>}
               </div>
-            )}
-
-            <div className="absolute bottom-0 left-0 w-full p-6 bg-gradient-to-t from-black/80 to-transparent">
-              {error && <div className="mb-4 p-3 bg-red-500/20 text-red-200 rounded-xl text-sm text-center backdrop-blur-md">{error}</div>}
+              <p className="mt-8 text-gray-400 uppercase tracking-widest text-xs font-bold">{scanStatus === 'scanning' ? "Analyse en cours..." : "Ajustez votre position"}</p>
+            </div>
+            <div className="p-6">
               <button 
                 onClick={handleScanPresence}
-                disabled={scanStatus === 'scanning' || (scanMode === 'face' && !stream)}
-                className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-900 text-white py-4 rounded-2xl font-bold text-lg flex items-center justify-center gap-3 backdrop-blur-md"
+                disabled={scanStatus === 'scanning'}
+                className="w-full bg-indigo-600 py-4 rounded-2xl font-bold text-lg"
               >
-                {scanStatus === 'scanning' ? t('scanning') : t('scan_now')}
+                Pointer maintenant
               </button>
             </div>
-
-            {scanStatus === 'success' && (
-              <div className="absolute inset-0 bg-emerald-500/90 backdrop-blur-sm z-30 flex flex-col items-center justify-center animate-in fade-in duration-300">
-                <CheckCircle2 size={80} className="text-white mb-4" />
-                <h2 className="text-3xl font-bold text-white">{t('recognized')}</h2>
-              </div>
-            )}
+            {scanStatus === 'success' && <div className="absolute inset-0 bg-emerald-500/90 flex flex-col items-center justify-center"><CheckCircle2 size={80} className="mb-4" /><h2 className="text-3xl font-bold">Identifié !</h2></div>}
           </div>
         );
 
       case 'result':
-        const now = new Date();
-        const timeString = now.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
-        const isLate = now.getHours() >= 8;
-        const status = isLate ? t('late') : t('present');
-
         return (
-          <div className="flex flex-col h-full p-6 bg-gray-50 animate-in slide-in-from-bottom duration-500">
-            <div className="flex-1 flex flex-col items-center justify-center max-w-sm mx-auto w-full">
-              
-              <div className="w-20 h-20 bg-emerald-100 text-emerald-500 rounded-full flex items-center justify-center mb-6 shadow-xl shadow-emerald-100 animate-bounce">
-                <CheckCircle2 size={40} />
-              </div>
-              
-              <h2 className="text-2xl font-bold text-gray-900 mb-1">{t('user_recognized')}</h2>
-              <p className="text-gray-500 mb-8">{t('presence_recorded_success')}</p>
-
-              <div className="w-full bg-white rounded-3xl shadow-xl shadow-gray-200/50 overflow-hidden border border-gray-100">
-                <div className="p-6 flex flex-col items-center border-b border-gray-100 bg-gradient-to-b from-indigo-50/50 to-white">
-                  <div className="w-24 h-24 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center text-3xl font-bold border-4 border-white shadow-md mb-4">
-                    {currentUser?.prenom?.[0]}{currentUser?.nom?.[0]}
-                  </div>
-                  <h3 className="text-xl font-bold text-gray-900">{currentUser?.nom} {currentUser?.prenom}</h3>
-                  <p className="text-indigo-600 font-medium capitalize">{currentUser?.role}</p>
+          <div className="flex flex-col h-full p-6 bg-gray-50 dark:bg-gray-900 animate-in slide-in-from-bottom duration-500">
+            <div className="flex-1 flex flex-col items-center justify-center">
+              <div className="w-20 h-20 bg-emerald-100 text-emerald-500 rounded-full flex items-center justify-center mb-6 shadow-xl"><CheckCircle2 size={40} /></div>
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-8 text-center tracking-tight">Pointage Réussi !</h2>
+              <div className="w-full bg-white dark:bg-gray-800 p-8 rounded-[2rem] shadow-xl border dark:border-gray-700 border-gray-100">
+                <div className="flex flex-col items-center mb-6">
+                  <div className="w-20 h-20 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center font-bold text-2xl mb-4">{currentUser?.prenom?.[0]}{currentUser?.nom?.[0]}</div>
+                  <h3 className="text-xl font-bold dark:text-white">{currentUser?.prenom} {currentUser?.nom}</h3>
+                  <p className="text-indigo-600 text-sm font-bold uppercase">{currentUser?.role}</p>
                 </div>
-                
-                <div className="p-6 space-y-4">
-                  {currentUser?.matricule && (
-                    <div className="flex justify-between items-center pb-4 border-b border-gray-50">
-                      <span className="text-gray-500">{t('matricule')}</span>
-                      <span className="font-bold text-gray-900 font-mono">{currentUser.matricule}</span>
-                    </div>
-                  )}
-                  {currentUser?.email && (
-                    <div className="flex justify-between items-center pb-4 border-b border-gray-50">
-                      <span className="text-gray-500">{t('email')}</span>
-                      <span className="font-bold text-gray-900 text-sm">{currentUser.email}</span>
-                    </div>
-                  )}
-                  {currentUser?.classe && (
-                    <div className="flex justify-between items-center pb-4 border-b border-gray-50">
-                      <span className="text-gray-500">{t('class')}</span>
-                      <span className="font-bold text-gray-900">{currentUser.classe}</span>
-                    </div>
-                  )}
-                  <div className="flex justify-between items-center pb-4 border-b border-gray-50">
-                    <span className="text-gray-500">{t('time')}</span>
-                    <span className="font-bold text-gray-900 font-mono text-lg">{timeString}</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-500">{t('status')}</span>
-                    <span className={`px-3 py-1 rounded-full text-sm font-bold ${
-                      isLate ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'
-                    }`}>
-                      {status}
-                    </span>
-                  </div>
+                <div className="space-y-4">
+                  <div className="flex justify-between py-2 border-b dark:border-gray-700 border-gray-50"><span className="text-gray-500">Heure</span><span className="font-bold dark:text-white">{new Date().toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'})}</span></div>
+                  <div className="flex justify-between py-2 border-b dark:border-gray-700 border-gray-50"><span className="text-gray-500">Statut</span><span className="text-emerald-600 font-bold">Présent</span></div>
                 </div>
               </div>
-
               <button 
                 onClick={() => setCurrentScreen('auth_choice')}
-                className="w-full bg-gray-900 text-white py-4 rounded-2xl font-bold text-lg mt-8 shadow-lg shadow-gray-200"
+                className="w-full bg-gray-900 dark:bg-white dark:text-gray-900 text-white py-4 rounded-2xl font-bold text-lg mt-8 shadow-lg"
               >
-                {t('finish')}
+                Terminer
               </button>
             </div>
           </div>
@@ -587,14 +445,77 @@ export default function MobileApp() {
     }
   };
 
-  return (
-    <div className="flex items-center justify-center min-h-screen bg-gray-100 p-4">
-      {/* Mobile Simulator Frame */}
-      <div className="w-full max-w-[400px] h-[800px] max-h-[90vh] bg-white rounded-[3rem] shadow-2xl overflow-hidden border-[8px] border-gray-900 relative">
-        {/* Notch */}
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-40 h-6 bg-gray-900 rounded-b-3xl z-50"></div>
-        {renderScreen()}
+  const renderInstallationGuide = () => (
+    <div className="space-y-8 animate-in fade-in duration-500">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        {/* iOS */}
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-white dark:bg-gray-800 p-8 rounded-3xl border border-gray-100 dark:border-gray-700 shadow-sm">
+          <div className="flex items-center gap-4 mb-6">
+             <div className="w-12 h-12 bg-gray-50 dark:bg-gray-900 rounded-2xl flex items-center justify-center"><Smartphone className="text-gray-900 dark:text-white" /></div>
+             <h3 className="font-bold text-gray-900 dark:text-white">Installation sur iPhone</h3>
+          </div>
+          <ol className="space-y-4 text-sm text-gray-600 dark:text-gray-300 list-decimal list-inside">
+            <li>Ouvrez <strong>Safari</strong> et accédez à cette URL.</li>
+            <li>Appuyez sur l'icône de <strong>Partage</strong> <Download className="inline" size={14} />.</li>
+            <li>Sélectionnez <strong>"Sur l'écran d'accueil"</strong>.</li>
+            <li>Appuyez sur <strong>Ajouter</strong>.</li>
+          </ol>
+        </motion.div>
+        {/* Android */}
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="bg-white dark:bg-gray-800 p-8 rounded-3xl border border-gray-100 dark:border-gray-700 shadow-sm">
+          <div className="flex items-center gap-4 mb-6">
+             <div className="w-12 h-12 bg-gray-50 dark:bg-gray-900 rounded-2xl flex items-center justify-center"><Download className="text-gray-900 dark:text-white" /></div>
+             <h3 className="font-bold text-gray-900 dark:text-white">Installation sur Android</h3>
+          </div>
+          <ol className="space-y-4 text-sm text-gray-600 dark:text-gray-300 list-decimal list-inside">
+            <li>Ouvrez <strong>Chrome</strong> et accédez à cette URL.</li>
+            <li>Appuyez sur les <strong>trois points</strong> en haut à droite.</li>
+            <li>Sélectionnez <strong>"Installer l'application"</strong>.</li>
+            <li>Confirmez l'installation.</li>
+          </ol>
+        </motion.div>
       </div>
+
+      <div className="bg-indigo-600 p-8 rounded-3xl text-white">
+        <h3 className="text-xl font-bold mb-2 tracking-tight">Accessibilité Temps Réel</h3>
+        <p className="text-indigo-100 text-sm">L'application détecte automatiquement votre appareil et ajuste l'affichage pour garantir une expérience sans débordement de texte.</p>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{t('mobile_app')}</h1>
+          <p className="text-sm text-gray-500">Installation et simulation mobile</p>
+        </div>
+        <div className="flex bg-gray-100 dark:bg-gray-800 p-1 rounded-2xl w-full md:w-auto">
+          <button 
+            onClick={() => setActiveView('simulator')}
+            className={`flex-1 md:px-8 py-2 rounded-xl text-sm font-bold transition-all ${activeView === 'simulator' ? 'bg-white dark:bg-gray-700 text-indigo-600 dark:text-indigo-400 shadow-sm' : 'text-gray-500'}`}
+          >
+            Simulateur
+          </button>
+          <button 
+            onClick={() => setActiveView('guide')}
+            className={`flex-1 md:px-8 py-2 rounded-xl text-sm font-bold transition-all ${activeView === 'guide' ? 'bg-white dark:bg-gray-700 text-indigo-600 dark:text-indigo-400 shadow-sm' : 'text-gray-500'}`}
+          >
+            Guide
+          </button>
+        </div>
+      </div>
+
+      {activeView === 'simulator' ? (
+        <div className="flex items-center justify-center min-h-[600px] p-4 sm:p-8 bg-gray-50/50 dark:bg-gray-900/50 rounded-[3rem] border-2 border-dashed border-gray-200 dark:border-gray-700">
+           <div className="w-[380px] h-[780px] bg-white dark:bg-gray-900 rounded-[3rem] shadow-2xl border-[10px] border-gray-900 overflow-hidden relative scale-90 sm:scale-100">
+              <div className="absolute top-0 left-1/2 -track-x-1/2 w-32 h-6 bg-gray-900 rounded-b-2xl z-50"></div>
+              <div className="h-full overflow-y-auto custom-scrollbar">
+                {renderScreen()}
+              </div>
+           </div>
+        </div>
+      ) : renderInstallationGuide()}
     </div>
   );
 }

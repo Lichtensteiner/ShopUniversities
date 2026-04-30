@@ -214,14 +214,14 @@ export default function Attendance() {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-end">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 tracking-tight">{t('attendance_register')}</h1>
           <p className="text-sm text-gray-500 mt-1">{t('view_biometric_history')}</p>
         </div>
-        <button className="bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 px-4 py-2 rounded-xl flex items-center gap-2 text-sm font-medium transition-colors shadow-sm">
+        <button className="bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 px-4 py-2 rounded-xl flex items-center justify-center gap-2 text-sm font-medium transition-colors shadow-sm w-full sm:w-auto">
           <Download size={18} />
-          {t('export_csv')}
+          <span className="whitespace-nowrap">{t('export_csv')}</span>
         </button>
       </div>
 

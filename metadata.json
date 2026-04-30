@@ -1,6 +1,6 @@
 {
-  "name": "Remix: ShopUniversities Attendance",
-  "description": "Système de gestion de présence biométrique pour l\u0027école internationale ShopUniversities.",
+  "name": "ShopUniversities Attendance System",
+  "description": "Système de gestion de présence biométrique et académique pour l'école internationale ShopUniversities, incluant suivi PWA et rapports.",
   "requestFramePermissions": [
     "camera",
     "microphone",
