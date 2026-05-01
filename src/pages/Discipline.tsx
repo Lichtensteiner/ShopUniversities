@@ -19,6 +19,7 @@ import {
   XCircle
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import SuccessModal from '../components/SuccessModal';
 
 interface Sanction {
   id: string;
@@ -42,6 +43,8 @@ const Discipline: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState('all');
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
+  const [successInfo, setSuccessInfo] = useState({ title: '', message: '' });
   const [isSaving, setIsSaving] = useState(false);
   const [newSanction, setNewSanction] = useState({
     studentId: '',
@@ -108,6 +111,11 @@ const Discipline: React.FC = () => {
         reason: '',
         duration: '',
       });
+      setSuccessInfo({
+        title: "Sanction Enregistrée !",
+        message: `La mesure disciplinaire a été ajoutée au dossier de l'élève.`
+      });
+      setShowSuccess(true);
     } catch (error) {
       console.error("Error saving sanction:", error);
     } finally {
@@ -356,6 +364,13 @@ const Discipline: React.FC = () => {
           </div>
         )}
       </AnimatePresence>
+      {/* Success Modal */}
+      <SuccessModal 
+        isOpen={showSuccess}
+        onClose={() => setShowSuccess(false)}
+        title={successInfo.title}
+        message={successInfo.message}
+      />
     </div>
   );
 };

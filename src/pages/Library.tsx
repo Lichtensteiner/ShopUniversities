@@ -13,13 +13,15 @@ import {
   History,
   Barcode,
   Library as LibraryIcon,
-  Filter,
-  User,
-  ArrowRightLeft
+  FileText,
+  ExternalLink,
+  Download,
+  User
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useAuth } from '../contexts/AuthContext';
+import SuccessModal from '../components/SuccessModal';
 
 interface BookItem {
   id: string;
@@ -33,6 +35,7 @@ interface BookItem {
   currentLoanId?: string;
   dueDate?: any;
   addedAt: any;
+  pdfUrl?: string;
 }
 
 interface LoanRecord {
@@ -56,6 +59,8 @@ export default function Library() {
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
   const [activeTab, setActiveTab] = useState<'catalog' | 'loans'>('catalog');
+  const [showSuccess, setShowSuccess] = useState(false);
+  const [successInfo, setSuccessInfo] = useState({ title: '', message: '' });
   
   const isAdmin = currentUser?.role === 'admin' || currentUser?.role === 'personnel administratif';
 
@@ -65,6 +70,7 @@ export default function Library() {
     author: '',
     isbn: '',
     category: 'Général',
+    pdfUrl: '',
   });
 
   useEffect(() => {
@@ -96,7 +102,12 @@ export default function Library() {
         addedAt: serverTimestamp()
       });
       setShowAddModal(false);
-      setNewBook({ title: '', author: '', isbn: '', category: 'Général' });
+      setNewBook({ title: '', author: '', isbn: '', category: 'Général', pdfUrl: '' });
+      setSuccessInfo({
+        title: "Livre Ajouté !",
+        message: "L'ouvrage a été ajouté au catalogue avec succès."
+      });
+      setShowSuccess(true);
     } catch (error) {
       console.error("Error adding book:", error);
     }
@@ -233,15 +244,24 @@ export default function Library() {
                   className="bg-white dark:bg-gray-800 p-6 rounded-[2rem] border border-gray-100 dark:border-gray-700 shadow-sm flex flex-col gap-4 group hover:shadow-md transition-all"
                 >
                   <div className="flex justify-between items-start">
-                    <div className="p-3 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-2xl group-hover:scale-110 transition-transform">
-                      <BookOpen size={24} />
+                    <div className="flex gap-2">
+                      <div className="p-3 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-2xl group-hover:scale-110 transition-transform">
+                        <BookOpen size={24} />
+                      </div>
+                      {book.pdfUrl && (
+                        <div className="p-3 bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-2xl">
+                          <FileText size={24} />
+                        </div>
+                      )}
                     </div>
-                    <div className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${
-                      book.status === 'available' 
-                      ? 'bg-green-100 text-green-700 dark:bg-green-900/30' 
-                      : 'bg-orange-100 text-orange-700 dark:bg-orange-900/30'
-                    }`}>
-                      {book.status === 'available' ? 'Disponible' : 'Emprunté'}
+                    <div className="flex flex-col items-end gap-2">
+                      <div className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${
+                        book.status === 'available' 
+                        ? 'bg-green-100 text-green-700 dark:bg-green-900/30' 
+                        : 'bg-orange-100 text-orange-700 dark:bg-orange-900/30'
+                      }`}>
+                        {book.status === 'available' ? 'Disponible' : 'Emprunté'}
+                      </div>
                     </div>
                   </div>
 
@@ -252,10 +272,17 @@ export default function Library() {
                        <span className="px-2 py-1 bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 text-[10px] font-bold rounded-lg border border-gray-200 dark:border-gray-600">
                         {book.category}
                       </span>
-                      {book.isbn && (
-                        <span className="flex items-center gap-1 text-[10px] text-gray-400 font-mono italic">
-                          <Barcode size={10} /> {book.isbn}
-                        </span>
+                      {book.pdfUrl && (
+                        <div className="flex items-center gap-2 mt-2">
+                           <a 
+                             href={book.pdfUrl} 
+                             target="_blank" 
+                             rel="noopener noreferrer"
+                             className="flex items-center gap-2 px-3 py-1.5 bg-red-50 dark:bg-red-950/30 text-red-600 dark:text-red-400 rounded-lg text-xs font-bold hover:bg-red-100 transition-all border border-red-100 dark:border-red-900"
+                           >
+                             <Download size={14} /> PDF Disponible
+                           </a>
+                        </div>
                       )}
                     </div>
                   </div>
@@ -410,6 +437,21 @@ export default function Library() {
                 </div>
               </div>
 
+              <div>
+                <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-1 ml-1">Lien du Document PDF (Optionnel)</label>
+                <div className="relative">
+                  <FileText className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                  <input
+                    type="url"
+                    value={newBook.pdfUrl}
+                    onChange={(e) => setNewBook({ ...newBook, pdfUrl: e.target.value })}
+                    className="w-full bg-gray-50 dark:bg-gray-900 border-none rounded-2xl pl-10 pr-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                    placeholder="https://exemple.com/livre.pdf"
+                  />
+                </div>
+                <p className="text-[10px] text-gray-500 mt-2 italic px-2">Vous pouvez coller un lien Google Drive, Dropbox ou un serveur de fichiers interne.</p>
+              </div>
+
               <button 
                 type="submit"
                 className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-black shadow-lg shadow-indigo-200 dark:shadow-none hover:scale-[1.02] active:scale-[0.98] transition-all mt-6"
@@ -420,6 +462,13 @@ export default function Library() {
           </motion.div>
         </div>
       )}
+      {/* Success Modal */}
+      <SuccessModal 
+        isOpen={showSuccess}
+        onClose={() => setShowSuccess(false)}
+        title={successInfo.title}
+        message={successInfo.message}
+      />
     </div>
   );
 }

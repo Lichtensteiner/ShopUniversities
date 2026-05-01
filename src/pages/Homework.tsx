@@ -20,6 +20,7 @@ import {
   RefreshCw
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import SuccessModal from '../components/SuccessModal';
 
 interface HomeworkItem {
   id: string;
@@ -42,6 +43,8 @@ const Homework: React.FC = () => {
   const [homework, setHomework] = useState<HomeworkItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
+  const [successInfo, setSuccessInfo] = useState({ title: '', message: '' });
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
@@ -188,6 +191,11 @@ const Homework: React.FC = () => {
         setSelectedFile(null);
         setUploadProgress(null);
         setUploading(false);
+        setSuccessInfo({
+          title: "Devoir Publié !",
+          message: `Le travail a été assigné à la classe sélectionnée.`
+        });
+        setShowSuccess(true);
       }, 500);
     } catch (error) {
       console.error("Error adding homework:", error);
@@ -480,6 +488,13 @@ const Homework: React.FC = () => {
           </div>
         )}
       </AnimatePresence>
+      {/* Success Modal */}
+      <SuccessModal 
+        isOpen={showSuccess}
+        onClose={() => setShowSuccess(false)}
+        title={successInfo.title}
+        message={successInfo.message}
+      />
     </div>
   );
 };

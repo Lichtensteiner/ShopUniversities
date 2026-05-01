@@ -50,6 +50,7 @@ import {
   ComposedChart,
   Line
 } from 'recharts';
+import SuccessModal from '../components/SuccessModal';
 
 interface Payment {
   id: string;
@@ -141,6 +142,8 @@ const Finance: React.FC = () => {
 
   const [showAddModal, setShowAddModal] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
+  const [successInfo, setSuccessInfo] = useState({ title: '', message: '' });
   const [isSaving, setIsSaving] = useState(false);
   const [newPayment, setNewPayment] = useState({
     studentId: '',
@@ -273,6 +276,11 @@ const Finance: React.FC = () => {
         notes: '',
         reference: ''
       });
+      setSuccessInfo({
+        title: "Paiement Enregistré !",
+        message: `Le paiement de ${parseFloat(newPayment.amount).toLocaleString()} FCFA a été validé.`
+      });
+      setShowSuccess(true);
     } catch (error) {
       console.error("Error saving payment:", error);
     } finally {
@@ -1088,6 +1096,13 @@ const Finance: React.FC = () => {
           </div>
         )}
       </AnimatePresence>
+
+      <SuccessModal 
+        isOpen={showSuccess}
+        onClose={() => setShowSuccess(false)}
+        title={successInfo.title}
+        message={successInfo.message}
+      />
     </div>
   );
 };

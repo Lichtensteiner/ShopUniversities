@@ -5,6 +5,8 @@ import { initializeApp, getApp, getApps, deleteApp } from 'firebase/app';
 import { getAuth, createUserWithEmailAndPassword, signOut } from 'firebase/auth';
 import { db, isFirebaseConfigured, firebaseConfig } from '../lib/firebase';
 import { useLanguage } from '../contexts/LanguageContext';
+import SuccessModal from '../components/SuccessModal';
+import { motion, AnimatePresence } from 'motion/react';
 
 export default function Users() {
   const { t, tData } = useLanguage();
@@ -22,6 +24,8 @@ export default function Users() {
   const [editUser, setEditUser] = useState<any>(null);
   const [deleteUser, setDeleteUser] = useState<any>(null);
   const [showAddUserModal, setShowAddUserModal] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
+  const [successInfo, setSuccessInfo] = useState({ title: '', message: '' });
   const [showPassword, setShowPassword] = useState(false);
   const [showNotificationModal, setShowNotificationModal] = useState(false);
   const [notificationData, setNotificationData] = useState({ title: '', message: '', type: 'info' });
@@ -180,6 +184,11 @@ export default function Users() {
       
       setShowAddUserModal(false);
       setNewUser({ nom: '', prenom: '', email: '', password: '', role: 'élève', classe: '', classes: [], matiere: '', matieres: [], matricule: '', contact: '', address: '', gender: 'not_specified', dateNaissance: '', lieuNaissance: '', diploma: '', experience_years: '', age: '', house_id: '' });
+      setSuccessInfo({
+        title: "Compte Créé !",
+        message: `Le profil de ${newUser.prenom} ${newUser.nom} a été généré avec succès.`
+      });
+      setShowSuccess(true);
     } catch (err: any) {
       console.error(err);
       if (err.code === 'auth/email-already-in-use') {
@@ -1609,6 +1618,13 @@ export default function Users() {
         </div>
       )}
 
+      {/* Success Modal */}
+      <SuccessModal 
+        isOpen={showSuccess}
+        onClose={() => setShowSuccess(false)}
+        title={successInfo.title}
+        message={successInfo.message}
+      />
     </div>
   );
 }

@@ -23,6 +23,7 @@ import {
   Clock
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import SuccessModal from '../components/SuccessModal';
 import { 
   LineChart, 
   Line, 
@@ -63,6 +64,8 @@ const Grades: React.FC = () => {
   const [selectedSubject, setSelectedSubject] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
+  const [successInfo, setSuccessInfo] = useState({ title: '', message: '' });
   const [editingGrade, setEditingGrade] = useState<Grade | null>(null);
   const [viewingGrade, setViewingGrade] = useState<Grade | null>(null);
   const [students, setStudents] = useState<any[]>([]);
@@ -281,6 +284,13 @@ const Grades: React.FC = () => {
         classId: '',
         type: 'interrogation'
       });
+      setSuccessInfo({
+        title: editingGrade ? "Note Mise à Jour !" : "Note Enregistrée !",
+        message: editingGrade 
+          ? "Les modifications ont été sauvegardées avec succès." 
+          : "La nouvelle évaluation a été ajoutée au dossier de l'élève."
+      });
+      setShowSuccess(true);
     } catch (error) {
       console.error("Error saving grade:", error);
     } finally {
@@ -952,6 +962,12 @@ const Grades: React.FC = () => {
           </div>
         )}
       </AnimatePresence>
+      <SuccessModal 
+        isOpen={showSuccess}
+        onClose={() => setShowSuccess(false)}
+        title={successInfo.title}
+        message={successInfo.message}
+      />
     </div>
   );
 };
