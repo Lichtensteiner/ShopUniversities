@@ -11,6 +11,7 @@ import {
   Plus, 
   TrendingUp, 
   TrendingDown, 
+  Utensils,
   Users, 
   AlertCircle,
   CheckCircle2,
@@ -28,11 +29,10 @@ import {
   Coins,
   Briefcase,
   FileText,
+  Printer,
   X
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-// @ts-ignore
-import html2pdf from 'html2pdf.js';
 import { 
   BarChart, 
   Bar, 
@@ -68,6 +68,7 @@ const Finance: React.FC = () => {
   const { currentUser } = useAuth();
   const { t, language } = useLanguage();
   const [payments, setPayments] = useState<Payment[]>([]);
+  const [canteenTransactions, setCanteenTransactions] = useState<any[]>([]);
   const [students, setStudents] = useState<any[]>([]);
   const [teachers, setTeachers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -92,7 +93,7 @@ const Finance: React.FC = () => {
         const monthName = months[date.getMonth()];
         if (p.status === 'paid') {
           monthlyMap[monthName].revenue += p.amount;
-          monthlyMap[monthName].net += p.amount * 0.45; // Simulated net profit of 45% based on real revenue
+          monthlyMap[monthName].net += p.amount * 0.45;
           monthlyMap[monthName].count += 1;
         }
       }
@@ -104,6 +105,19 @@ const Finance: React.FC = () => {
                          p.type === 'canteen' ? 'Cantine' : 
                          p.type === 'transport' ? 'Transport' : 'Autre';
         typeMap[typeLabel] = (typeMap[typeLabel] || 0) + p.amount;
+      }
+    });
+
+    // Add Canteen Revenue from Transactions
+    canteenTransactions.forEach(t => {
+      if (t.timestamp?.toDate && t.type === 'topup') {
+        const date = t.timestamp.toDate();
+        const monthName = months[date.getMonth()];
+        monthlyMap[monthName].revenue += t.amount;
+        monthlyMap[monthName].net += t.amount * 0.30; // 30% margin for canteen
+        monthlyMap[monthName].count += 1;
+
+        typeMap['Cantine'] = (typeMap['Cantine'] || 0) + t.amount;
       }
     });
 
@@ -127,7 +141,6 @@ const Finance: React.FC = () => {
 
   const [showAddModal, setShowAddModal] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
-  const [isExporting, setIsExporting] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [newPayment, setNewPayment] = useState({
     studentId: '',
@@ -171,60 +184,70 @@ const Finance: React.FC = () => {
     };
 
     fetchData();
-    return () => unsubscribe();
+
+    // Subscribe to Canteen Transactions
+    const unsubscribeCanteen = onSnapshot(collection(db, 'canteen_transactions'), (snap) => {
+      const transData = snap.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      setCanteenTransactions(transData);
+    });
+
+    return () => {
+      unsubscribe();
+      unsubscribeCanteen();
+    };
   }, [currentUser]);
 
-  const filteredPayments = payments.filter(p => {
+  const unifiedTransactions = React.useMemo(() => {
+    const schoolPayments = payments.map(p => ({
+      id: p.id,
+      studentName: p.studentName,
+      amount: p.amount,
+      type: p.type,
+      status: p.status,
+      date: p.date,
+      method: p.method,
+      reference: p.reference,
+      isCanteen: false
+    }));
+
+    const topups = canteenTransactions.filter(t => t.type === 'topup').map(t => {
+      const student = students.find(s => s.id === t.userId);
+      return {
+        id: t.id,
+        studentName: student ? `${student.prenom} ${student.nom}` : 'Utilisateur Cantine',
+        amount: t.amount,
+        type: 'canteen' as const,
+        status: 'paid' as const,
+        date: t.timestamp,
+        method: 'card' as const,
+        reference: `RECH-${t.id.substring(0, 4)}`,
+        isCanteen: true
+      };
+    });
+
+    const combined = [...schoolPayments, ...topups];
+    return combined.sort((a, b) => {
+      const dateA = a.date?.toDate ? a.date.toDate() : new Date();
+      const dateB = b.date?.toDate ? b.date.toDate() : new Date();
+      return dateB.getTime() - dateA.getTime();
+    });
+  }, [payments, canteenTransactions, students]);
+
+  const filteredPayments = unifiedTransactions.filter(p => {
     const matchesSearch = p.studentName.toLowerCase().includes(searchTerm.toLowerCase()) || 
                          p.reference?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesType = filterType === 'all' || p.type === filterType;
     return matchesSearch && matchesType;
   });
 
-  const totalRevenue = payments.reduce((acc, p) => acc + (p.status === 'paid' ? p.amount : 0), 0);
+  const totalRevenue = payments.reduce((acc, p) => acc + (p.status === 'paid' ? p.amount : 0), 0) + 
+                       canteenTransactions.reduce((acc, t) => acc + (t.type === 'topup' ? t.amount : 0), 0);
   const pendingRevenue = payments.reduce((acc, p) => acc + (p.status === 'pending' ? p.amount : 0), 0);
   const overdueRevenue = payments.reduce((acc, p) => acc + (p.status === 'overdue' ? p.amount : 0), 0);
-
-  const handleExportPDF = async () => {
-    const element = document.getElementById('printable-report');
-    if (!element) return;
-
-    setIsExporting(true);
-    
-    try {
-      // Temporarily add a class to body to help with styling during capture if needed
-      document.body.classList.add('pdf-export-ongoing');
-      
-      const opt = {
-        margin: [5, 5, 5, 5],
-        filename: `Rapport_Financier_ShopUniversities_${new Date().getFullYear()}.pdf`,
-        image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { 
-          scale: 2, 
-          useCORS: true, 
-          logging: false,
-          letterRendering: true,
-          // This is key: ensure the window width is fixed to prevent layout shifts
-          windowWidth: element.clientWidth > 0 ? element.clientWidth : 1024,
-          // Ignore external elements that might cause issues
-          ignoreElements: (el: Element) => el.classList.contains('no-print')
-        },
-        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-        pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
-      };
-
-      // Ensure images and fonts are loaded
-      await new Promise(resolve => setTimeout(resolve, 500));
-
-      await html2pdf().set(opt).from(element).save();
-    } catch (error) {
-      console.error('Erreur détaillée exportation PDF:', error);
-      alert('Erreur: Les nouveaux formats de couleur CSS ne sont pas supportés par le générateur PDF. Veuillez utiliser l\'option "Imprimer" de votre navigateur et choisir "Enregistrer au format PDF" pour un résultat optimal.');
-    } finally {
-      document.body.classList.remove('pdf-export-ongoing');
-      setIsExporting(false);
-    }
-  };
+  const canteenTotalRevenue = canteenTransactions.reduce((acc, t) => acc + (t.type === 'topup' ? t.amount : 0), 0);
 
   const handleAddPayment = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -362,14 +385,16 @@ const Finance: React.FC = () => {
               className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700"
             >
               <div className="flex items-center justify-between mb-4">
-                <div className="p-2 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-lg">
-                  <AlertCircle size={24} />
+                <div className="p-2 bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 rounded-lg">
+                  <Utensils size={24} />
                 </div>
-                <ArrowDownRight className="text-red-500" size={20} />
+                <div className="flex items-center gap-1 text-xs font-bold text-orange-600 bg-orange-50 dark:bg-orange-900/20 px-2 py-1 rounded-full">
+                  Cantine
+                </div>
               </div>
-              <p className="text-sm text-gray-500 dark:text-gray-400">Impayés</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400">Revenus Cantine</p>
               <h3 className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
-                {overdueRevenue.toLocaleString()} FCFA
+                {canteenTotalRevenue.toLocaleString()} FCFA
               </h3>
             </motion.div>
 
@@ -380,13 +405,14 @@ const Finance: React.FC = () => {
               className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700"
             >
               <div className="flex items-center justify-between mb-4">
-                <div className="p-2 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-lg">
-                  <Users size={24} />
+                <div className="p-2 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-lg">
+                  <AlertCircle size={24} />
                 </div>
+                <ArrowDownRight className="text-red-500" size={20} />
               </div>
-              <p className="text-sm text-gray-500 dark:text-gray-400">Élèves à jour</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400">Impayés</p>
               <h3 className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
-                {students.length > 0 ? Math.round((payments.filter(p => p.status === 'paid').length / students.length) * 100) : 0}%
+                {overdueRevenue.toLocaleString()} FCFA
               </h3>
             </motion.div>
           </div>
@@ -459,8 +485,12 @@ const Finance: React.FC = () => {
                           {payment.reference && <div className="text-xs text-gray-500 dark:text-gray-400">Réf: {payment.reference}</div>}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <span className="px-2 py-1 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 rounded-md text-xs font-medium capitalize">
-                            {payment.type}
+                          <span className={`px-2 py-1 rounded-md text-xs font-medium capitalize ${
+                            payment.isCanteen 
+                              ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400' 
+                              : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
+                          }`}>
+                            {payment.type === 'canteen' ? 'Cantine' : payment.type}
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900 dark:text-white">
@@ -746,16 +776,11 @@ const Finance: React.FC = () => {
                     Retour
                   </button>
                   <button 
-                    onClick={handleExportPDF}
-                    disabled={isExporting}
-                    className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs font-bold text-gray-700 dark:text-white hover:bg-gray-50 transition-all shadow-sm disabled:opacity-50"
+                    onClick={() => window.print()}
+                    className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs font-bold text-gray-700 dark:text-white hover:bg-gray-50 transition-all shadow-sm"
                   >
-                    {isExporting ? (
-                      <Activity size={14} className="animate-spin text-indigo-600" />
-                    ) : (
-                      <Download size={14} className="text-indigo-600" />
-                    )}
-                    {isExporting ? 'Génération...' : 'Exporter PDF'}
+                    <Printer size={14} className="text-indigo-600" />
+                    Imprimer PDF
                   </button>
                   <button onClick={() => setShowReportModal(false)} className="text-gray-400 hover:text-gray-600">
                     <X size={24} />
@@ -768,13 +793,23 @@ const Finance: React.FC = () => {
                 <div className="flex flex-col sm:flex-row justify-between items-start gap-8 pb-8 border-b-2 border-gray-100 dark:border-gray-800">
                   <div className="space-y-3">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-black text-xl shadow-lg">SU</div>
-                      <h3 className="text-xl font-black text-gray-900 dark:text-white">ShopUniversities</h3>
+                      <div className="w-12 h-12 bg-indigo-600 rounded-xl flex items-center justify-center text-white font-black text-2xl shadow-lg shadow-indigo-200 dark:shadow-none">SU</div>
+                      <div>
+                        <h3 className="text-xl font-black text-gray-900 dark:text-white tracking-tight">ShopUniversities</h3>
+                        <p className="text-[9px] text-indigo-600 font-black uppercase tracking-[0.2em]">Excellence Académique</p>
+                      </div>
                     </div>
-                    <div className="text-[11px] text-gray-500 font-medium space-y-0.5">
-                      <p>Direction Administrative et Financière</p>
-                      <p>Service de la Comptabilité Scolaire</p>
-                      <p>contact@shopuniversities.com</p>
+                    <div className="text-[11px] text-gray-500 font-medium space-y-1">
+                      <p className="flex items-center gap-2"><span className="w-1 h-1 bg-gray-300 rounded-full" /> Direction Administrative et Financière</p>
+                      <p className="flex items-center gap-2"><span className="w-1 h-1 bg-gray-300 rounded-full" /> Service de la Comptabilité Scolaire</p>
+                      <div className="pt-2 flex flex-col gap-0.5 border-t border-gray-100 dark:border-gray-800 mt-2">
+                        <p>BP 12548 - Avenue de l'Innovation, Secteur 4</p>
+                        <p className="flex items-center gap-2"><span>📍</span> Dakar, Sénégal • Place de l'Indépendance</p>
+                        <p className="flex items-center gap-2"><span>📞</span> Support: +241 07 45 88 99 / +221 33 800 00 00</p>
+                        <p className="flex items-center gap-2"><span>✉️</span> Finance: finance@shopuniversities.com</p>
+                        <p className="flex items-center gap-2"><span>🌐</span> Web: www.shopuniversities.com</p>
+                        <p className="font-bold text-[9px] mt-1 p-1 bg-gray-50 dark:bg-gray-800 rounded border border-gray-100 dark:border-gray-700">ID Fiscal: SN-DKR-2024-B-12345 • Autorisation Ministère N°992/2024</p>
+                      </div>
                     </div>
                   </div>
                   <div className="text-left sm:text-right space-y-1 text-xs">
@@ -783,6 +818,28 @@ const Finance: React.FC = () => {
                     <p className="font-bold text-gray-900 dark:text-white"><span className="text-gray-400 font-medium tracking-widest uppercase">Période:</span> Année Académique 2024</p>
                   </div>
                 </div>
+
+                {/* Canteen Analytics Grid */}
+                <section>
+                  <h4 className="text-[10px] font-black text-orange-600 uppercase tracking-[0.3em] mb-4">EXTRA: FLUX DE TRÉSORERIE CANTINE</h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                     <div className="p-4 bg-orange-50 dark:bg-orange-950/20 rounded-2xl border border-orange-100 dark:border-orange-900">
+                        <div className="flex justify-between items-start mb-2">
+                           <Utensils className="text-orange-600" size={20} />
+                           <span className="text-[9px] font-black bg-orange-600 text-white px-2 py-0.5 rounded-full">EN TEMPS RÉEL</span>
+                        </div>
+                        <p className="text-xs text-orange-800 dark:text-orange-300 font-bold">Volume Total Rechargé</p>
+                        <p className="text-2xl font-black text-orange-900 dark:text-orange-100">{canteenTotalRevenue.toLocaleString()} FCFA</p>
+                     </div>
+                     <div className="p-4 bg-indigo-50 dark:bg-indigo-950/20 rounded-2xl border border-indigo-100 dark:border-indigo-900">
+                        <div className="flex justify-between items-start mb-2">
+                           <TrendingUp className="text-indigo-600" size={20} />
+                        </div>
+                        <p className="text-xs text-indigo-800 dark:text-indigo-300 font-bold">Evolution des Rechargements</p>
+                        <p className="text-2xl font-black text-indigo-900 dark:text-indigo-100">{canteenTransactions.filter(t => t.type === 'topup').length} <span className="text-[10px] font-normal">Transactions</span></p>
+                     </div>
+                  </div>
+                </section>
 
                 {/* Summary Section */}
                 <section>
@@ -902,16 +959,11 @@ const Finance: React.FC = () => {
                     Quitter
                   </button>
                   <button 
-                    onClick={handleExportPDF}
-                    disabled={isExporting}
-                    className="flex-[2] px-6 py-4 bg-indigo-600 text-white rounded-2xl font-black hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-500/20 flex items-center justify-center gap-2 uppercase tracking-widest text-sm disabled:opacity-50"
+                    onClick={() => window.print()}
+                    className="flex-[2] px-6 py-4 bg-indigo-600 text-white rounded-2xl font-black hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-500/20 flex items-center justify-center gap-2 uppercase tracking-widest text-sm"
                   >
-                    {isExporting ? (
-                      <Activity size={20} className="animate-spin" />
-                    ) : (
-                      <Download size={20} />
-                    )}
-                    {isExporting ? 'Génération du fichier...' : 'Télécharger le Rapport PDF'}
+                    <Printer size={20} />
+                    Imprimer le Rapport Officiel
                   </button>
                 </div>
               </div>

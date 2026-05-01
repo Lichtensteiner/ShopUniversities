@@ -2,7 +2,37 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { collection, query, where, getDocs, onSnapshot, updateDoc, doc, getDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
-import { LogOut, Clock, CheckCircle2, AlertCircle, RefreshCw, Bell, X, Info, Castle, Trash2, AlertTriangle, CheckCircle } from 'lucide-react';
+import { 
+  LogOut, 
+  Clock, 
+  CheckCircle2, 
+  AlertCircle, 
+  RefreshCw, 
+  Bell, 
+  X, 
+  Info, 
+  Castle, 
+  Trash2, 
+  AlertTriangle, 
+  CheckCircle,
+  Activity,
+  TrendingUp,
+  Award,
+  BookOpen
+} from 'lucide-react';
+import { 
+  AreaChart, 
+  Area, 
+  XAxis, 
+  YAxis, 
+  CartesianGrid, 
+  Tooltip, 
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  Cell
+} from 'recharts';
+import { motion, AnimatePresence } from 'motion/react';
 import LiveClock from '../components/LiveClock';
 import NewUserAnnouncement from '../components/NewUserAnnouncement';
 
@@ -20,11 +50,16 @@ export default function StudentDashboard() {
   const [attendance, setAttendance] = useState<any[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [selectedNotificationState, setSelectedNotificationState] = useState<Notification | null>(null);
+  const [grades, setGrades] = useState<any[]>([]);
+  const [homework, setHomework] = useState<any[]>([]);
+  const [house, setHouse] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
 
+  // Restore Missing Notification State Handling
   useEffect(() => {
     const handlePopState = (event: PopStateEvent) => {
       if (event.state && event.state.modal === 'notification') {
-        // We shouldn't really enter this state from a pop, but just in case
+        // Modal is open
       } else {
         setSelectedNotificationState(null);
       }
@@ -40,16 +75,78 @@ export default function StudentDashboard() {
     if (notif) {
       window.history.pushState({ modal: 'notification' }, '');
     } else {
-      // If we are closing it programmatically (not via back button), we should ideally go back
-      // But to keep it simple and avoid messing up history if they click "Close":
       if (window.history.state?.modal === 'notification') {
         window.history.back();
       }
     }
   };
 
-  const [house, setHouse] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    if (!currentUser) return;
+
+    // Fetch grades
+    const gradesQuery = query(collection(db, 'grades'), where('studentId', '==', currentUser.id));
+    const unsubscribeGrades = onSnapshot(gradesQuery, (snapshot) => {
+      const gradesData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      setGrades(gradesData);
+    });
+
+    // Fetch homework
+    const hwQuery = currentUser.classe 
+      ? query(collection(db, 'homework'), where('classId', '==', currentUser.classe))
+      : query(collection(db, 'homework'));
+    
+    const unsubscribeHw = onSnapshot(hwQuery, (snapshot) => {
+      setHomework(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    });
+
+    return () => {
+      unsubscribeGrades();
+      unsubscribeHw();
+    };
+  }, [currentUser]);
+
+  // Analytics Helpers
+  const calculateAverage = (gradeList: any[]) => {
+    if (gradeList.length === 0) return 0;
+    const totalWeightedScore = gradeList.reduce((acc, g) => acc + (g.score / g.maxScore * 20) * (g.coefficient || 1), 0);
+    const totalCoefficients = gradeList.reduce((acc, g) => acc + (g.coefficient || 1), 0);
+    return totalWeightedScore / totalCoefficients;
+  };
+
+  const getAnalyticsData = () => {
+    // 1. Evolution Data
+    const evolutionData = grades
+      .map(g => ({
+        date: g.date?.toDate ? g.date.toDate().toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' }) : 'N/A',
+        timestamp: g.date?.toDate ? g.date.toDate().getTime() : 0,
+        score: parseFloat(((g.score / g.maxScore) * 20).toFixed(2)),
+      }))
+      .sort((a, b) => a.timestamp - b.timestamp);
+
+    // 2. Homework Data
+    const completedCount = homework.filter(h => h.completedBy?.includes(currentUser?.id)).length;
+    const pendingCount = homework.length - completedCount;
+    const hwData = [
+      { name: 'Terminés', value: completedCount, color: '#10b981' },
+      { name: 'À faire', value: pendingCount, color: '#6366f1' }
+    ];
+
+    // 3. Subject Data
+    const subjectAverages = Array.from(new Set(grades.map(g => g.subject))).map(subject => {
+      const sGrades = grades.filter(g => g.subject === subject);
+      return {
+        subject,
+        average: calculateAverage(sGrades),
+        interrogations: sGrades.filter(g => g.type === 'interrogation').length,
+        evaluations: sGrades.filter(g => g.type === 'evaluation').length
+      };
+    }).sort((a, b) => b.average - a.average);
+
+    return { evolutionData, hwData, subjectAverages };
+  };
+
+  const { evolutionData, hwData, subjectAverages } = getAnalyticsData();
 
   useEffect(() => {
     const fetchData = async () => {
@@ -143,6 +240,207 @@ export default function StudentDashboard() {
             <LogOut size={24} />
           </button>
         </div>
+
+        {/* Real-time Analytics Section */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Grade Evolution Chart */}
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="lg:col-span-2 bg-white p-6 rounded-3xl shadow-sm border border-gray-100"
+          >
+            <div className="flex items-center justify-between mb-8">
+              <div>
+                <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                  <Activity size={20} className="text-indigo-600" />
+                  Progression de mes notes
+                </h2>
+                <p className="text-xs text-gray-500">Moyenne sur 20 évolutive</p>
+              </div>
+              <div className="text-right">
+                <span className="text-2xl font-black text-indigo-600">{calculateAverage(grades).toFixed(2)}</span>
+                <p className="text-[10px] text-gray-400 font-bold uppercase tracking-tight">Moyenne Générale</p>
+              </div>
+            </div>
+
+            <div className="h-[250px] w-full">
+              {evolutionData.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={evolutionData}>
+                    <defs>
+                      <linearGradient id="colorScore" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#6366f1" stopOpacity={0.1}/>
+                        <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" opacity={0.5} />
+                    <XAxis 
+                      dataKey="date" 
+                      axisLine={false} 
+                      tickLine={false} 
+                      tick={{ fontSize: 10, fill: '#9ca3af' }}
+                      dy={10}
+                    />
+                    <YAxis 
+                      domain={[0, 20]} 
+                      axisLine={false} 
+                      tickLine={false} 
+                      tick={{ fontSize: 10, fill: '#9ca3af' }}
+                    />
+                    <Tooltip 
+                      contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)', backgroundColor: 'white' }}
+                      itemStyle={{ fontWeight: 'bold' }}
+                    />
+                    <Area 
+                      type="monotone" 
+                      dataKey="score" 
+                      name="Moyenne"
+                      stroke="#6366f1" 
+                      strokeWidth={3} 
+                      fillOpacity={1} 
+                      fill="url(#colorScore)" 
+                      animationDuration={1500}
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="h-full flex flex-col items-center justify-center text-gray-400 gap-3 border-2 border-dashed border-gray-100 rounded-2xl">
+                  <TrendingUp size={48} className="opacity-20" />
+                  <p className="text-sm font-medium">En attente de vos premières évaluations</p>
+                </div>
+              )}
+            </div>
+          </motion.div>
+
+          {/* Homework Progress and Subject Averages */}
+          <div className="space-y-6">
+            <motion.div 
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100"
+            >
+              <h2 className="text-sm font-black text-gray-900 uppercase tracking-widest mb-6 flex items-center gap-2">
+                <CheckCircle2 size={16} className="text-emerald-500" />
+                Sérieux aux devoirs
+              </h2>
+              <div className="h-[100px] w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={hwData} layout="vertical">
+                    <XAxis type="number" hide />
+                    <YAxis dataKey="name" type="category" hide />
+                    <Bar dataKey="value" radius={[0, 10, 10, 0]} barSize={25}>
+                      {hwData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+              <div className="flex justify-between mt-4">
+                {hwData.map((d, i) => (
+                  <div key={i} className="text-center">
+                    <div className="text-xl font-black" style={{ color: d.color }}>{d.value}</div>
+                    <div className="text-[10px] text-gray-400 font-bold uppercase tracking-tight">{d.name}</div>
+                  </div>
+                ))}
+              </div>
+            </motion.div>
+
+            <motion.div 
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.1 }}
+              className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100"
+            >
+              <h2 className="text-sm font-black text-gray-900 uppercase tracking-widest mb-6 flex items-center gap-2">
+                <Award size={16} className="text-amber-500" />
+                Moyennes par Matière
+              </h2>
+              <div className="space-y-4 max-h-[150px] overflow-y-auto pr-2 custom-scrollbar">
+                {subjectAverages.length > 0 ? subjectAverages.map((sub, i) => (
+                  <div key={i} className="space-y-1">
+                    <div className="flex justify-between text-xs">
+                      <span className="font-bold text-gray-700">{sub.subject}</span>
+                      <span className={`font-black ${sub.average >= 12 ? 'text-green-600' : 'text-amber-600'}`}>{sub.average.toFixed(2)}/20</span>
+                    </div>
+                    <div className="h-1.5 w-full bg-gray-50 rounded-full overflow-hidden border border-gray-100">
+                      <motion.div 
+                        initial={{ width: 0 }}
+                        animate={{ width: `${(sub.average / 20) * 100}%` }}
+                        className={`h-full rounded-full ${sub.average >= 12 ? 'bg-green-500' : 'bg-amber-500'}`}
+                        transition={{ duration: 1, delay: i * 0.1 }}
+                      />
+                    </div>
+                  </div>
+                )) : (
+                  <p className="text-center text-xs text-gray-400 py-4 italic">En attente de notation</p>
+                )}
+              </div>
+            </motion.div>
+          </div>
+        </div>
+
+        {/* Assessment Volume Chart */}
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100"
+        >
+          <div className="flex items-center justify-between mb-8">
+            <div>
+              <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                <BookOpen size={20} className="text-indigo-600" />
+                Volume d'évaluations par matière
+              </h2>
+              <p className="text-xs text-gray-500">Nombre d'interrogations et d'évaluations rattachées</p>
+            </div>
+            <div className="flex gap-4">
+              <div className="flex items-center gap-1.5">
+                <div className="w-2.5 h-2.5 rounded-full bg-indigo-500"></div>
+                <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Interrogations</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <div className="w-2.5 h-2.5 rounded-full bg-emerald-500"></div>
+                <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Evaluations</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="h-[300px] w-full">
+            {subjectAverages.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={subjectAverages} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
+                  <XAxis 
+                    dataKey="subject" 
+                    axisLine={false} 
+                    tickLine={false} 
+                    tick={{ fontSize: 10, fill: '#9ca3af', fontWeight: 'bold' }}
+                    interval={0}
+                  />
+                  <YAxis 
+                    axisLine={false} 
+                    tickLine={false} 
+                    tick={{ fontSize: 10, fill: '#9ca3af' }}
+                    allowDecimals={false}
+                  />
+                  <Tooltip 
+                    cursor={{ fill: '#f9fafb' }}
+                    contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
+                  />
+                  <Bar dataKey="interrogations" name="Interrogations" fill="#6366f1" stackId="a" radius={[0, 0, 0, 0]} barSize={40} />
+                  <Bar dataKey="evaluations" name="Evaluations" fill="#14b8a6" stackId="a" radius={[10, 10, 0, 0]} barSize={40} />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-full flex flex-col items-center justify-center text-gray-400 gap-3 border-2 border-dashed border-gray-100 rounded-2xl">
+                <BookOpen size={48} className="opacity-20" />
+                <p className="text-sm font-medium">Aucune donnée d'évaluation disponible</p>
+              </div>
+            )}
+          </div>
+        </motion.div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2 space-y-4">

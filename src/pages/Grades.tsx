@@ -17,9 +17,28 @@ import {
   UserCircle,
   Edit2,
   Trash2,
-  Eye
+  Eye,
+  Activity,
+  CheckCircle2,
+  Clock
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { 
+  LineChart, 
+  Line, 
+  XAxis, 
+  YAxis, 
+  CartesianGrid, 
+  Tooltip, 
+  ResponsiveContainer,
+  AreaChart,
+  Area,
+  BarChart,
+  Bar,
+  Cell,
+  PieChart,
+  Pie
+} from 'recharts';
 
 interface Grade {
   id: string;
@@ -59,6 +78,28 @@ const Grades: React.FC = () => {
     type: 'interrogation' as 'interrogation' | 'evaluation'
   });
   const [isSaving, setIsSaving] = useState(false);
+  const [selectedStudentId, setSelectedStudentId] = useState<string>('');
+  const [homework, setHomework] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (!currentUser) return;
+    
+    // Auto-select self if student
+    if (currentUser.role === 'élève') {
+      setSelectedStudentId(currentUser.id);
+    }
+
+    // Fetch homework for monitoring
+    const hwQuery = currentUser.role === 'élève' && currentUser.classe
+      ? query(collection(db, 'homework'), where('classId', '==', currentUser.classe))
+      : query(collection(db, 'homework'));
+
+    const unsubscribeHw = onSnapshot(hwQuery, (snapshot) => {
+      setHomework(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    });
+
+    return () => unsubscribeHw();
+  }, [currentUser]);
 
   useEffect(() => {
     const fetchStudents = async () => {
@@ -131,6 +172,50 @@ const Grades: React.FC = () => {
   };
 
   const generalAverage = calculateAverage(grades);
+
+  // Prepare analytical data for charts
+  const getAnalyticsData = () => {
+    const studentGrades = selectedStudentId 
+      ? grades.filter(g => g.studentId === selectedStudentId)
+      : grades;
+
+    // 1. Evolution Data (Notes over time)
+    const evolutionData = studentGrades
+      .map(g => ({
+        date: g.date?.toDate ? g.date.toDate().toLocaleDateString(language, { day: '2-digit', month: '2-digit' }) : 'N/A',
+        timestamp: g.date?.toDate ? g.date.toDate().getTime() : 0,
+        score: parseFloat(((g.score / g.maxScore) * 20).toFixed(2)),
+        title: g.title,
+        subject: g.subject
+      }))
+      .sort((a, b) => a.timestamp - b.timestamp);
+
+    // 2. Homework Completion Data
+    const studentHomework = selectedStudentId 
+      ? homework.filter(h => true) // All homework for their class
+      : homework;
+    
+    const completedCount = studentHomework.filter(h => h.completedBy?.includes(selectedStudentId)).length;
+    const pendingCount = studentHomework.length - completedCount;
+
+    const hwData = [
+      { name: 'Terminés', value: completedCount, color: '#10b981' },
+      { name: 'À faire', value: pendingCount, color: '#6366f1' }
+    ];
+
+    // 3. Performance by Subject
+    const subjectAverages = Array.from(new Set(studentGrades.map(g => g.subject))).map(subject => {
+      const sGrades = studentGrades.filter(g => g.subject === subject);
+      return {
+        subject,
+        average: calculateAverage(sGrades)
+      };
+    }).sort((a, b) => b.average - a.average);
+
+    return { evolutionData, hwData, subjectAverages };
+  };
+
+  const { evolutionData, hwData, subjectAverages } = getAnalyticsData();
 
   const handleDeleteGrade = async (id: string) => {
     if (!window.confirm('Êtes-vous sûr de vouloir supprimer cette note ?')) return;
@@ -234,6 +319,156 @@ const Grades: React.FC = () => {
       </div>
 
       {/* Stats Overview */}
+      {/* Analytics Dashboard Section */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Main Career Evolution Chart */}
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="lg:col-span-2 bg-white dark:bg-gray-800 p-6 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-700"
+        >
+          <div className="flex items-center justify-between mb-8">
+            <div>
+              <h2 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                <Activity size={20} className="text-indigo-600" />
+                Courbe de Progression Académique
+              </h2>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Évolution de la moyenne sur 20 au fil des évaluations</p>
+            </div>
+            {(currentUser?.role === 'enseignant' || currentUser?.role === 'admin') && (
+              <select
+                value={selectedStudentId}
+                onChange={(e) => setSelectedStudentId(e.target.value)}
+                className="text-xs font-bold px-3 py-2 bg-gray-50 dark:bg-gray-700/50 border border-gray-100 dark:border-gray-700 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
+              >
+                <option value="">Tous les élèves</option>
+                {students.map(s => (
+                  <option key={s.id} value={s.id}>{s.prenom} {s.nom}</option>
+                ))}
+              </select>
+            )}
+          </div>
+
+          <div className="h-[300px] w-full">
+            {evolutionData.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={evolutionData}>
+                  <defs>
+                    <linearGradient id="colorScore" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#6366f1" stopOpacity={0.1}/>
+                      <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" opacity={0.5} />
+                  <XAxis 
+                    dataKey="date" 
+                    axisLine={false} 
+                    tickLine={false} 
+                    tick={{ fontSize: 10, fill: '#9ca3af' }}
+                    dy={10}
+                  />
+                  <YAxis 
+                    domain={[0, 20]} 
+                    axisLine={false} 
+                    tickLine={false} 
+                    tick={{ fontSize: 10, fill: '#9ca3af' }}
+                  />
+                  <Tooltip 
+                    contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)', backgroundColor: 'white' }}
+                    itemStyle={{ fontWeight: 'bold' }}
+                    cursor={{ stroke: '#6366f1', strokeWidth: 2, strokeDasharray: '5 5' }}
+                  />
+                  <Area 
+                    type="monotone" 
+                    dataKey="score" 
+                    name="Moyenne"
+                    stroke="#6366f1" 
+                    strokeWidth={3} 
+                    fillOpacity={1} 
+                    fill="url(#colorScore)" 
+                    animationDuration={1500}
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-full flex flex-col items-center justify-center text-gray-400 gap-3">
+                <TrendingUp size={48} className="opacity-20" />
+                <p className="text-sm font-medium">Pas assez de données pour générer le graphique</p>
+              </div>
+            )}
+          </div>
+        </motion.div>
+
+        {/* Homework & Subject Analysis */}
+        <div className="space-y-6">
+          {/* Homework Completion Bar */}
+          <motion.div 
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            className="bg-white dark:bg-gray-800 p-6 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-700"
+          >
+            <h2 className="text-sm font-black text-gray-900 dark:text-white uppercase tracking-widest mb-6 flex items-center gap-2">
+              <CheckCircle2 size={16} className="text-emerald-500" />
+              Sérieux aux devoirs
+            </h2>
+            <div className="h-[150px] w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={hwData} layout="vertical">
+                  <XAxis type="number" hide />
+                  <YAxis dataKey="name" type="category" hide />
+                  <Tooltip cursor={{ fill: 'transparent' }} />
+                  <Bar dataKey="value" radius={[0, 10, 10, 0]} barSize={25}>
+                    {hwData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="flex justify-between mt-4">
+              {hwData.map((d, i) => (
+                <div key={i} className="text-center">
+                  <div className="text-xl font-black" style={{ color: d.color }}>{d.value}</div>
+                  <div className="text-[10px] text-gray-400 font-bold uppercase tracking-tight">{d.name}</div>
+                </div>
+              ))}
+            </div>
+          </motion.div>
+
+          {/* Top Subjects Progress */}
+          <motion.div 
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.1 }}
+            className="bg-white dark:bg-gray-800 p-6 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-700"
+          >
+            <h2 className="text-sm font-black text-gray-900 dark:text-white uppercase tracking-widest mb-6 flex items-center gap-2">
+              <Award size={16} className="text-amber-500" />
+              Moyennes par Matière
+            </h2>
+            <div className="space-y-4 max-h-[200px] overflow-y-auto custom-scrollbar pr-2">
+              {subjectAverages.length > 0 ? subjectAverages.map((sub, i) => (
+                <div key={i} className="space-y-1">
+                  <div className="flex justify-between text-xs">
+                    <span className="font-bold text-gray-700 dark:text-gray-300">{sub.subject}</span>
+                    <span className={`font-black ${sub.average >= 12 ? 'text-green-600' : 'text-amber-600'}`}>{sub.average.toFixed(2)}/20</span>
+                  </div>
+                  <div className="h-1.5 w-full bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
+                    <motion.div 
+                      initial={{ width: 0 }}
+                      animate={{ width: `${(sub.average / 20) * 100}%` }}
+                      className={`h-full rounded-full ${sub.average >= 12 ? 'bg-green-500' : 'bg-amber-500'}`}
+                    />
+                  </div>
+                </div>
+              )) : (
+                <p className="text-center text-xs text-gray-400 py-4 italic">Aucune donnée disponible</p>
+              )}
+            </div>
+          </motion.div>
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <motion.div 
           initial={{ opacity: 0, y: 20 }}

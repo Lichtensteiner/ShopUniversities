@@ -28,60 +28,46 @@
 }
 
 @media print {
+  body {
+    background: white !important;
+    color: black !important;
+  }
+  
+  /* Selectively hide everything except the report */
   body * {
     visibility: hidden;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
+  
   #printable-report, #printable-report * {
     visibility: visible;
   }
+  
   #printable-report {
     position: absolute;
     left: 0;
     top: 0;
-    width: 100%;
+    width: 100% !important;
+    max-width: 100% !important;
     height: auto;
     overflow: visible !important;
     border: none !important;
     box-shadow: none !important;
     padding: 0 !important;
+    margin: 0 !important;
+    background: white !important;
   }
-  .no-print {
+  
+  .no-print, .no-print * {
     display: none !important;
+    visibility: hidden !important;
   }
-}
 
-/* Fallback for html2canvas to support Tailwind v4 oklch colors */
-#printable-report, #printable-report * {
-  --color-indigo-600: #4f46e5;
-  --color-emerald-600: #059669;
-  --color-red-500: #ef4444;
-  --color-gray-900: #111827;
-  --color-gray-500: #6b7280;
-  --color-gray-400: #9ca3af;
-  
-  /* Fallback colors for Tailwind v4 color variables */
-  --tw-text-opacity: 1 !important;
-  --tw-bg-opacity: 1 !important;
-  --tw-border-opacity: 1 !important;
-  
-  /* Standard colors for common Tailwind classes */
-  color-scheme: light !important;
-}
-
-#printable-report .text-indigo-600 { color: #4f46e5 !important; }
-#printable-report .bg-indigo-600 { background-color: #4f46e5 !important; }
-#printable-report .text-emerald-600 { color: #059669 !important; }
-#printable-report .bg-emerald-600 { background-color: #059669 !important; }
-#printable-report .text-red-500 { color: #ef4444 !important; }
-#printable-report .text-gray-900 { color: #111827 !important; }
-#printable-report .text-gray-500 { color: #6b7280 !important; }
-#printable-report .text-gray-400 { color: #9ca3af !important; }
-#printable-report .bg-gray-50 { background-color: #f9fafb !important; }
-#printable-report .bg-gray-800 { background-color: #1f2937 !important; }
-#printable-report .border-gray-100 { border-color: #f3f4f6 !important; }
-#printable-report .border-gray-800 { border-color: #1f2937 !important; }
-
-/* Reset modern CSS features that might break older parsers */
-#printable-report {
-  font-family: Arial, sans-serif !important;
+  /* Force light mode colors for printing even if the app is in dark mode */
+  #printable-report {
+    --tw-text-opacity: 1;
+    color: rgb(17 24 39) !important; /* gray-900 */
+    background-color: white !important;
+  }
 }
