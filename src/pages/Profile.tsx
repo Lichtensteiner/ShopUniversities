@@ -10,7 +10,7 @@ import { resizeImage } from '../lib/imageUtils';
 
 export default function Profile() {
   const { currentUser } = useAuth();
-  const { t, tData } = useLanguage();
+  const { t, language, tData } = useLanguage();
   
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
