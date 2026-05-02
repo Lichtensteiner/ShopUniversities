@@ -171,7 +171,7 @@ export default function Calendar() {
       handleCloseModal();
     } catch (error) {
       console.error('Error saving event:', error);
-      alert('Error saving event');
+      alert(t('error_saving_event'));
     }
   };
 
@@ -515,7 +515,7 @@ export default function Calendar() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    {t('event_date')} (Début) *
+                    {t('event_date')} ({t('start_label')}) *
                   </label>
                   <input
                     type="date"
@@ -527,7 +527,7 @@ export default function Calendar() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    {t('event_time')} (Début) *
+                    {t('event_time')} ({t('start_label')}) *
                   </label>
                   <input
                     type="time"
@@ -542,7 +542,7 @@ export default function Calendar() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    {t('event_date')} (Fin) *
+                    {t('event_date')} ({t('end_label')}) *
                   </label>
                   <input
                     type="date"
@@ -554,7 +554,7 @@ export default function Calendar() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    {t('event_time')} (Fin) *
+                    {t('event_time')} ({t('end_label')}) *
                   </label>
                   <input
                     type="time"

@@ -7,9 +7,9 @@ import { useLanguage } from '../contexts/LanguageContext';
 
 export default function Attendance() {
   const { currentUser } = useAuth();
-  const { t } = useLanguage();
+  const { t, language, tData } = useLanguage();
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterStatus, setFilterStatus] = useState('Tous');
+  const [filterStatus, setFilterStatus] = useState('all');
   const [attendance, setAttendance] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
@@ -142,7 +142,7 @@ export default function Attendance() {
         const friday = new Date(monday);
         friday.setDate(monday.getDate() + 4);
         
-        const weekString = `Semaine du ${monday.toLocaleDateString('fr-FR')} au ${friday.toLocaleDateString('fr-FR')}`;
+        const weekString = `${t('week_of')} ${monday.toLocaleDateString(language === 'fr' ? 'fr-FR' : 'en-US')} ${t('to')} ${friday.toLocaleDateString(language === 'fr' ? 'fr-FR' : 'en-US')}`;
         
         const reportQuery = query(collection(db, 'reports'), 
           where('user_id', '==', record.user_id), 
@@ -176,8 +176,8 @@ export default function Attendance() {
           });
 
           let analyse = t('perfect_attendance');
-          if (absences > 0) analyse = `Attention, ${absences} absence(s) enregistrée(s) cette semaine.`;
-          else if (retards > 0) analyse = `Présence régulière mais ${retards} retard(s) à corriger.`;
+          if (absences > 0) analyse = `${t('warning_label')}, ${absences} ${t('absences').toLowerCase()} ${t('recorded_this_week').toLowerCase()}.`;
+          else if (retards > 0) analyse = `${t('regular_attendance')}, ${retards} ${t('retard_label').toLowerCase()} ${t('to_correct').toLowerCase()}.`;
 
           await updateDoc(doc(db, 'reports', reportDoc.id), {
             tableau_presence: newTableau,
@@ -208,7 +208,7 @@ export default function Attendance() {
     const matchesSearch = record.user?.nom?.toLowerCase().includes(searchTerm.toLowerCase()) || 
                           record.user?.prenom?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                           record.user?.matricule?.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = filterStatus === 'Tous' || record.statut === filterStatus;
+    const matchesStatus = filterStatus === 'all' || record.statut === filterStatus;
     return matchesSearch && matchesStatus;
   });
 
@@ -253,9 +253,9 @@ export default function Attendance() {
               <select 
                 value={filterStatus}
                 onChange={(e) => setFilterStatus(e.target.value)}
-                className="bg-white border border-gray-200 text-gray-700 text-sm rounded-xl focus:ring-indigo-500 focus:border-indigo-500 block w-full p-2"
+                className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 text-sm rounded-xl focus:ring-indigo-500 focus:border-indigo-500 block w-full p-2"
               >
-                <option value="Tous">{t('all_statuses')}</option>
+                <option value="all">{t('all_statuses')}</option>
                 <option value="Présent">{t('present')}</option>
                 <option value="Retard">{t('late')}</option>
                 <option value="Absent">{t('absent')}</option>
@@ -273,38 +273,38 @@ export default function Attendance() {
                 <th scope="col" className="px-6 py-4 font-semibold">{t('role')}</th>
                 <th scope="col" className="px-6 py-4 font-semibold">{t('arrival')}</th>
                 <th scope="col" className="px-6 py-4 font-semibold">{t('departure')}</th>
-                <th scope="col" className="px-6 py-4 font-semibold text-center">État Actuel</th>
+                <th scope="col" className="px-6 py-4 font-semibold text-center">{t('current_state_label')}</th>
                 <th scope="col" className="px-6 py-4 font-semibold text-right">{t('status')}</th>
                 {currentUser?.role === 'admin' && <th scope="col" className="px-6 py-4 font-semibold text-right">{t('actions')}</th>}
               </tr>
             </thead>
             <tbody>
-              {loading ? (
-                <tr>
-                  <td colSpan={7} className="px-6 py-12 text-center">
-                    <RefreshCw className="animate-spin mx-auto text-indigo-600 mb-2" size={24} />
-                    <p className="text-gray-500">{t('loading_attendance')}</p>
-                  </td>
-                </tr>
-              ) : filteredAttendance.length === 0 ? (
-                <tr>
-                  <td colSpan={7} className="px-6 py-12 text-center text-gray-500">
-                    {t('no_records_found')} {!isFirebaseConfigured && t('please_configure_firebase')}
-                  </td>
-                </tr>
-              ) : (
+      {loading ? (
+        <tr>
+          <td colSpan={7} className="px-6 py-12 text-center">
+            <RefreshCw className="animate-spin mx-auto text-indigo-600 mb-2" size={24} />
+            <p className="text-gray-500">{t('loading_attendance')}</p>
+          </td>
+        </tr>
+      ) : filteredAttendance.length === 0 ? (
+        <tr>
+          <td colSpan={7} className="px-6 py-12 text-center text-gray-500">
+            {t('no_records_found')} {!isFirebaseConfigured && t('please_configure_firebase')}
+          </td>
+        </tr>
+      ) : (
                 filteredAttendance.map((record) => (
                   editingId === record.id ? (
                     <tr key={record.id} className="bg-indigo-50/30 border-b border-indigo-50 transition-colors">
                       <td className="px-6 py-4 font-medium text-gray-900">
-                        {new Date(record.date).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' })}
+                        {record.date}
                       </td>
                       <td className="px-6 py-4">
                         <div className="font-medium text-gray-900">{record.user?.nom} {record.user?.prenom}</div>
                         <div className="text-xs text-gray-500">{record.user?.classe || record.user?.matricule || '-'}</div>
                       </td>
                       <td className="px-6 py-4">
-                        <span className="text-gray-600 capitalize">{record.user?.role}</span>
+                        <span className="text-gray-600 capitalize">{tData(`role_${record.user?.role}`)}</span>
                       </td>
                       <td className="px-6 py-4">
                         <input 
@@ -347,14 +347,14 @@ export default function Attendance() {
                   ) : (
                     <tr key={record.id} className="bg-white border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
                       <td className="px-6 py-4 font-medium text-gray-900">
-                        {new Date(record.date).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' })}
+                        {record.date}
                       </td>
                       <td className="px-6 py-4">
                         <div className="font-medium text-gray-900">{record.user?.nom} {record.user?.prenom}</div>
                         <div className="text-xs text-gray-500">{record.user?.classe || record.user?.matricule || '-'}</div>
                       </td>
                       <td className="px-6 py-4">
-                        <span className="text-gray-600 capitalize">{record.user?.role}</span>
+                        <span className="text-gray-600 capitalize">{tData(`role_${record.user?.role}`)}</span>
                       </td>
                       <td className="px-6 py-4">
                         {record.heure_arrivee ? (
@@ -374,12 +374,12 @@ export default function Attendance() {
                         <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest ${
                           record.current_state === 'présent' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'
                         }`}>
-                          {record.current_state || 'Inconnu'}
+                          {record.current_state === 'présent' ? t('present') : record.current_state === 'sorti' ? t('departure') : tData(record.current_state)}
                         </span>
                       </td>
                       <td className="px-6 py-4 text-right">
                         <span className={`px-2.5 py-1 rounded-full text-xs font-medium border ${getStatusColor(record.statut)}`}>
-                          {record.statut === 'Présent' ? t('present') : record.statut === 'Retard' ? t('late') : record.statut === 'Absent' ? t('absent') : record.statut}
+                          {tData(`status_${record.statut}`)}
                         </span>
                       </td>
                       {currentUser?.role === 'admin' && (

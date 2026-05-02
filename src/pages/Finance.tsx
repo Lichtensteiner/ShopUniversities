@@ -67,7 +67,7 @@ interface Payment {
 
 const Finance: React.FC = () => {
   const { currentUser } = useAuth();
-  const { t, language } = useLanguage();
+  const { t, language, tData } = useLanguage();
   const [payments, setPayments] = useState<Payment[]>([]);
   const [canteenTransactions, setCanteenTransactions] = useState<any[]>([]);
   const [students, setStudents] = useState<any[]>([]);
@@ -79,7 +79,11 @@ const Finance: React.FC = () => {
 
   // Real Data Aggregation for Analytics
   const analyticsData = React.useMemo(() => {
-    const months = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Août', 'Sept', 'Oct', 'Nov', 'Déc'];
+    const months = [
+      t('month_Jan'), t('month_Feb'), t('month_Mar_short'), t('month_Apr'), 
+      t('month_May_short'), t('month_Jun'), t('month_Jul'), t('month_Aug'), 
+      t('month_Sep'), t('month_Oct'), t('month_Nov'), t('month_Dec')
+    ];
     const monthlyMap: Record<string, { revenue: number, net: number, count: number }> = {};
     const typeMap: Record<string, number> = {};
 
@@ -101,24 +105,24 @@ const Finance: React.FC = () => {
 
       // Type distribution
       if (p.status === 'paid') {
-        const typeLabel = p.type === 'tuition' ? 'Scolarité' : 
-                         p.type === 'registration' ? 'Inscription' : 
-                         p.type === 'canteen' ? 'Cantine' : 
-                         p.type === 'transport' ? 'Transport' : 'Autre';
+        const typeLabel = p.type === 'tuition' ? t('tuition') : 
+                         p.type === 'registration' ? t('registration') : 
+                         p.type === 'canteen' ? t('canteen') : 
+                         p.type === 'transport' ? t('transport') : t('other_type');
         typeMap[typeLabel] = (typeMap[typeLabel] || 0) + p.amount;
       }
     });
 
     // Add Canteen Revenue from Transactions
-    canteenTransactions.forEach(t => {
-      if (t.timestamp?.toDate && t.type === 'topup') {
-        const date = t.timestamp.toDate();
+    canteenTransactions.forEach(tDoc => {
+      if (tDoc.timestamp?.toDate && tDoc.type === 'topup') {
+        const date = tDoc.timestamp.toDate();
         const monthName = months[date.getMonth()];
-        monthlyMap[monthName].revenue += t.amount;
-        monthlyMap[monthName].net += t.amount * 0.30; // 30% margin for canteen
+        monthlyMap[monthName].revenue += tDoc.amount;
+        monthlyMap[monthName].net += tDoc.amount * 0.30; // 30% margin for canteen
         monthlyMap[monthName].count += 1;
 
-        typeMap['Cantine'] = (typeMap['Cantine'] || 0) + t.amount;
+        typeMap[t('canteen')] = (typeMap[t('canteen')] || 0) + tDoc.amount;
       }
     });
 
@@ -277,8 +281,8 @@ const Finance: React.FC = () => {
         reference: ''
       });
       setSuccessInfo({
-        title: "Paiement Enregistré !",
-        message: `Le paiement de ${parseFloat(newPayment.amount).toLocaleString()} FCFA a été validé.`
+        title: t('payment_registered'),
+        message: t('payment_validated').replace('{amount}', parseFloat(newPayment.amount).toLocaleString())
       });
       setShowSuccess(true);
     } catch (error) {
@@ -291,7 +295,7 @@ const Finance: React.FC = () => {
   if (currentUser?.role !== 'admin') {
     return (
       <div className="flex items-center justify-center h-full text-gray-500">
-        Accès restreint aux administrateurs.
+        {t('admin_access_only')}
       </div>
     );
   }
@@ -304,7 +308,7 @@ const Finance: React.FC = () => {
             <Wallet className="text-indigo-600" />
             {t('finance')}
           </h1>
-          <p className="text-gray-500 dark:text-gray-400">Gestion des paiements et frais scolaires</p>
+          <p className="text-gray-500 dark:text-gray-400">{t('finance_management_desc')}</p>
         </div>
 
         <div className="flex items-center gap-2">
@@ -313,14 +317,14 @@ const Finance: React.FC = () => {
             className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors shadow-sm"
           >
             <FileText size={18} className="text-indigo-600" />
-            Rapport Financier
+            {t('financial_report')}
           </button>
           <button 
             onClick={() => setShowAddModal(true)}
             className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-xl text-sm font-medium hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-500/20"
           >
             <Plus size={18} />
-            Enregistrer un paiement
+            {t('record_payment')}
           </button>
         </div>
       </div>
@@ -333,7 +337,7 @@ const Finance: React.FC = () => {
             activeTab === 'transactions' ? 'text-indigo-600 dark:text-indigo-400' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
           }`}
         >
-          Transactions
+          {t('transactions')}
           {activeTab === 'transactions' && <motion.div layoutId="tab" className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-600 rounded-full" />}
         </button>
         <button 
@@ -342,7 +346,7 @@ const Finance: React.FC = () => {
             activeTab === 'analytics' ? 'text-indigo-600 dark:text-indigo-400' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
           }`}
         >
-          Analyses Financières (Bourse & Corporate)
+          {t('financial_analytics')}
           {activeTab === 'analytics' && <motion.div layoutId="tab" className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-600 rounded-full" />}
         </button>
       </div>
@@ -363,7 +367,7 @@ const Finance: React.FC = () => {
                 </div>
                 <ArrowUpRight className="text-green-500" size={20} />
               </div>
-              <p className="text-sm text-gray-500 dark:text-gray-400">Recettes Totales</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400">{t('total_revenue')}</p>
               <h3 className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
                 {totalRevenue.toLocaleString()} FCFA
               </h3>
@@ -380,7 +384,7 @@ const Finance: React.FC = () => {
                   <Clock size={24} />
                 </div>
               </div>
-              <p className="text-sm text-gray-500 dark:text-gray-400">En attente</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400">{t('pending')}</p>
               <h3 className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
                 {pendingRevenue.toLocaleString()} FCFA
               </h3>
@@ -397,10 +401,10 @@ const Finance: React.FC = () => {
                   <Utensils size={24} />
                 </div>
                 <div className="flex items-center gap-1 text-xs font-bold text-orange-600 bg-orange-50 dark:bg-orange-900/20 px-2 py-1 rounded-full">
-                  Cantine
+                  {t('canteen')}
                 </div>
               </div>
-              <p className="text-sm text-gray-500 dark:text-gray-400">Revenus Cantine</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400">{t('canteen_revenue')}</p>
               <h3 className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
                 {canteenTotalRevenue.toLocaleString()} FCFA
               </h3>
@@ -418,7 +422,7 @@ const Finance: React.FC = () => {
                 </div>
                 <ArrowDownRight className="text-red-500" size={20} />
               </div>
-              <p className="text-sm text-gray-500 dark:text-gray-400">Impayés</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400">{t('overdue')}</p>
               <h3 className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
                 {overdueRevenue.toLocaleString()} FCFA
               </h3>
@@ -431,7 +435,7 @@ const Finance: React.FC = () => {
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
               <input
                 type="text"
-                placeholder="Rechercher un élève ou une référence..."
+                placeholder={t('search_payment_placeholder')}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full pl-10 pr-4 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
@@ -444,12 +448,12 @@ const Finance: React.FC = () => {
                 onChange={(e) => setFilterType(e.target.value)}
                 className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-2 outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
               >
-                <option value="all">Tous les types</option>
-                <option value="tuition">Scolarité</option>
-                <option value="registration">Inscription</option>
-                <option value="canteen">Cantine</option>
-                <option value="transport">Transport</option>
-                <option value="other">Autre</option>
+                <option value="all">{t('all_types')}</option>
+                <option value="tuition">{t('tuition')}</option>
+                <option value="registration">{t('registration')}</option>
+                <option value="canteen">{t('canteen')}</option>
+                <option value="transport">{t('transport')}</option>
+                <option value="other">{t('other_type')}</option>
               </select>
             </div>
           </div>
@@ -460,12 +464,12 @@ const Finance: React.FC = () => {
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="bg-gray-50 dark:bg-gray-700/50 border-b border-gray-100 dark:border-gray-700">
-                    <th className="px-6 py-4 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Date</th>
-                    <th className="px-6 py-4 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Élève</th>
-                    <th className="px-6 py-4 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Type</th>
-                    <th className="px-6 py-4 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Montant</th>
-                    <th className="px-6 py-4 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Méthode</th>
-                    <th className="px-6 py-4 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Statut</th>
+                    <th className="px-6 py-4 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">{t('date')}</th>
+                    <th className="px-6 py-4 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">{t('students')}</th>
+                    <th className="px-6 py-4 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">{t('type')}</th>
+                    <th className="px-6 py-4 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">{t('amount')}</th>
+                    <th className="px-6 py-4 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">{t('method')}</th>
+                    <th className="px-6 py-4 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">{t('status')}</th>
                     <th className="px-6 py-4 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider"></th>
                   </tr>
                 </thead>
@@ -473,13 +477,13 @@ const Finance: React.FC = () => {
                   {loading ? (
                     <tr>
                       <td colSpan={7} className="px-6 py-12 text-center text-gray-500 dark:text-gray-400">
-                        Chargement des transactions...
+                        {t('loading')}
                       </td>
                     </tr>
                   ) : filteredPayments.length === 0 ? (
                     <tr>
                       <td colSpan={7} className="px-6 py-12 text-center text-gray-500 dark:text-gray-400">
-                        Aucune transaction trouvée.
+                        {t('no_data_available')}
                       </td>
                     </tr>
                   ) : (
@@ -490,7 +494,7 @@ const Finance: React.FC = () => {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="text-sm font-medium text-gray-900 dark:text-white">{payment.studentName}</div>
-                          {payment.reference && <div className="text-xs text-gray-500 dark:text-gray-400">Réf: {payment.reference}</div>}
+                          {payment.reference && <div className="text-xs text-gray-500 dark:text-gray-400">{t('reference_short')} {payment.reference}</div>}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <span className={`px-2 py-1 rounded-md text-xs font-medium capitalize ${
@@ -498,7 +502,7 @@ const Finance: React.FC = () => {
                               ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400' 
                               : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
                           }`}>
-                            {payment.type === 'canteen' ? 'Cantine' : payment.type}
+                            {payment.type === 'canteen' ? t('canteen') : tData(payment.type)}
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900 dark:text-white">
@@ -507,7 +511,7 @@ const Finance: React.FC = () => {
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
                             {payment.method === 'cash' ? <DollarSign size={14} /> : payment.method === 'card' ? <CreditCard size={14} /> : <History size={14} />}
-                            <span className="capitalize">{payment.method}</span>
+                            <span className="capitalize">{tData(payment.method)}</span>
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
@@ -517,7 +521,7 @@ const Finance: React.FC = () => {
                             'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
                           }`}>
                             {payment.status === 'paid' ? <CheckCircle2 size={12} /> : payment.status === 'pending' ? <Clock size={12} /> : <AlertCircle size={12} />}
-                            {payment.status === 'paid' ? 'Payé' : payment.status === 'pending' ? 'En attente' : 'En retard'}
+                            {tData(payment.status)}
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-right">
@@ -540,26 +544,26 @@ const Finance: React.FC = () => {
             <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="bg-indigo-600 p-6 rounded-3xl text-white shadow-xl shadow-indigo-200 dark:shadow-none">
               <div className="flex items-center justify-between mb-4">
                 <Building2 size={32} className="opacity-80" />
-                <span className="text-[10px] font-bold bg-white/20 px-2 py-1 rounded-full">VALEUR SCOLAIRE</span>
+                <span className="text-[10px] font-bold bg-white/20 px-2 py-1 rounded-full">{t('school_value').toUpperCase()}</span>
               </div>
-              <p className="text-indigo-100 text-sm">Cap. Boursière (Rétrétie)</p>
+              <p className="text-indigo-100 text-sm">{t('market_cap_reduc') || 'Cap. Boursière (Rétrétie)'}</p>
               <h3 className="text-3xl font-bold mt-1">{(totalRevenue * 5.2).toLocaleString()} <span className="text-sm font-normal">FCFA</span></h3>
               <div className="mt-4 flex items-center gap-2 text-xs text-indigo-100">
                 <ArrowUpRight size={14} />
-                <span>Basé sur {payments.length} transactions réelles</span>
+                <span>{t('based_on_tx').replace('{count}', payments.length.toString()) || `Basé sur ${payments.length} transactions réelles`}</span>
               </div>
             </motion.div>
 
             <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.1 }} className="bg-white dark:bg-gray-800 p-6 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-700">
               <div className="flex items-center justify-between mb-4">
                 <Coins size={32} className="text-amber-500" />
-                <span className="text-[10px] font-bold bg-amber-50 text-amber-600 px-2 py-1 rounded-full">RENDEMENT</span>
+                <span className="text-[10px] font-bold bg-amber-50 text-amber-600 px-2 py-1 rounded-full">{t('yield').toUpperCase()}</span>
               </div>
-              <p className="text-gray-500 text-sm">Rendement Dividende</p>
+              <p className="text-gray-500 text-sm">{t('dividend_yield') || 'Rendement Dividende'}</p>
               <h3 className="text-3xl font-bold mt-1 text-gray-900 dark:text-white">{(totalRevenue > 0 ? (pendingRevenue / totalRevenue * 10).toFixed(1) : 0)}<span className="text-sm font-normal">%</span></h3>
               <div className="mt-4 flex items-center gap-2 text-xs text-amber-600">
                 <Activity size={14} />
-                <span>Analyse du flux de trésorerie</span>
+                <span>{t('cashflow_analysis') || 'Analyse du flux de trésorerie'}</span>
               </div>
             </motion.div>
 
@@ -567,15 +571,15 @@ const Finance: React.FC = () => {
               <div className="flex items-center justify-between mb-4">
                 <Briefcase size={32} className="text-sky-500" />
               </div>
-              <p className="text-gray-500 text-sm">Employés Actifs</p>
+              <p className="text-gray-500 text-sm">{t('active_employees')}</p>
               <h3 className="text-3xl font-bold mt-1 text-gray-900 dark:text-white">{teachers.length}</h3>
               <div className="mt-4 flex h-1.5 w-full bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
                 <div className="h-full bg-sky-500" style={{ width: `${(teachers.length / (teachers.length + students.length)) * 100}%` }} />
                 <div className="h-full bg-indigo-400 w-[10%]" />
               </div>
               <div className="mt-2 flex justify-between text-[10px] text-gray-400">
-                <span>Enseignants</span>
-                <span>Administration</span>
+                <span>{t('teachers')}</span>
+                <span>{t('administrative_staff')}</span>
               </div>
             </motion.div>
 
@@ -583,9 +587,9 @@ const Finance: React.FC = () => {
               <div className="flex items-center justify-between mb-4">
                 <PieChartIcon size={32} className="text-emerald-500" />
               </div>
-              <p className="text-gray-500 text-sm">Actions Free-float</p>
+              <p className="text-gray-500 text-sm">{t('free_float_shares')}</p>
               <h3 className="text-3xl font-bold mt-1 text-gray-900 dark:text-white">75<span className="text-sm font-normal">%</span></h3>
-              <p className="text-[10px] text-gray-400 mt-2">Capital ouvert aux investisseurs</p>
+              <p className="text-[10px] text-gray-400 mt-2">{t('open_capital_desc') || 'Capital ouvert aux investisseurs'}</p>
             </motion.div>
           </div>
 
@@ -594,17 +598,17 @@ const Finance: React.FC = () => {
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-white dark:bg-gray-800 p-8 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-700">
               <div className="flex items-center justify-between mb-8">
                 <div>
-                  <h3 className="text-lg font-bold text-gray-900 dark:text-white">Évolution & Croissance Réelle</h3>
-                  <p className="text-sm text-gray-500">Basé sur les paiements enregistrés</p>
+                  <h3 className="text-lg font-bold text-gray-900 dark:text-white">{t('growth_evolution')}</h3>
+                  <p className="text-sm text-gray-500">{t('based_on_recorded_payments') || 'Basé sur les paiements enregistrés'}</p>
                 </div>
                 <div className="flex gap-2">
                   <div className="flex items-center gap-1">
                     <div className="w-3 h-3 rounded-full bg-indigo-500" />
-                    <span className="text-[10px] text-gray-400 uppercase">Revenu</span>
+                    <span className="text-[10px] text-gray-400 uppercase">{t('revenue')}</span>
                   </div>
                   <div className="flex items-center gap-1">
                     <div className="w-3 h-3 rounded-full bg-emerald-500" />
-                    <span className="text-[10px] text-gray-400 uppercase">Net (Est.)</span>
+                    <span className="text-[10px] text-gray-400 uppercase">{t('net_estimated') || 'Net (Est.)'}</span>
                   </div>
                 </div>
               </div>
@@ -624,8 +628,8 @@ const Finance: React.FC = () => {
                       contentStyle={{ backgroundColor: '#fff', borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
                       itemStyle={{ fontSize: '12px', fontWeight: 'bold' }}
                     />
-                    <Area type="monotone" dataKey="revenue" stroke="#6366f1" fillOpacity={1} fill="url(#colorRev)" strokeWidth={3} name="Revenu" />
-                    <Area type="monotone" dataKey="net" stroke="#10b981" fillOpacity={0} strokeWidth={2} strokeDasharray="5 5" name="Résultat Net" />
+                    <Area type="monotone" dataKey="revenue" stroke="#6366f1" fillOpacity={1} fill="url(#colorRev)" strokeWidth={3} name={t('revenue')} />
+                    <Area type="monotone" dataKey="net" stroke="#10b981" fillOpacity={0} strokeWidth={2} strokeDasharray="5 5" name={t('net_result') || 'Résultat Net'} />
                   </AreaChart>
                 </ResponsiveContainer>
               </div>
@@ -633,8 +637,8 @@ const Finance: React.FC = () => {
 
             {/* Revenue Breakdown */}
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="bg-white dark:bg-gray-800 p-8 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-700">
-              <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">Répartition des revenus</h3>
-              <p className="text-sm text-gray-500 mb-8">Par source de business (Réel)</p>
+              <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">{t('revenue_breakdown')}</h3>
+              <p className="text-sm text-gray-500 mb-8">{t('by_real_source') || 'Par source de business (Réel)'}</p>
               <div className="flex flex-col md:flex-row items-center gap-8">
                 <div className="h-[250px] w-full md:w-1/2">
                   <ResponsiveContainer width="100%" height="100%">
@@ -673,7 +677,7 @@ const Finance: React.FC = () => {
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <div className="lg:col-span-2 bg-white dark:bg-gray-800 p-8 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-700">
-              <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-6">Performance Annuelle vs Objectifs</h3>
+              <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-6">{t('annual_performance_vs_goals') || 'Performance Annuelle vs Objectifs'}</h3>
               <div className="h-[300px] w-full">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={analyticsData.evolutionData.slice(-3)}>
@@ -681,29 +685,29 @@ const Finance: React.FC = () => {
                     <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{fontSize: 12}} />
                     <YAxis axisLine={false} tickLine={false} tick={{fontSize: 10}} />
                     <Tooltip cursor={{fill: 'transparent'}} />
-                    <Bar dataKey="revenue" fill="#6366f1" radius={[8, 8, 0, 0]} barSize={40} name="Réel" />
-                    <Bar dataKey="cap" fill="#e2e8f0" radius={[8, 8, 0, 0]} barSize={40} name="Prévision" hide />
+                    <Bar dataKey="revenue" fill="#6366f1" radius={[8, 8, 0, 0]} barSize={40} name={t('real') || 'Réel'} />
+                    <Bar dataKey="cap" fill="#e2e8f0" radius={[8, 8, 0, 0]} barSize={40} name={t('forecast') || 'Prévision'} hide />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
             </div>
 
             <div className="bg-white dark:bg-gray-800 p-8 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-700">
-              <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-6">Santé Financière</h3>
+              <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-6">{t('financial_health')}</h3>
               <div className="space-y-6">
                 <div>
                   <div className="flex justify-between items-center mb-2">
-                    <span className="text-sm text-gray-500">Niveau de dette</span>
+                    <span className="text-sm text-gray-500">{t('debt_level')}</span>
                     <span className="text-sm font-bold text-gray-900 dark:text-white">{(totalRevenue > 0 ? (overdueRevenue / totalRevenue * 100).toFixed(0) : 0)}%</span>
                   </div>
                   <div className="h-2 w-full bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
                     <div className="h-full bg-emerald-500" style={{ width: `${(totalRevenue > 0 ? (overdueRevenue / totalRevenue * 100) : 0)}%` }} />
                   </div>
-                  <p className="text-[10px] text-gray-400 mt-1">Calculé sur les créances impayées</p>
+                  <p className="text-[10px] text-gray-400 mt-1">{t('calculated_on_unpaid') || 'Calculé sur les créances impayées'}</p>
                 </div>
                 <div>
                   <div className="flex justify-between items-center mb-2">
-                    <span className="text-sm text-gray-500">Couverture Liquidité</span>
+                    <span className="text-sm text-gray-500">{t('liquidity_coverage')}</span>
                     <span className="text-sm font-bold text-gray-900 dark:text-white">x{(totalRevenue / (overdueRevenue || 1)).toFixed(1)}</span>
                   </div>
                   <div className="h-2 w-full bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
@@ -714,10 +718,10 @@ const Finance: React.FC = () => {
                   <div className="bg-green-50 dark:bg-green-900/20 p-4 rounded-2xl">
                     <div className="flex items-center gap-2 text-green-700 dark:text-green-400 font-bold text-sm mb-1">
                       <CheckCircle2 size={16} />
-                      Score de Solvabilité
+                      {t('solvency_score')}
                     </div>
                     <p className="text-[10px] text-green-600 dark:text-green-500 opacity-80 uppercase font-bold tracking-widest">
-                      {totalRevenue > overdueRevenue ? 'FINANCE SAINE' : 'SURVEILLANCE REQUISE'}
+                      {totalRevenue > overdueRevenue ? t('healthy_finance') : t('monitoring_required')}
                     </p>
                   </div>
                 </div>
@@ -728,16 +732,16 @@ const Finance: React.FC = () => {
           {/* Detailed Dividend History & Metrics */}
           <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
              <div className="px-8 py-6 border-b border-gray-100 dark:border-gray-700">
-               <h3 className="text-lg font-bold text-gray-900 dark:text-white">Indicateurs de Performance Académique (Annuelle)</h3>
+               <h3 className="text-lg font-bold text-gray-900 dark:text-white">{t('academic_performance_indicators')}</h3>
              </div>
              <table className="w-full text-left">
                <thead className="bg-gray-50 dark:bg-gray-700/50">
                  <tr>
-                    <th className="px-8 py-4 text-xs font-bold text-gray-400 uppercase">Mois</th>
-                    <th className="px-8 py-4 text-xs font-bold text-gray-400 uppercase">Revenu Brut</th>
-                    <th className="px-8 py-4 text-xs font-bold text-gray-400 uppercase">Dette Estimée</th>
-                    <th className="px-8 py-4 text-xs font-bold text-gray-400 uppercase">Cercle de Confiance</th>
-                    <th className="px-8 py-4 text-xs font-bold text-gray-400 uppercase">Profit Est.</th>
+                    <th className="px-8 py-4 text-xs font-bold text-gray-400 uppercase">{t('months')}</th>
+                    <th className="px-8 py-4 text-xs font-bold text-gray-400 uppercase">{t('gross_revenue')}</th>
+                    <th className="px-8 py-4 text-xs font-bold text-gray-400 uppercase">{t('estimated_debt')}</th>
+                    <th className="px-8 py-4 text-xs font-bold text-gray-400 uppercase">{t('trust_circle')}</th>
+                    <th className="px-8 py-4 text-xs font-bold text-gray-400 uppercase">{t('estimated_profit')}</th>
                  </tr>
                </thead>
                <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
@@ -772,8 +776,8 @@ const Finance: React.FC = () => {
                     <FileText size={20} />
                   </div>
                   <div>
-                    <h2 className="text-lg font-black text-gray-900 dark:text-white uppercase tracking-tight">Rapport de Situation Financière</h2>
-                    <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Document Certifié • ShopUniversities ERP</p>
+                    <h2 className="text-lg font-black text-gray-900 dark:text-white uppercase tracking-tight">{t('financial_situation_report')}</h2>
+                    <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">{t('certified_document')} • ShopUniversities ERP</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
@@ -781,14 +785,14 @@ const Finance: React.FC = () => {
                     onClick={() => setShowReportModal(false)}
                     className="hidden sm:flex items-center gap-2 px-4 py-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors font-bold text-xs uppercase"
                   >
-                    Retour
+                    {t('back')}
                   </button>
                   <button 
                     onClick={() => window.print()}
                     className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs font-bold text-gray-700 dark:text-white hover:bg-gray-50 transition-all shadow-sm"
                   >
                     <Printer size={14} className="text-indigo-600" />
-                    Imprimer PDF
+                    {t('print_pdf')}
                   </button>
                   <button onClick={() => setShowReportModal(false)} className="text-gray-400 hover:text-gray-600">
                     <X size={24} />

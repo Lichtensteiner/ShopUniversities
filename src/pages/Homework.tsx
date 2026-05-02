@@ -192,14 +192,14 @@ const Homework: React.FC = () => {
         setUploadProgress(null);
         setUploading(false);
         setSuccessInfo({
-          title: "Devoir Publié !",
-          message: `Le travail a été assigné à la classe sélectionnée.`
+          title: t('homework_published'),
+          message: t('homework_assigned_success')
         });
         setShowSuccess(true);
       }, 500);
     } catch (error) {
       console.error("Error adding homework:", error);
-      alert("Une erreur est survenue lors de l'ajout du devoir.");
+      alert(t('error_adding_homework') || "Une erreur est survenue lors de l'ajout du devoir.");
     } finally {
       setUploading(false);
       setUploadProgress(null);
@@ -231,7 +231,7 @@ const Homework: React.FC = () => {
             {t('homework')}
           </h1>
           <p className="text-gray-500 dark:text-gray-400">
-            {currentUser?.role === 'élève' ? 'Travail à faire et contenu des cours' : 'Gérez les devoirs et le cahier de textes'}
+            {currentUser?.role === 'élève' ? t('homework_desc_student') : t('homework_desc_teacher')}
           </p>
         </div>
 
@@ -241,7 +241,7 @@ const Homework: React.FC = () => {
             className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-xl text-sm font-medium hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-500/20"
           >
             <Plus size={18} />
-            Ajouter un devoir
+            {t('add_homework')}
           </button>
         )}
       </div>
@@ -250,15 +250,15 @@ const Homework: React.FC = () => {
       <div className="grid grid-cols-1 gap-4">
         {loading ? (
           <div className="text-center py-12 text-gray-500 dark:text-gray-400">
-            Chargement des devoirs...
+            {t('loading_homework')}
           </div>
         ) : homework.length === 0 ? (
           <div className="bg-white dark:bg-gray-800 rounded-2xl p-12 text-center border border-dashed border-gray-300 dark:border-gray-700">
             <div className="w-16 h-16 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-4 text-gray-400">
               <BookOpen size={32} />
             </div>
-            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-1">Aucun devoir</h3>
-            <p className="text-gray-500 dark:text-gray-400">Il n'y a aucun travail à faire pour le moment.</p>
+            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-1">{t('no_homework')}</h3>
+            <p className="text-gray-500 dark:text-gray-400">{t('no_homework_desc')}</p>
           </div>
         ) : (
           homework.map((item, index) => {
@@ -298,13 +298,13 @@ const Homework: React.FC = () => {
                         {overdue && !isCompleted && (
                           <span className="flex items-center gap-1 text-xs font-medium text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 px-2 py-1 rounded-md">
                             <AlertCircle size={12} />
-                            En retard
+                            {t('overdue')}
                           </span>
                         )}
                       </div>
                       <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
                         <Clock size={16} />
-                        <span>Pour le {item.dueDate?.toDate ? item.dueDate.toDate().toLocaleDateString(language) : 'N/A'}</span>
+                        <span>{t('due_to')} {item.dueDate?.toDate ? item.dueDate.toDate().toLocaleDateString(language) : 'N/A'}</span>
                       </div>
                     </div>
                     
@@ -325,7 +325,7 @@ const Homework: React.FC = () => {
                           className="inline-flex items-center gap-2 px-3 py-2 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 rounded-xl text-xs font-bold hover:bg-indigo-100 transition-colors"
                         >
                           <Paperclip size={14} />
-                          <span className="truncate max-w-[200px]">{item.fileName || "Voir le document"}</span>
+                          <span className="truncate max-w-[200px]">{item.fileName || t('view_document')}</span>
                           <Download size={14} className="ml-1" />
                         </a>
                       </div>
@@ -367,7 +367,7 @@ const Homework: React.FC = () => {
               className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl max-w-lg w-full overflow-hidden"
             >
               <div className="p-6 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between">
-                <h2 className="text-xl font-bold text-gray-900 dark:text-white">Ajouter un devoir</h2>
+                <h2 className="text-xl font-bold text-gray-900 dark:text-white">{t('add_homework')}</h2>
                 <button onClick={() => setShowAddModal(false)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
                   <Plus className="rotate-45" size={24} />
                 </button>
@@ -376,7 +376,7 @@ const Homework: React.FC = () => {
               <form onSubmit={handleAddHomework} className="p-6 space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Matière</label>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('subject')}</label>
                     <input
                       type="text"
                       required
@@ -387,7 +387,7 @@ const Homework: React.FC = () => {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Date d'échéance</label>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('due_date_label')}</label>
                     <input
                       type="date"
                       required
@@ -399,7 +399,7 @@ const Homework: React.FC = () => {
                 </div>
                 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Titre</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('homework_title_label')}</label>
                   <input
                     type="text"
                     required
@@ -411,19 +411,19 @@ const Homework: React.FC = () => {
                 </div>
                 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Description / Instructions</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('homework_instructions_label')}</label>
                   <textarea
                     required
                     rows={4}
                     value={newHomework.description}
                     onChange={(e) => setNewHomework({...newHomework, description: e.target.value})}
                     className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all resize-none"
-                    placeholder="Détaillez le travail à faire..."
+                    placeholder={t('homework_desc_placeholder')}
                   />
                 </div>
                 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Document joint (Optionnel)</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('attached_document')}</label>
                   <div className="relative">
                     <input
                       type="file"
@@ -438,7 +438,7 @@ const Homework: React.FC = () => {
                     >
                       <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
                         <Paperclip size={18} />
-                        <span>{selectedFile ? selectedFile.name : "Choisir un fichier (PDF ou Image)"}</span>
+                        <span>{selectedFile ? selectedFile.name : t('choose_file_placeholder')}</span>
                       </div>
                       {selectedFile && (
                         <button 
@@ -460,7 +460,7 @@ const Homework: React.FC = () => {
                     disabled={uploading}
                     className="flex-1 py-2 text-gray-700 dark:text-gray-300 font-medium hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl transition-colors disabled:opacity-50"
                   >
-                    Annuler
+                    {t('cancel')}
                   </button>
                   <button
                     type="submit"
@@ -471,7 +471,7 @@ const Homework: React.FC = () => {
                       <>
                         <div className="relative z-10 flex items-center gap-2">
                           <RefreshCw className="animate-spin" size={18} />
-                          <span>{uploadProgress !== null ? `${Math.round(uploadProgress)}%` : 'Envoi...'}</span>
+                          <span>{uploadProgress !== null ? `${Math.round(uploadProgress)}%` : t('uploading_msg')}</span>
                         </div>
                         {uploadProgress !== null && (
                           <div 
@@ -480,7 +480,7 @@ const Homework: React.FC = () => {
                           />
                         )}
                       </>
-                    ) : 'Publier'}
+                    ) : t('publish')}
                   </button>
                 </div>
               </form>

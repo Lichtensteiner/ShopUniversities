@@ -11,7 +11,7 @@ import { motion, AnimatePresence } from 'motion/react';
 export default function Users() {
   const { t, tData } = useLanguage();
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterRole, setFilterRole] = useState('Tous');
+  const [filterRole, setFilterRole] = useState('all');
   const [users, setUsers] = useState<any[]>([]);
   const [houses, setHouses] = useState<any[]>([]);
   const [classes, setClasses] = useState<any[]>([]);
@@ -65,7 +65,7 @@ export default function Users() {
       setUsers(usersData);
       setLoading(false);
     }, (err) => {
-      console.error("Erreur lors de la récupération des utilisateurs:", err);
+      console.error(t('error_fetching_users'), err);
       setLoading(false);
     });
 
@@ -110,18 +110,18 @@ export default function Users() {
   }, [viewUser]);
 
   const handleDeleteLog = async (logId: string) => {
-    if (!window.confirm("Êtes-vous sûr de vouloir supprimer ce pointage ? Cette action est irréversible.")) return;
+    if (!window.confirm(t('confirm_delete_log'))) return;
     try {
       await deleteDoc(doc(db, 'attendance_logs', logId));
-      alert("Pointage supprimé.");
+      alert(t('log_deleted_success'));
     } catch (err) {
       console.error("Error deleting log:", err);
-      alert("Erreur lors de la suppression.");
+      alert(t('delete_error'));
     }
   };
 
   const handleUpdateLogType = async (logId: string, currentType: string) => {
-    const newType = currentType === 'entrée' ? 'sortie' : 'entrée';
+    const newType = currentType === 'entry' ? 'exit' : 'entry';
     try {
       await updateDoc(doc(db, 'attendance_logs', logId), { type: newType });
     } catch (err) {
@@ -142,7 +142,7 @@ export default function Users() {
   const handleAddUser = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newUser.password || newUser.password.length < 6) {
-      setError("Le mot de passe doit contenir au moins 6 caractères.");
+      setError(t('password_min_length'));
       return;
     }
     
@@ -185,16 +185,16 @@ export default function Users() {
       setShowAddUserModal(false);
       setNewUser({ nom: '', prenom: '', email: '', password: '', role: 'élève', classe: '', classes: [], matiere: '', matieres: [], matricule: '', contact: '', address: '', gender: 'not_specified', dateNaissance: '', lieuNaissance: '', diploma: '', experience_years: '', age: '', house_id: '' });
       setSuccessInfo({
-        title: "Compte Créé !",
-        message: `Le profil de ${newUser.prenom} ${newUser.nom} a été généré avec succès.`
+        title: t('account_created'),
+        message: t('user_profile_generated_success').replace('{{name}}', `${newUser.prenom} ${newUser.nom}`)
       });
       setShowSuccess(true);
     } catch (err: any) {
       console.error(err);
       if (err.code === 'auth/email-already-in-use') {
-        setError("Cet email est déjà utilisé.");
+        setError(t('email_already_in_use'));
       } else {
-        setError("Erreur lors de l'ajout de l'utilisateur.");
+        setError(t('error_adding_user'));
       }
     } finally {
       setActionLoading(false);
@@ -231,7 +231,7 @@ export default function Users() {
       setEditUser(null);
     } catch (err: any) {
       console.error(err);
-      setError("Erreur lors de la mise à jour de l'utilisateur.");
+      setError(t('error_updating_user'));
     } finally {
       setActionLoading(false);
     }
@@ -247,7 +247,7 @@ export default function Users() {
       setDeleteUser(null);
     } catch (err: any) {
       console.error(err);
-      setError("Erreur lors de la suppression de l'utilisateur.");
+      setError(t('error_deleting_user'));
     } finally {
       setActionLoading(false);
     }
@@ -258,10 +258,11 @@ export default function Users() {
       await updateDoc(doc(db, 'users', user.id), {
         chatBlocked: !user.chatBlocked
       });
-      alert(`Messagerie ${!user.chatBlocked ? 'bloquée' : 'débloquée'} pour ${user.prenom} ${user.nom}`);
+      const toastMsg = !user.chatBlocked ? t('messaging_blocked') : t('messaging_unblocked');
+      alert(toastMsg.replace('{{name}}', `${user.prenom} ${user.nom}`));
     } catch (err) {
       console.error("Error toggling chat block:", err);
-      alert("Erreur lors du changement de statut de la messagerie.");
+      alert(t('error_updating_user'));
     }
   };
 
@@ -270,10 +271,11 @@ export default function Users() {
       await updateDoc(doc(db, 'users', user.id), {
         accessBlocked: !user.accessBlocked
       });
-      alert(`Accès ${!user.accessBlocked ? 'bloqué' : 'débloqué'} pour ${user.prenom} ${user.nom}`);
+      const toastMsg = !user.accessBlocked ? t('access_blocked') : t('access_unblocked');
+      alert(toastMsg.replace('{{name}}', `${user.prenom} ${user.nom}`));
     } catch (err) {
       console.error("Error toggling access block:", err);
-      alert("Erreur lors du changement de statut de l'accès.");
+      alert(t('error_updating_user'));
     }
   };
 
@@ -293,7 +295,7 @@ export default function Users() {
     const matchesSearch = user.nom?.toLowerCase().includes(searchTerm.toLowerCase()) || 
                           user.prenom?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                           user.matricule?.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesRole = filterRole === 'Tous' || user.role === filterRole;
+    const matchesRole = filterRole === 'all' || user.role === filterRole;
     return matchesSearch && matchesRole;
   }).sort((a, b) => {
     const nameA = `${a.nom || ''} ${a.prenom || ''}`.trim().toLowerCase();
@@ -325,10 +327,10 @@ export default function Users() {
       await Promise.all(promises);
       setShowNotificationModal(false);
       setNotificationData({ title: '', message: '', type: 'info' });
-      alert(`Notification envoyée avec succès à ${usersToNotify.length} utilisateur(s).`);
+      alert(t('notification_sent_success_to').replace('{{count}}', usersToNotify.length.toString()));
     } catch (err: any) {
       console.error(err);
-      setError("Erreur lors de l'envoi de la notification.");
+      setError(t('error_sending_notification'));
     } finally {
       setActionLoading(false);
     }
@@ -379,11 +381,11 @@ export default function Users() {
               onChange={(e) => setFilterRole(e.target.value)}
               className="bg-white border border-gray-200 text-gray-700 text-sm rounded-xl focus:ring-indigo-500 focus:border-indigo-500 block w-full p-2"
             >
-              <option value="Tous">{t('all')}</option>
+              <option value="all">{t('all')}</option>
               <option value="élève">{tData('élève')}</option>
               <option value="enseignant">{tData('enseignant')}</option>
               <option value="personnel administratif">{tData('personnel administratif')}</option>
-              <option value="cuisinier">Cuisinier</option>
+              <option value="cuisinier">{tData('cuisinier')}</option>
               <option value="admin">{tData('admin')}</option>
             </select>
           </div>
@@ -396,11 +398,11 @@ export default function Users() {
                 <th scope="col" className="px-6 py-4 font-semibold">{t('name')} & {t('firstname')}</th>
                 <th scope="col" className="px-6 py-4 font-semibold">{t('class')}</th>
                 <th scope="col" className="px-6 py-4 font-semibold">{t('principal_teacher')}</th>
-                <th scope="col" className="px-6 py-4 font-semibold">Né(e) le</th>
+                <th scope="col" className="px-6 py-4 font-semibold">{t('born_on')}</th>
                 <th scope="col" className="px-6 py-4 font-semibold">{t('id_number')}</th>
                 <th scope="col" className="px-6 py-4 font-semibold">{t('role')}</th>
                 <th scope="col" className="px-6 py-4 font-semibold">{t('contact')}</th>
-                <th scope="col" className="px-6 py-4 font-semibold font-bold">Bio</th>
+                <th scope="col" className="px-6 py-4 font-semibold font-bold">{t('bio')}</th>
                 <th scope="col" className="px-6 py-4 font-semibold text-right">{t('actions')}</th>
               </tr>
             </thead>
@@ -437,7 +439,7 @@ export default function Users() {
                         )}
                         <div>
                           <div className="font-bold text-gray-900 group-hover:text-indigo-600 transition-colors">
-                            {user.nom || user.prenom ? `${user.nom || ''} ${user.prenom || ''}`.trim() : user.email?.split('@')[0] || 'Utilisateur'}
+                            {user.nom || user.prenom ? `${user.nom || ''} ${user.prenom || ''}`.trim() : user.email?.split('@')[0] || t('user')}
                           </div>
                           <div className="text-[10px] text-gray-400 font-medium lowercase italic">{user.email}</div>
                         </div>
@@ -452,7 +454,7 @@ export default function Users() {
                             onChange={(e) => handleQuickAssignClass(user.id, e.target.value)}
                             className="text-[10px] p-1.5 bg-amber-50 text-amber-700 border border-amber-200 rounded-lg outline-none focus:ring-2 focus:ring-amber-500 transition-all font-bold"
                           >
-                            <option value="">{t('assign_class') || 'Assigner Classe'}</option>
+                            <option value="">{t('assign_class')}</option>
                             {classes.map(cls => (
                               <option key={cls.id} value={cls.nom}>{cls.nom}</option>
                             ))}
@@ -502,18 +504,18 @@ export default function Users() {
                       {user.face_id || user.fingerprint_id ? (
                         <div className="flex -space-x-1">
                           {user.face_id && (
-                            <div className="p-1 bg-emerald-100 text-emerald-600 rounded-full border-2 border-white" title="Visage enregistré">
+                            <div className="p-1 bg-emerald-100 text-emerald-600 rounded-full border-2 border-white" title={t('face_registered')}>
                               <User2 size={10} />
                             </div>
                           )}
                           {user.fingerprint_id && (
-                            <div className="p-1 bg-blue-100 text-blue-600 rounded-full border-2 border-white" title="Empreinte enregistrée">
+                            <div className="p-1 bg-blue-100 text-blue-600 rounded-full border-2 border-white" title={t('fingerprint_registered')}>
                               <Fingerprint size={10} />
                             </div>
                           )}
                         </div>
                       ) : (
-                        <div className="text-[10px] text-amber-500 font-bold uppercase">Non configuré</div>
+                        <div className="text-[10px] text-amber-500 font-bold uppercase">{t('not_configured')}</div>
                       )}
                     </td>
                     <td className="px-6 py-4 text-right">
@@ -521,14 +523,14 @@ export default function Users() {
                         <button 
                           onClick={() => handleToggleChatBlock(user)}
                           className={`p-2 rounded-lg transition-colors ${user.chatBlocked ? 'text-red-600 bg-red-50' : 'text-gray-400 hover:text-amber-600 hover:bg-amber-50'}`}
-                          title={user.chatBlocked ? "Débloquer la messagerie" : "Bloquer la messagerie"}
+                          title={user.chatBlocked ? t('unblock_messaging') : t('block_messaging')}
                         >
                           <Ban size={18} />
                         </button>
                         <button 
                           onClick={() => handleToggleAccessBlock(user)}
                           className={`p-2 rounded-lg transition-colors ${user.accessBlocked ? 'text-red-600 bg-red-50' : 'text-gray-400 hover:text-red-600 hover:bg-red-50'}`}
-                          title={user.accessBlocked ? "Débloquer l'accès" : "Bloquer l'accès"}
+                          title={user.accessBlocked ? t('unblock_access') : t('block_access')}
                         >
                           <ShieldOff size={18} />
                         </button>
@@ -799,17 +801,17 @@ export default function Users() {
                     <table className="w-full text-sm text-left text-gray-500">
                       <thead className="text-[10px] text-gray-400 uppercase bg-gray-50 dark:bg-gray-800/50">
                         <tr>
-                          <th className="px-4 py-3 font-black">Date</th>
-                          <th className="px-4 py-3 font-black">Heure</th>
-                          <th className="px-4 py-3 font-black">Action</th>
-                          <th className="px-4 py-3 font-black text-right">Actions Admin</th>
+                          <th className="px-4 py-3 font-black">{t('date')}</th>
+                          <th className="px-4 py-3 font-black">{t('hour')}</th>
+                          <th className="px-4 py-3 font-black">{t('action')}</th>
+                          <th className="px-4 py-3 font-black text-right">{t('admin_actions')}</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-50 dark:divide-gray-700/50 font-medium">
                         {userLogs.length === 0 ? (
                           <tr>
                             <td colSpan={4} className="px-4 py-12 text-center text-gray-400 italic">
-                              Aucun pointage enregistré pour le moment.
+                              {t('no_logs_found')}
                             </td>
                           </tr>
                         ) : (
@@ -823,9 +825,9 @@ export default function Users() {
                               </td>
                               <td className="px-4 py-3">
                                 <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-tighter ${
-                                  log.type === 'entrée' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'
+                                  log.type === 'entry' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'
                                 }`}>
-                                  {log.type} {log.isLate && <span className="ml-1 text-red-600">(RETARD)</span>}
+                                  {t(log.type)} {log.isLate && <span className="ml-1 text-red-600">{t('late_caps')}</span>}
                                 </span>
                               </td>
                               <td className="px-4 py-3 text-right">
@@ -833,14 +835,14 @@ export default function Users() {
                                   <button 
                                     onClick={() => handleUpdateLogType(log.id, log.type)}
                                     className="p-1.5 text-gray-400 hover:text-indigo-600 transition-colors"
-                                    title="Changer type"
+                                    title={t('change_type')}
                                   >
                                     <RefreshCw size={14} />
                                   </button>
                                   <button 
                                     onClick={() => handleDeleteLog(log.id)}
                                     className="p-1.5 text-gray-400 hover:text-red-600 transition-colors"
-                                    title="Supprimer"
+                                    title={t('delete')}
                                   >
                                     <Trash2 size={14} />
                                   </button>
@@ -897,7 +899,7 @@ export default function Users() {
                   <div className="space-y-4">
                     <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider flex items-center gap-2">
                       <User size={14} />
-                      Informations Personnelles
+                      {t('personal_info')}
                     </h4>
                     <div className="grid grid-cols-2 gap-4">
                       <div>
@@ -937,7 +939,7 @@ export default function Users() {
 
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-xs font-medium text-gray-500 mb-1.5 ml-1 uppercase">Date de Naissance</label>
+                        <label className="block text-xs font-medium text-gray-500 mb-1.5 ml-1 uppercase">{t('birth_date')}</label>
                         <input
                           type="date"
                           value={editUser.dateNaissance || ''}
@@ -946,7 +948,7 @@ export default function Users() {
                         />
                       </div>
                       <div>
-                        <label className="block text-xs font-medium text-gray-500 mb-1.5 ml-1 uppercase">Lieu de Naissance</label>
+                        <label className="block text-xs font-medium text-gray-500 mb-1.5 ml-1 uppercase">{t('birth_place')}</label>
                         <input
                           type="text"
                           value={editUser.lieuNaissance || ''}
@@ -986,7 +988,7 @@ export default function Users() {
                   <div className="space-y-4">
                     <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider flex items-center gap-2">
                       <Phone size={14} />
-                      Contact & Professionnel
+                      {t('contact_prof')}
                     </h4>
                     <div>
                       <label className="block text-xs font-medium text-gray-500 mb-1.5 ml-1 uppercase">{t('contact')}</label>
@@ -1045,7 +1047,7 @@ export default function Users() {
                 <div className="pt-4 border-t border-gray-100 dark:border-gray-700">
                   <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4 flex items-center gap-2">
                     <Key size={14} />
-                    Rôle & Affectation
+                    {t('role_assignment')}
                   </h4>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
@@ -1058,7 +1060,7 @@ export default function Users() {
                         <option value="élève">{tData('élève')}</option>
                         <option value="enseignant">{tData('enseignant')}</option>
                         <option value="personnel administratif">{tData('personnel administratif')}</option>
-                        <option value="cuisinier">Cuisinier</option>
+                        <option value="cuisinier">{tData('cuisinier')}</option>
                         <option value="admin">{tData('admin')}</option>
                       </select>
                     </div>
@@ -1073,7 +1075,7 @@ export default function Users() {
                             onChange={(e) => setEditUser({...editUser, classe: e.target.value})}
                             className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-sm"
                           >
-                            <option value="">Sélectionner une classe</option>
+                            <option value="">{t('select_class')}</option>
                             {classes.map(cls => (
                               <option key={cls.id} value={cls.nom}>{cls.nom}</option>
                             ))}
@@ -1098,17 +1100,17 @@ export default function Users() {
                     {editUser.role === 'enseignant' && (
                       <div className="col-span-1 md:col-span-2 space-y-4">
                         <div>
-                          <label className="block text-xs font-medium text-gray-500 mb-1.5 ml-1 uppercase">{t('subjects')} (séparés par des virgules)</label>
+                          <label className="block text-xs font-medium text-gray-500 mb-1.5 ml-1 uppercase">{t('subjects')} {t('comma_separated')}</label>
                           <input
                             type="text"
                             value={editUser.matieres?.join(', ') || editUser.matiere || ''}
                             onChange={(e) => setEditUser({...editUser, matieres: e.target.value.split(',').map(s => s.trim()).filter(s => s !== '')})}
-                            placeholder="Ex: Mathématiques, Français..."
+                            placeholder={t('subjects_placeholder')}
                             className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-sm"
                           />
                         </div>
                         <div>
-                          <label className="block text-xs font-medium text-gray-500 mb-2 ml-1 uppercase">Classes assignées</label>
+                          <label className="block text-xs font-medium text-gray-500 mb-2 ml-1 uppercase">{t('assigned_classes')}</label>
                           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-40 overflow-y-auto p-3 border border-gray-200 dark:border-gray-700 rounded-xl bg-gray-50 dark:bg-gray-900/50">
                             {classes.map(cls => (
                               <label key={cls.id} className="flex items-center gap-2 p-2 hover:bg-white dark:hover:bg-gray-800 rounded-lg cursor-pointer transition-colors border border-transparent hover:border-gray-100 dark:hover:border-gray-700">
@@ -1308,7 +1310,7 @@ export default function Users() {
                   <div className="space-y-4">
                     <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider flex items-center gap-2">
                       <Lock size={14} />
-                      Compte & Sécurité
+                      {t('account_security')}
                     </h4>
                     <div className="grid grid-cols-2 gap-4">
                       <div>
@@ -1383,7 +1385,7 @@ export default function Users() {
                   <div className="space-y-4">
                     <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider flex items-center gap-2">
                       <User size={14} />
-                      Informations Personnelles
+                      {t('personal_info')}
                     </h4>
                     <div>
                       <label className="block text-xs font-medium text-gray-500 mb-1.5 ml-1 uppercase">{t('id_number')}</label>
@@ -1400,7 +1402,7 @@ export default function Users() {
 
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-xs font-medium text-gray-500 mb-1.5 ml-1 uppercase">Date de Naissance</label>
+                        <label className="block text-xs font-medium text-gray-500 mb-1.5 ml-1 uppercase">{t('birth_date')}</label>
                         <input
                           type="date"
                           value={newUser.dateNaissance}
@@ -1409,7 +1411,7 @@ export default function Users() {
                         />
                       </div>
                       <div>
-                        <label className="block text-xs font-medium text-gray-500 mb-1.5 ml-1 uppercase">Lieu de Naissance</label>
+                        <label className="block text-xs font-medium text-gray-500 mb-1.5 ml-1 uppercase">{t('birth_place')}</label>
                         <input
                           type="text"
                           value={newUser.lieuNaissance}
@@ -1476,7 +1478,7 @@ export default function Users() {
                 <div className="pt-4 border-t border-gray-100 dark:border-gray-700">
                   <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4 flex items-center gap-2">
                     <Briefcase size={14} />
-                    Profil Professionnel & Rôle
+                    {t('prof_profile_role')}
                   </h4>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-4">
@@ -1516,7 +1518,7 @@ export default function Users() {
                           <option value="élève">{tData('élève')}</option>
                           <option value="enseignant">{tData('enseignant')}</option>
                           <option value="personnel administratif">{tData('personnel administratif')}</option>
-                          <option value="cuisinier">Cuisinier</option>
+                          <option value="cuisinier">{tData('cuisinier')}</option>
                           <option value="admin">{tData('admin')}</option>
                         </select>
                       </div>
@@ -1533,7 +1535,7 @@ export default function Users() {
                               onChange={(e) => setNewUser({...newUser, classe: e.target.value})}
                               className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-sm"
                             >
-                              <option value="">Sélectionner une classe</option>
+                              <option value="">{t('select_class')}</option>
                               {classes.map(cls => (
                                 <option key={cls.id} value={cls.nom}>{cls.nom}</option>
                               ))}
@@ -1558,17 +1560,17 @@ export default function Users() {
                       {newUser.role === 'enseignant' && (
                         <div className="space-y-4">
                           <div>
-                            <label className="block text-xs font-medium text-gray-500 mb-1.5 ml-1 uppercase">{t('subjects')} (séparés par des virgules)</label>
+                            <label className="block text-xs font-medium text-gray-500 mb-1.5 ml-1 uppercase">{t('subjects')} {t('comma_separated')}</label>
                             <input
                               type="text"
                               value={newUser.matieres?.join(', ') || newUser.matiere || ''}
                               onChange={(e) => setNewUser({...newUser, matieres: e.target.value.split(',').map(s => s.trim()).filter(s => s !== '')})}
-                              placeholder="Ex: Mathématiques, Français..."
+                              placeholder={t('subjects_placeholder')}
                               className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-sm"
                             />
                           </div>
                           <div>
-                            <label className="block text-xs font-medium text-gray-500 mb-2 ml-1 uppercase">Classes assignées</label>
+                            <label className="block text-xs font-medium text-gray-500 mb-2 ml-1 uppercase">{t('assigned_classes')}</label>
                             <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto p-3 border border-gray-200 dark:border-gray-700 rounded-xl bg-gray-50 dark:bg-gray-900/50">
                               {classes.map(cls => (
                                 <label key={cls.id} className="flex items-center gap-2 p-2 hover:bg-white dark:hover:bg-gray-800 rounded-lg cursor-pointer transition-colors border border-transparent hover:border-gray-100 dark:hover:border-gray-700">

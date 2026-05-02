@@ -104,8 +104,8 @@ export default function Library() {
       setShowAddModal(false);
       setNewBook({ title: '', author: '', isbn: '', category: 'Général', pdfUrl: '' });
       setSuccessInfo({
-        title: "Livre Ajouté !",
-        message: "L'ouvrage a été ajouté au catalogue avec succès."
+        title: t('book_added'),
+        message: t('book_add_success')
       });
       setShowSuccess(true);
     } catch (error) {
@@ -114,12 +114,12 @@ export default function Library() {
   };
 
   const handleDeleteBook = async (id: string) => {
-    if (!window.confirm('Supprimer ce livre ?')) return;
+    if (!window.confirm(t('confirm_delete_book'))) return;
     await deleteDoc(doc(db, 'library_books', id));
   };
 
   const handleBorrow = async (book: BookItem) => {
-    const studentName = prompt("Nom de l'emprunteur :");
+    const studentName = prompt(t('borrower_prompt'));
     if (!studentName) return;
 
     const dueDate = new Date();
@@ -181,7 +181,7 @@ export default function Library() {
             {t('library')}
           </h1>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-            Gérez le fonds documentaire et les emprunts.
+            {t('library_desc')}
           </p>
         </div>
         {isAdmin && (
@@ -190,7 +190,7 @@ export default function Library() {
             className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-2xl font-bold transition-all shadow-lg shadow-indigo-200 dark:shadow-none"
           >
             <Plus size={20} />
-            Nouveau Livre
+            {t('new_book')}
           </button>
         )}
       </div>
@@ -205,7 +205,7 @@ export default function Library() {
           }`}
         >
           <Book size={18} />
-          Catalogue
+          {t('catalog')}
         </button>
         <button 
           onClick={() => setActiveTab('loans')}
@@ -216,7 +216,7 @@ export default function Library() {
           }`}
         >
           <History size={18} />
-          Emprunts
+          {t('loans')}
         </button>
       </div>
 
@@ -226,7 +226,7 @@ export default function Library() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
             <input
               type="text"
-              placeholder="Rechercher un livre, un auteur..."
+              placeholder={t('search_library_placeholder')}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-10 pr-4 py-3 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all shadow-sm"
@@ -260,14 +260,14 @@ export default function Library() {
                         ? 'bg-green-100 text-green-700 dark:bg-green-900/30' 
                         : 'bg-orange-100 text-orange-700 dark:bg-orange-900/30'
                       }`}>
-                        {book.status === 'available' ? 'Disponible' : 'Emprunté'}
+                        {book.status === 'available' ? t('available') : t('borrowed')}
                       </div>
                     </div>
                   </div>
 
                   <div>
                     <h3 className="text-lg font-black text-gray-900 dark:text-white leading-tight mb-1">{book.title}</h3>
-                    <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">par {book.author}</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">{t('by_author')} {book.author}</p>
                     <div className="mt-3 flex items-center gap-2">
                        <span className="px-2 py-1 bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 text-[10px] font-bold rounded-lg border border-gray-200 dark:border-gray-600">
                         {book.category}
@@ -280,7 +280,7 @@ export default function Library() {
                              rel="noopener noreferrer"
                              className="flex items-center gap-2 px-3 py-1.5 bg-red-50 dark:bg-red-950/30 text-red-600 dark:text-red-400 rounded-lg text-xs font-bold hover:bg-red-100 transition-all border border-red-100 dark:border-red-900"
                            >
-                             <Download size={14} /> PDF Disponible
+                             <Download size={14} /> {t('pdf_available')}
                            </a>
                         </div>
                       )}
@@ -291,7 +291,7 @@ export default function Library() {
                     <div className="mt-auto pt-4 border-t border-gray-50 dark:border-gray-700">
                       <div className="flex items-center gap-2 text-xs text-orange-600 dark:text-orange-400">
                         <User size={14} />
-                        <span className="font-bold">Emprunté par : {book.currentBorrowerName}</span>
+                        <span className="font-bold">{t('borrowed_by')} {book.currentBorrowerName}</span>
                       </div>
                     </div>
                   )}
@@ -304,14 +304,14 @@ export default function Library() {
                             onClick={() => handleBorrow(book)}
                             className="flex-1 bg-indigo-600 text-white py-2 rounded-xl text-xs font-black hover:bg-indigo-700 transition-colors"
                           >
-                            Sortie
+                            {t('check_out')}
                           </button>
                         ) : (
                           <button 
                             onClick={() => handleReturn(book)}
                             className="flex-1 bg-green-600 text-white py-2 rounded-xl text-xs font-black hover:bg-green-700 transition-colors"
                           >
-                            Retour
+                            {t('return_book')}
                           </button>
                         )}
                         <button 
@@ -334,11 +334,11 @@ export default function Library() {
             <table className="w-full text-left">
               <thead>
                 <tr className="bg-gray-50 dark:bg-gray-700/50 border-b border-gray-100 dark:border-gray-700">
-                  <th className="px-6 py-4 text-xs font-black text-gray-500 uppercase tracking-widest">Livre</th>
-                  <th className="px-6 py-4 text-xs font-black text-gray-500 uppercase tracking-widest">Emprunteur</th>
-                  <th className="px-6 py-4 text-xs font-black text-gray-500 uppercase tracking-widest">Date de sortie</th>
-                  <th className="px-6 py-4 text-xs font-black text-gray-500 uppercase tracking-widest">Date prévue</th>
-                  <th className="px-6 py-4 text-xs font-black text-gray-500 uppercase tracking-widest">Statut</th>
+                  <th className="px-6 py-4 text-xs font-black text-gray-500 uppercase tracking-widest">{t('book_label')}</th>
+                  <th className="px-6 py-4 text-xs font-black text-gray-500 uppercase tracking-widest">{t('borrower')}</th>
+                  <th className="px-6 py-4 text-xs font-black text-gray-500 uppercase tracking-widest">{t('check_out_date')}</th>
+                  <th className="px-6 py-4 text-xs font-black text-gray-500 uppercase tracking-widest">{t('expected_date')}</th>
+                  <th className="px-6 py-4 text-xs font-black text-gray-500 uppercase tracking-widest">{t('status')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50 dark:divide-gray-700">
@@ -347,7 +347,7 @@ export default function Library() {
                     <td className="px-6 py-4 font-bold text-gray-900 dark:text-white">{loan.bookTitle}</td>
                     <td className="px-6 py-4 text-gray-600 dark:text-gray-400">{loan.borrowerName}</td>
                     <td className="px-6 py-4 text-gray-600 dark:text-gray-400">
-                      {loan.loanDate?.toDate ? loan.loanDate.toDate().toLocaleDateString() : 'En attente'}
+                      {loan.loanDate?.toDate ? loan.loanDate.toDate().toLocaleDateString() : t('waiting')}
                     </td>
                     <td className="px-6 py-4 text-gray-600 dark:text-gray-400">
                       {new Date(loan.dueDate).toLocaleDateString()}
@@ -358,7 +358,7 @@ export default function Library() {
                         ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30' 
                         : 'bg-gray-100 text-gray-600 dark:bg-gray-700/30'
                       }`}>
-                        {loan.status === 'active' ? 'En cours' : 'Rendu'}
+                        {loan.status === 'active' ? t('in_progress') : t('returned')}
                       </span>
                     </td>
                   </tr>
@@ -378,7 +378,7 @@ export default function Library() {
             className="bg-white dark:bg-gray-800 rounded-[2.5rem] shadow-2xl max-w-md w-full p-8 border border-white/20"
           >
             <div className="flex justify-between items-center mb-6">
-              <h2 className="text-2xl font-black text-gray-900 dark:text-white tracking-tight">Nouveau Livre</h2>
+              <h2 className="text-2xl font-black text-gray-900 dark:text-white tracking-tight">{t('new_book')}</h2>
               <button 
                 onClick={() => setShowAddModal(false)}
                 className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors"
@@ -390,7 +390,7 @@ export default function Library() {
 
             <form onSubmit={handleAddBook} className="space-y-4">
               <div>
-                <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-1 ml-1">Titre du livre</label>
+                <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-1 ml-1">{t('book_title_label')}</label>
                 <input
                   type="text"
                   required
@@ -401,7 +401,7 @@ export default function Library() {
                 />
               </div>
               <div>
-                <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-1 ml-1">Auteur</label>
+                <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-1 ml-1">{t('author')}</label>
                 <input
                   type="text"
                   required
@@ -413,7 +413,7 @@ export default function Library() {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-1 ml-1">ISBN (Optionnel)</label>
+                  <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-1 ml-1">{t('isbn_optional')}</label>
                   <input
                     type="text"
                     value={newBook.isbn}
@@ -422,23 +422,23 @@ export default function Library() {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-1 ml-1">Catégorie</label>
+                  <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-1 ml-1">{t('category_label')}</label>
                   <select
                     value={newBook.category}
                     onChange={(e) => setNewBook({ ...newBook, category: e.target.value })}
                     className="w-full bg-gray-50 dark:bg-gray-900 border-none rounded-2xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
                   >
-                    <option value="Général">Général</option>
-                    <option value="Fiction">Fiction</option>
-                    <option value="Sciences">Sciences</option>
-                    <option value="Histoire">Histoire</option>
-                    <option value="Informatique">Informatique</option>
+                    <option value="Général">{t('general_cat')}</option>
+                    <option value="Fiction">{t('fiction_cat')}</option>
+                    <option value="Sciences">{t('science_cat')}</option>
+                    <option value="Histoire">{t('history_cat')}</option>
+                    <option value="Informatique">{t('it_cat')}</option>
                   </select>
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-1 ml-1">Lien du Document PDF (Optionnel)</label>
+                <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-1 ml-1">{t('pdf_link_optional')}</label>
                 <div className="relative">
                   <FileText className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
                   <input
@@ -449,14 +449,14 @@ export default function Library() {
                     placeholder="https://exemple.com/livre.pdf"
                   />
                 </div>
-                <p className="text-[10px] text-gray-500 mt-2 italic px-2">Vous pouvez coller un lien Google Drive, Dropbox ou un serveur de fichiers interne.</p>
+                <p className="text-[10px] text-gray-500 mt-2 italic px-2">{t('pdf_link_desc')}</p>
               </div>
 
               <button 
                 type="submit"
                 className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-black shadow-lg shadow-indigo-200 dark:shadow-none hover:scale-[1.02] active:scale-[0.98] transition-all mt-6"
               >
-                Ajouter au catalogue
+                {t('add_to_catalog')}
               </button>
             </form>
           </motion.div>

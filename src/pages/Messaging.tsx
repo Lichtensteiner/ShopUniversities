@@ -26,7 +26,7 @@ interface MessagingProps {
 
 export default function Messaging({ initialChatTargetId, onClearTarget }: MessagingProps) {
   const { currentUser } = useAuth();
-  const { t } = useLanguage();
+  const { t, tData } = useLanguage();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [usersInfo, setUsersInfo] = useState<Record<string, any>>({});
   const [searchQuery, setSearchQuery] = useState('');
@@ -364,10 +364,10 @@ export default function Messaging({ initialChatTargetId, onClearTarget }: Messag
         }, { merge: true });
 
         // Notify recipient
-        const senderName = currentUser.prenom || currentUser.nom ? `${currentUser.prenom || ''} ${currentUser.nom || ''}`.trim() : currentUser.email?.split('@')[0] || 'Utilisateur';
+        const senderName = currentUser.prenom || currentUser.nom ? `${currentUser.prenom || ''} ${currentUser.nom || ''}`.trim() : currentUser.email?.split('@')[0] || t('user');
         await createNotification({
           user_id: userId,
-          title: `Nouveau message de ${senderName}`,
+          title: `${t('new_message_from')} ${senderName}`,
           message: groupMessageText.trim(),
           type: 'info',
           targetTab: 'messaging'
@@ -377,6 +377,7 @@ export default function Messaging({ initialChatTargetId, onClearTarget }: Messag
       setActiveModal(null);
       setGroupMessageText('');
       setSelectedUsers([]);
+      alert(t('broadcast_send_success'));
     } catch (error) {
       console.error("Error sending broadcast:", error);
     }
@@ -387,7 +388,7 @@ export default function Messaging({ initialChatTargetId, onClearTarget }: Messag
     
     setIsSubmittingAnnouncement(true);
     try {
-      const senderName = currentUser.prenom || currentUser.nom ? `${currentUser.prenom || ''} ${currentUser.nom || ''}`.trim() : currentUser.email?.split('@')[0] || 'Utilisateur';
+      const senderName = currentUser.prenom || currentUser.nom ? `${currentUser.prenom || ''} ${currentUser.nom || ''}`.trim() : currentUser.email?.split('@')[0] || t('user');
       
       // Add announcement to a global collection
       await addDoc(collection(db, 'announcements'), {
@@ -399,7 +400,7 @@ export default function Messaging({ initialChatTargetId, onClearTarget }: Messag
 
       // Notify all users
       await notifyAllUsers(
-        "Nouvelle annonce",
+        t('announcement'),
         announcementText.trim(),
         'info',
         'dashboard' // Or wherever announcements are shown
@@ -407,6 +408,7 @@ export default function Messaging({ initialChatTargetId, onClearTarget }: Messag
 
       setActiveModal(null);
       setAnnouncementText('');
+      alert(t('announcement_publish_success'));
     } catch (error) {
       console.error("Error sending announcement:", error);
     } finally {
@@ -428,20 +430,20 @@ export default function Messaging({ initialChatTargetId, onClearTarget }: Messag
     <div className="max-w-5xl mx-auto h-[calc(100dvh-6rem)] sm:h-[calc(100vh-7rem)] flex flex-col">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4 shrink-0">
         <div className="flex items-center gap-4">
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Messagerie</h1>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{t('messaging')}</h1>
           {currentUser?.role === 'admin' && (
             <div className="flex bg-gray-100 dark:bg-gray-700 p-1 rounded-lg">
               <button
                 onClick={() => setActiveTab('conversations')}
                 className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${activeTab === 'conversations' ? 'bg-white dark:bg-gray-600 text-indigo-600 dark:text-indigo-300 shadow-sm' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}
               >
-                Mes Conversations
+                {t('my_conversations')}
               </button>
               <button
                 onClick={() => setActiveTab('monitoring')}
                 className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${activeTab === 'monitoring' ? 'bg-white dark:bg-gray-600 text-indigo-600 dark:text-indigo-300 shadow-sm' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}
               >
-                Surveillance Élèves
+                {t('student_monitoring')}
               </button>
             </div>
           )}
@@ -453,21 +455,21 @@ export default function Messaging({ initialChatTargetId, onClearTarget }: Messag
             className="flex items-center gap-2 px-3 py-2 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors text-sm font-medium"
           >
             <Users size={16} />
-            <span className="hidden sm:inline">Nouveau groupe</span>
+            <span className="hidden sm:inline">{t('new_group')}</span>
           </button>
           <button 
             onClick={() => setActiveModal('groupMessage')}
             className="flex items-center gap-2 px-3 py-2 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors text-sm font-medium"
           >
             <Send size={16} />
-            <span className="hidden sm:inline">Message groupé</span>
+            <span className="hidden sm:inline">{t('group_message')}</span>
           </button>
           <button 
             onClick={() => setActiveModal('announcement')}
             className="flex items-center gap-2 px-3 py-2 bg-indigo-600 text-white rounded-lg shadow-sm hover:bg-indigo-700 transition-colors text-sm font-medium"
           >
             <Megaphone size={16} />
-            <span className="hidden sm:inline">Annonce</span>
+            <span className="hidden sm:inline">{t('announcement')}</span>
           </button>
         </div>
       </div>
@@ -478,7 +480,7 @@ export default function Messaging({ initialChatTargetId, onClearTarget }: Messag
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
             <input
               type="text"
-              placeholder="Rechercher un utilisateur ou un groupe..."
+              placeholder={t('search_user_group_placeholder')}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500"
@@ -492,7 +494,7 @@ export default function Messaging({ initialChatTargetId, onClearTarget }: Messag
               {groupConversations.length > 0 && (
                 <div className="bg-gray-50 dark:bg-gray-800/50">
                   <div className="px-4 py-2 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    Groupes
+                    {t('groups')}
                   </div>
                   {groupConversations.map((conv) => (
                     <div 
@@ -534,7 +536,7 @@ export default function Messaging({ initialChatTargetId, onClearTarget }: Messag
               )}
 
               <div className="px-4 py-2 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider bg-gray-50 dark:bg-gray-800/50">
-                Utilisateurs
+                {t('users')}
               </div>
               {filteredUsers.length > 0 ? (
                 filteredUsers.map((user) => {
@@ -562,10 +564,10 @@ export default function Messaging({ initialChatTargetId, onClearTarget }: Messag
                         </div>
                         <div>
                           <h3 className="font-medium text-gray-900 dark:text-white">
-                            {user.prenom || user.nom ? `${user.prenom || ''} ${user.nom || ''}`.trim() : user.email?.split('@')[0] || 'Utilisateur'}
+                            {user.prenom || user.nom ? `${user.prenom || ''} ${user.nom || ''}`.trim() : user.email?.split('@')[0] || t('user')}
                           </h3>
                           <p className="text-sm text-gray-500 dark:text-gray-400 line-clamp-1">
-                            {existingConv?.lastMessage || <span className="italic">Nouvelle conversation</span>}
+                            {existingConv?.lastMessage || <span className="italic">{t('new_conversation')}</span>}
                           </p>
                         </div>
                       </div>
@@ -587,20 +589,20 @@ export default function Messaging({ initialChatTargetId, onClearTarget }: Messag
               ) : (
                 <div className="p-8 text-center text-gray-500 dark:text-gray-400 flex flex-col items-center justify-center h-full">
                   <MessageCircle size={48} className="text-gray-300 dark:text-gray-600 mb-4" />
-                  <p>Aucun utilisateur trouvé.</p>
+                  <p>{t('no_user_found')}</p>
                 </div>
               )}
             </>
           ) : (
             <div className="bg-gray-50 dark:bg-gray-800/50">
               <div className="px-4 py-2 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                Conversations entre élèves
+                {t('student_conversations')}
               </div>
               {studentConversations.length > 0 ? (
                 studentConversations.map((conv) => {
                   const participants = conv.participants.map(pId => {
                     const user = allUsers.find(u => u.id === pId) || (pId === currentUser?.id ? currentUser : null);
-                    return user ? `${user.prenom} ${user.nom}` : 'Inconnu';
+                    return user ? `${user.prenom} ${user.nom}` : t('unknown');
                   }).join(' & ');
 
                   return (
@@ -623,7 +625,7 @@ export default function Messaging({ initialChatTargetId, onClearTarget }: Messag
                             {participants}
                           </h3>
                           <p className="text-sm text-gray-500 dark:text-gray-400 line-clamp-1">
-                            {conv.lastMessage || <span className="italic">Aucun message</span>}
+                            {conv.lastMessage || <span className="italic">{t('no_message')}</span>}
                           </p>
                         </div>
                       </div>
@@ -632,7 +634,7 @@ export default function Messaging({ initialChatTargetId, onClearTarget }: Messag
                           {conv.lastMessageTime ? format(conv.lastMessageTime.toDate(), 'HH:mm', { locale: fr }) : ''}
                         </span>
                         <span className="text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded uppercase font-bold">
-                          Surveillance
+                          {t('monitoring')}
                         </span>
                       </div>
                     </div>
@@ -641,7 +643,7 @@ export default function Messaging({ initialChatTargetId, onClearTarget }: Messag
               ) : (
                 <div className="p-8 text-center text-gray-500 dark:text-gray-400 flex flex-col items-center justify-center h-full">
                   <MessageCircle size={48} className="text-gray-300 dark:text-gray-600 mb-4" />
-                  <p>Aucune conversation entre élèves trouvée.</p>
+                  <p>{t('no_student_conversations')}</p>
                 </div>
               )}
             </div>
@@ -656,7 +658,7 @@ export default function Messaging({ initialChatTargetId, onClearTarget }: Messag
             <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center shrink-0">
               <h2 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
                 <Users size={20} className="text-indigo-600" />
-                Nouveau groupe
+                {t('new_group')}
               </h2>
               <button onClick={() => { setActiveModal(null); setSelectedUsers([]); setGroupName(''); }} className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300">
                 &times;
@@ -665,12 +667,12 @@ export default function Messaging({ initialChatTargetId, onClearTarget }: Messag
             <div className="p-4 overflow-y-auto flex-1 custom-scrollbar">
               <input
                 type="text"
-                placeholder="Nom du groupe"
+                placeholder={t('group_name')}
                 value={groupName}
                 onChange={(e) => setGroupName(e.target.value)}
                 className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 mb-4"
               />
-              <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Sélectionner les participants</p>
+              <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">{t('select_participants')}</p>
               <div className="space-y-2">
                 {allUsers.map(user => (
                   <label 
@@ -692,9 +694,9 @@ export default function Messaging({ initialChatTargetId, onClearTarget }: Messag
                     </div>
                     <div>
                       <p className="font-medium text-gray-900 dark:text-white">
-                        {user.prenom || user.nom ? `${user.prenom || ''} ${user.nom || ''}`.trim() : user.email?.split('@')[0] || 'Utilisateur'}
+                        {user.prenom || user.nom ? `${user.prenom || ''} ${user.nom || ''}`.trim() : user.email?.split('@')[0] || t('user')}
                       </p>
-                      <p className="text-xs text-gray-500 capitalize">{user.role}</p>
+                      <p className="text-xs text-gray-500 capitalize">{tData(user.role)}</p>
                     </div>
                   </label>
                 ))}
@@ -705,14 +707,14 @@ export default function Messaging({ initialChatTargetId, onClearTarget }: Messag
                 onClick={() => { setActiveModal(null); setSelectedUsers([]); setGroupName(''); }}
                 className="px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg font-medium transition-colors"
               >
-                Annuler
+                {t('cancel')}
               </button>
               <button 
                 onClick={handleCreateGroup}
                 disabled={!groupName.trim() || selectedUsers.length === 0}
                 className="px-4 py-2 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 disabled:opacity-50 transition-colors"
               >
-                Créer le groupe
+                {t('create_group')}
               </button>
             </div>
           </div>
@@ -725,7 +727,7 @@ export default function Messaging({ initialChatTargetId, onClearTarget }: Messag
             <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center shrink-0">
               <h2 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
                 <Send size={20} className="text-indigo-600" />
-                Message groupé (Diffusion)
+                {t('group_message_diffusion')}
               </h2>
               <button onClick={() => { setActiveModal(null); setSelectedUsers([]); setGroupMessageText(''); }} className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300">
                 &times;
@@ -733,12 +735,12 @@ export default function Messaging({ initialChatTargetId, onClearTarget }: Messag
             </div>
             <div className="p-4 overflow-y-auto flex-1 custom-scrollbar">
               <textarea
-                placeholder="Rédigez votre message..."
+                placeholder={t('write_message_placeholder')}
                 value={groupMessageText}
                 onChange={(e) => setGroupMessageText(e.target.value)}
                 className="w-full h-32 p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 resize-none mb-4"
               />
-              <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Sélectionner les destinataires</p>
+              <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">{t('select_recipients')}</p>
               <div className="space-y-2 max-h-60 overflow-y-auto custom-scrollbar border border-gray-200 dark:border-gray-700 rounded-lg p-2">
                 {allUsers.map(user => (
                   <label 
@@ -760,7 +762,7 @@ export default function Messaging({ initialChatTargetId, onClearTarget }: Messag
                     </div>
                     <div>
                       <p className="font-medium text-sm text-gray-900 dark:text-white">
-                        {user.prenom || user.nom ? `${user.prenom || ''} ${user.nom || ''}`.trim() : user.email?.split('@')[0] || 'Utilisateur'}
+                        {user.prenom || user.nom ? `${user.prenom || ''} ${user.nom || ''}`.trim() : user.email?.split('@')[0] || t('user')}
                       </p>
                     </div>
                   </label>
@@ -772,7 +774,7 @@ export default function Messaging({ initialChatTargetId, onClearTarget }: Messag
                 onClick={() => { setActiveModal(null); setSelectedUsers([]); setGroupMessageText(''); }}
                 className="px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg font-medium transition-colors"
               >
-                Annuler
+                {t('cancel')}
               </button>
               <button 
                 onClick={handleSendBroadcast}
@@ -780,7 +782,7 @@ export default function Messaging({ initialChatTargetId, onClearTarget }: Messag
                 className="px-4 py-2 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 disabled:opacity-50 transition-colors flex items-center gap-2"
               >
                 <Send size={18} />
-                Envoyer à {selectedUsers.length} personne(s)
+                {t('send_to_n_people').replace('{{count}}', selectedUsers.length.toString())}
               </button>
             </div>
           </div>
@@ -793,7 +795,7 @@ export default function Messaging({ initialChatTargetId, onClearTarget }: Messag
             <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center shrink-0">
               <h2 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
                 <Megaphone size={20} className="text-indigo-600" />
-                Faire une annonce
+                {t('make_announcement')}
               </h2>
               <button onClick={() => setActiveModal(null)} className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300">
                 &times;
@@ -801,32 +803,32 @@ export default function Messaging({ initialChatTargetId, onClearTarget }: Messag
             </div>
             <div className="p-4 overflow-y-auto flex-1">
               <textarea
-                placeholder="Rédigez votre annonce ici..."
+                placeholder={t('announcement_text_placeholder')}
                 value={announcementText}
                 onChange={(e) => setAnnouncementText(e.target.value)}
                 className="w-full h-32 p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 resize-none mb-4"
               />
               <div className="flex items-center gap-2 mb-4">
-                <button type="button" className="p-2 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors" title="Image">
+                <button type="button" className="p-2 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors" title={t('image')}>
                   <Image size={20} />
                 </button>
-                <button type="button" className="p-2 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors" title="Vidéo">
+                <button type="button" className="p-2 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors" title={t('video')}>
                   <Video size={20} />
                 </button>
-                <button type="button" className="p-2 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors" title="Fichier">
+                <button type="button" className="p-2 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors" title={t('file')}>
                   <Paperclip size={20} />
                 </button>
                 <button type="button" className="p-2 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors" title="Emojis">
                   <Smile size={20} />
                 </button>
                 <div className="flex-1"></div>
-                <button type="button" className="flex items-center gap-2 p-2 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors text-sm font-medium" title="Programmer">
+                <button type="button" className="flex items-center gap-2 p-2 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors text-sm font-medium" title={t('schedule')}>
                   <Clock size={18} />
-                  <span>Programmer</span>
+                  <span>{t('schedule')}</span>
                 </button>
               </div>
               <div className="bg-amber-50 dark:bg-amber-900/20 text-amber-800 dark:text-amber-300 p-3 rounded-lg text-sm">
-                Cette annonce sera visible par tous les utilisateurs de l'établissement.
+                {t('announcement_visibility_notice')}
               </div>
             </div>
             <div className="p-4 border-t border-gray-200 dark:border-gray-700 flex justify-end gap-3 shrink-0">
@@ -834,7 +836,7 @@ export default function Messaging({ initialChatTargetId, onClearTarget }: Messag
                 onClick={() => setActiveModal(null)}
                 className="px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg font-medium transition-colors"
               >
-                Annuler
+                {t('cancel')}
               </button>
               <button 
                 onClick={handleSendAnnouncement}
@@ -842,7 +844,7 @@ export default function Messaging({ initialChatTargetId, onClearTarget }: Messag
                 className="px-4 py-2 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 transition-colors flex items-center gap-2 disabled:opacity-50"
               >
                 <Send size={18} />
-                {isSubmittingAnnouncement ? 'Envoi...' : "Envoyer l'annonce"}
+                {isSubmittingAnnouncement ? t('sending') : t('publish_announcement')}
               </button>
             </div>
           </div>

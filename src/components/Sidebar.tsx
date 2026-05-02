@@ -14,7 +14,7 @@ interface SidebarProps {
 
 export default function Sidebar({ activeTab, setActiveTab, isMobileOpen, setIsMobileOpen }: SidebarProps) {
   const { currentUser, logout } = useAuth();
-  const { t } = useLanguage();
+  const { t, tData } = useLanguage();
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [isStandalone, setIsStandalone] = useState(false);
   const [showInstallGuide, setShowInstallGuide] = useState(false);
@@ -234,7 +234,7 @@ export default function Sidebar({ activeTab, setActiveTab, isMobileOpen, setIsMo
                 <p className="text-sm font-bold text-gray-900 dark:text-white truncate">
                   {currentUser.prenom || currentUser.nom ? `${currentUser.prenom || ''} ${currentUser.nom || ''}`.trim() : currentUser.email.split('@')[0]}
                 </p>
-                <p className="text-xs text-gray-500 dark:text-gray-400 capitalize truncate">{currentUser.role}</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 capitalize truncate">{tData(currentUser.role)}</p>
               </div>
             </div>
           )}

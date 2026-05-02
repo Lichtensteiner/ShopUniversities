@@ -40,7 +40,7 @@ interface CanteenAccount {
 }
 
 export default function Canteen() {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const { currentUser } = useAuth();
   const [menu, setMenu] = useState<MenuItem[]>([]);
   const [account, setAccount] = useState<CanteenAccount | null>(null);
@@ -162,7 +162,7 @@ export default function Canteen() {
             {t('canteen')}
           </h1>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-            Menu de la semaine et gestion de votre compte cantine.
+            {t('canteen_desc')}
           </p>
         </div>
       </div>
@@ -178,7 +178,7 @@ export default function Canteen() {
                     <Wallet size={24} />
                   </div>
                   <div className="text-right">
-                    <p className="text-xs font-black uppercase tracking-widest opacity-80">Solde Actuel</p>
+                    <p className="text-xs font-black uppercase tracking-widest opacity-80">{t('current_balance')}</p>
                     <p className="text-3xl font-black">{account?.balance.toLocaleString()} FCFA</p>
                   </div>
                 </div>
@@ -189,7 +189,7 @@ export default function Canteen() {
                     className="w-full py-4 bg-white text-orange-600 rounded-2xl font-black flex items-center justify-center gap-2 hover:scale-[1.02] active:scale-[0.98] transition-all shadow-lg"
                   >
                     <Plus size={20} />
-                    Recharger
+                    {t('top_up')}
                   </button>
                 </div>
               </div>
@@ -197,7 +197,7 @@ export default function Canteen() {
               <div className="bg-white dark:bg-gray-800 p-6 rounded-[2rem] border border-gray-100 dark:border-gray-700 shadow-sm space-y-4">
                 <h3 className="text-sm font-black text-gray-900 dark:text-white uppercase tracking-widest flex items-center gap-2">
                   <AlertTriangle size={16} className="text-orange-500" />
-                  Restrictions Alimentaires
+                  {t('food_restrictions')}
                 </h3>
                 {account?.restrictions && account.restrictions.length > 0 ? (
                   <div className="flex flex-wrap gap-2">
@@ -208,7 +208,7 @@ export default function Canteen() {
                     ))}
                   </div>
                 ) : (
-                  <p className="text-xs text-gray-500 italic">Aucune restriction signalée.</p>
+                  <p className="text-xs text-gray-500 italic">{t('no_restrictions')}</p>
                 )}
               </div>
             </>
@@ -240,11 +240,14 @@ export default function Canteen() {
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-black text-gray-900 dark:text-white tracking-tight flex items-center gap-2">
               <Utensils size={24} className="text-indigo-600" />
-              Menu de la Semaine
+              {t('weekly_menu')}
             </h2>
             <div className="flex items-center gap-2 text-xs font-bold text-gray-400 uppercase tracking-widest">
               <Calendar size={14} />
-              Semaine du {new Date().toLocaleDateString('fr-FR')}
+              {t('week_of')} {new Date().toLocaleDateString(language === 'fr' ? 'fr-FR' : 
+                language === 'en' ? 'en-US' :
+                language === 'es' ? 'es-ES' :
+                language === 'zh' ? 'zh-CN' : 'ja-JP')}
             </div>
           </div>
 
@@ -252,12 +255,13 @@ export default function Canteen() {
             {days.map((day) => {
               const dayMenu = menu.find(m => m.day === day);
               const isPublished = dayMenu?.published;
+              const dayLabel = t(day.toLowerCase());
               
               if (!canManage && !isPublished) {
                 return (
                   <div key={day} className="bg-gray-50/50 dark:bg-gray-900/20 p-6 rounded-[2rem] border border-dashed border-gray-200 dark:border-gray-800 flex flex-col items-center justify-center text-gray-400 gap-2 min-h-[200px]">
                     <Clock size={32} className="opacity-20" />
-                    <p className="text-lg font-black">{day}</p>
+                    <p className="text-lg font-black">{dayLabel}</p>
                     <p className="text-xs font-bold italic">{t('menu_in_preparation')}</p>
                   </div>
                 );
@@ -271,10 +275,10 @@ export default function Canteen() {
                   
                   <div className="flex items-start justify-between mb-4 relative z-10">
                     <div>
-                      <h3 className="text-lg font-black text-indigo-600 dark:text-indigo-400 leading-none">{day}</h3>
+                      <h3 className="text-lg font-black text-indigo-600 dark:text-indigo-400 leading-none">{dayLabel}</h3>
                       {canManage && (
                         <span className={`inline-block mt-2 px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest ${isPublished ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
-                          {isPublished ? 'Publié' : 'Brouillon'}
+                          {isPublished ? t('published_status') : t('draft_status')}
                         </span>
                       )}
                     </div>
@@ -320,7 +324,7 @@ export default function Canteen() {
                   ) : (
                     <div className="py-8 flex flex-col items-center justify-center text-gray-300 gap-2">
                       <Clock size={32} />
-                      <p className="text-xs font-bold italic">Menu non défini</p>
+                      <p className="text-xs font-bold italic">{t('not_defined')}</p>
                     </div>
                   )}
                 </div>
@@ -342,7 +346,7 @@ export default function Canteen() {
               <div className="p-3 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-2xl">
                 <Utensils size={24} />
               </div>
-              <h2 className="text-2xl font-black text-gray-900 dark:text-white tracking-tight">{t('compose_meal')} : {editingDay}</h2>
+              <h2 className="text-2xl font-black text-gray-900 dark:text-white tracking-tight">{t('compose_meal')} : {t(editingDay.toLowerCase())}</h2>
             </div>
             
             <div className="space-y-4">
@@ -395,14 +399,14 @@ export default function Canteen() {
                 onClick={() => setEditingDay(null)}
                 className="flex-1 py-4 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-2xl font-black"
               >
-                Annuler
+                {t('cancel')}
               </button>
               <button 
                 onClick={handleSaveMenu}
                 className="flex-1 py-4 bg-indigo-600 text-white rounded-2xl font-black shadow-lg shadow-indigo-200 dark:shadow-none hover:scale-105 transition-all flex items-center justify-center gap-2"
               >
                 <CheckCircle2 size={18} />
-                Enregistrer
+                {t('save')}
               </button>
             </div>
           </motion.div>
@@ -421,8 +425,8 @@ export default function Canteen() {
               <Coins size={32} />
             </div>
             
-            <h2 className="text-2xl font-black text-gray-900 dark:text-white tracking-tight mb-2">Recharger mon compte</h2>
-            <p className="text-sm text-gray-500 mb-8">Entrez le montant que vous souhaitez ajouter à votre solde.</p>
+            <h2 className="text-2xl font-black text-gray-900 dark:text-white tracking-tight mb-2">{t('top_up_account')}</h2>
+            <p className="text-sm text-gray-500 mb-8">{t('top_up_amount_desc')}</p>
             
             <div className="relative mb-8">
               <input 
@@ -441,13 +445,13 @@ export default function Canteen() {
                 onClick={() => setShowTopUp(false)}
                 className="flex-1 py-4 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-2xl font-black"
               >
-                Annuler
+                {t('cancel')}
               </button>
               <button 
                 onClick={handleTopUp}
                 className="flex-1 py-4 bg-orange-600 text-white rounded-2xl font-black shadow-lg shadow-orange-200 dark:shadow-none hover:scale-105 transition-all"
               >
-                Confirmer
+                {t('confirm')}
               </button>
             </div>
           </motion.div>

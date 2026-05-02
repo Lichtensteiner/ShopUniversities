@@ -62,7 +62,7 @@ export default function Dashboard() {
       userSnapshot.forEach(doc => {
         const data = doc.data();
         if (data.role === 'élève' || data.role === 'eleve') {
-          const level = (data.classe || 'Non classé').split(' ')[0];
+          const level = (data.classe || t('unclassified')).split(' ')[0];
           studentLevelsMap.set(level, (studentLevelsMap.get(level) || 0) + 1);
         }
       });
@@ -113,7 +113,7 @@ export default function Dashboard() {
       const unsubAttWeek = onSnapshot(qAttWeek, (snapshot) => {
         const weeklyStatsMap = new Map();
         currentWeekDays.forEach((date, index) => {
-          weeklyStatsMap.set(date, { name: dayNames[index], presents: 0, retards: 0, absents: expectedTotal });
+          weeklyStatsMap.set(date, { name: tData(dayNames[index]), presents: 0, retards: 0, absents: expectedTotal });
         });
 
         const studentRetardsMap = new Map();
@@ -139,7 +139,7 @@ export default function Dashboard() {
 
             if (data.date === today && (data.statut === 'Présent' || data.statut === 'Retard')) {
               const user = usersMap.get(data.user_id);
-              const className = user.classe || 'Personnel';
+              const className = user.classe || t('personnel_staff');
               classPresenceMap.set(className, (classPresenceMap.get(className) || 0) + 1);
             }
           }
@@ -153,10 +153,10 @@ export default function Dashboard() {
           if (count >= 3) {
             const user = usersMap.get(userId);
             if (user) {
-              const userName = `${user.prenom || ''} ${user.nom || ''}`.trim() || 'Utilisateur';
+              const userName = `${user.prenom || ''} ${user.nom || ''}`.trim() || t('user');
               newAlerts.push({
                 id: userId,
-                message: `L'élève ${userName} a accumulé ${count} retards cette semaine.`
+                message: t('student_retard_alert').replace('{{name}}', userName).replace('{{count}}', count.toString())
               });
             }
           }
@@ -171,7 +171,7 @@ export default function Dashboard() {
         userSnapshot.forEach(doc => {
           const data = doc.data();
           if (data.role === 'élève' || data.role === 'eleve') {
-            const className = data.classe || 'Sans classe';
+            const className = data.classe || t('no_class');
             classCountByTotal.set(className, (classCountByTotal.get(className) || 0) + 1);
           }
         });
@@ -312,10 +312,10 @@ export default function Dashboard() {
               <div className="p-2 bg-white/20 rounded-xl backdrop-blur-md">
                 <Activity size={20} />
               </div>
-              <span className="text-[10px] font-black uppercase tracking-widest opacity-70">Bien-être</span>
+              <span className="text-[10px] font-black uppercase tracking-widest opacity-70">{t('wellbeing')}</span>
             </div>
-            <h3 className="text-lg font-black mb-1">Comment vas-tu ?</h3>
-            <p className="text-xs opacity-80 mb-4">Ton humeur aide à améliorer l'école.</p>
+            <h3 className="text-lg font-black mb-1">{t('how_are_you')}</h3>
+            <p className="text-xs opacity-80 mb-4">{t('mood_desc')}</p>
             <div className="flex justify-between gap-2">
               {['😊', '😐', '😔', '😡'].map(m => (
                 <button 
@@ -338,14 +338,14 @@ export default function Dashboard() {
               <ShieldCheck size={20} />
             </div>
             <div className="text-right">
-              <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">Impact Éco</span>
+              <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">{t('eco_impact')}</span>
             </div>
           </div>
           <div className="space-y-3">
             <div className="flex items-end justify-between">
               <div>
-                <p className="text-2xl font-black text-gray-900 dark:text-white">{ecoStats.trees} <span className="text-xs font-medium text-gray-400">Arbres</span></p>
-                <p className="text-[10px] text-gray-500 uppercase font-black">Sauvés par le digital</p>
+                <p className="text-2xl font-black text-gray-900 dark:text-white">{ecoStats.trees} <span className="text-xs font-medium text-gray-400">{t('trees_label')}</span></p>
+                <p className="text-[10px] text-gray-500 uppercase font-black">{t('saved_by_digital')}</p>
               </div>
               <Castle size={40} className="text-emerald-100 dark:text-emerald-900/20" />
             </div>
@@ -365,7 +365,7 @@ export default function Dashboard() {
             <div className="p-2 bg-orange-50 dark:bg-orange-900/20 text-orange-600 rounded-xl">
               <Sparkles size={20} />
             </div>
-            <span className="text-[10px] font-black text-orange-600 uppercase tracking-widest">IA Recommandation</span>
+            <span className="text-[10px] font-black text-orange-600 uppercase tracking-widest">{t('ai_recommendation')}</span>
           </div>
           <div className="space-y-4">
             {recommendation ? (
@@ -374,13 +374,13 @@ export default function Dashboard() {
                   <GraduationCap size={16} className="text-orange-600" />
                 </div>
                 <div>
-                  <p className="text-xs font-black text-gray-800 dark:text-gray-200">{recommendation.subject || 'Sujet'}</p>
+                  <p className="text-xs font-black text-gray-800 dark:text-gray-200">{recommendation.subject || t('subject')}</p>
                   <p className="text-[10px] text-gray-500 line-clamp-2">{recommendation.text || recommendation.recommendation}</p>
                 </div>
               </div>
             ) : (
               <div className="text-center py-2 opacity-50">
-                <p className="text-[10px] font-bold uppercase tracking-widest italic">Analyse en cours...</p>
+                <p className="text-[10px] font-bold uppercase tracking-widest italic">{t('analyzing')}</p>
               </div>
             )}
           </div>
@@ -392,7 +392,7 @@ export default function Dashboard() {
             <div className="p-2 bg-slate-800 rounded-xl">
               <Award size={20} className="text-yellow-400" />
             </div>
-            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Compétition</span>
+            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{t('competition')}</span>
           </div>
           <div className="space-y-2">
             {houses.length > 0 ? (
@@ -404,12 +404,12 @@ export default function Dashboard() {
                       {house.name}
                     </span>
                   </div>
-                  <span className="font-black text-xs">{(house.points || 0).toLocaleString()} pts</span>
+                  <span className="font-black text-xs">{(house.points || 0).toLocaleString()} {t('pts')}</span>
                 </div>
               ))
             ) : (
               <div className="text-center py-4 opacity-50">
-                <p className="text-[10px] font-bold uppercase tracking-widest italic">Aucune donnée</p>
+                <p className="text-[10px] font-bold uppercase tracking-widest italic">{t('no_data_available')}</p>
               </div>
             )}
           </div>
@@ -449,7 +449,7 @@ export default function Dashboard() {
                 <Users size={24} />
               </div>
               <div>
-                <p className="text-sm font-medium text-gray-500">Effectif Attendu</p>
+                <p className="text-sm font-medium text-gray-500">{t('expected_headcount')}</p>
                 <h3 className="text-2xl font-bold text-gray-900">{stats.total}</h3>
               </div>
             </div>
@@ -489,7 +489,7 @@ export default function Dashboard() {
           <div className="space-y-6">
             <div className="flex items-center gap-2">
               <div className="h-8 w-1 bg-indigo-600 rounded-full"></div>
-              <h2 className="text-xl font-bold text-gray-900">{t('user_statistics') || 'Statistiques des Utilisateurs'}</h2>
+              <h2 className="text-xl font-bold text-gray-900">{t('user_statistics')}</h2>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -499,7 +499,7 @@ export default function Dashboard() {
                   <Users size={24} />
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-gray-500">Enseignants</p>
+                  <p className="text-sm font-medium text-gray-500">{t('teachers')}</p>
                   <h3 className="text-2xl font-bold text-gray-900">{userDistribution.find(d => d.name === 'Enseignants')?.value || 0}</h3>
                 </div>
               </div>
@@ -510,7 +510,7 @@ export default function Dashboard() {
                   <GraduationCap size={24} />
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-gray-500">Élèves</p>
+                  <p className="text-sm font-medium text-gray-500">{t('students')}</p>
                   <h3 className="text-2xl font-bold text-gray-900">{userDistribution.find(d => d.name === 'Élèves')?.value || 0}</h3>
                 </div>
               </div>
@@ -521,7 +521,7 @@ export default function Dashboard() {
                   <ShieldCheck size={24} />
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-gray-500">Personnel Administratif</p>
+                  <p className="text-sm font-medium text-gray-500">{t('administrative_staff')}</p>
                   <h3 className="text-2xl font-bold text-gray-900">{userDistribution.find(d => d.name === 'Personnel')?.value || 0}</h3>
                 </div>
               </div>
@@ -532,7 +532,7 @@ export default function Dashboard() {
                   <Heart size={24} />
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-gray-500">Parents</p>
+                  <p className="text-sm font-medium text-gray-500">{t('parents')}</p>
                   <h3 className="text-2xl font-bold text-gray-900">{userDistribution.find(d => d.name === 'Parents')?.value || 0}</h3>
                 </div>
               </div>
@@ -541,12 +541,12 @@ export default function Dashboard() {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* User Distribution Chart */}
               <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-                <h3 className="text-lg font-semibold text-gray-900 mb-6">Répartition Globale (%)</h3>
+                <h3 className="text-lg font-semibold text-gray-900 mb-6">{t('global_distribution')}</h3>
                 <div className="h-64 w-full">
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                       <Pie
-                        data={userDistribution}
+                        data={userDistribution.map(d => ({ ...d, name: tData(d.name) }))}
                         cx="50%"
                         cy="50%"
                         innerRadius={60}
@@ -561,7 +561,7 @@ export default function Dashboard() {
                       </Pie>
                       <Tooltip 
                         contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                        formatter={(value: number) => [value, 'Utilisateurs']}
+                        formatter={(value: number) => [value, t('users')]}
                       />
                       <Legend verticalAlign="bottom" height={36}/>
                     </PieChart>
@@ -571,7 +571,7 @@ export default function Dashboard() {
 
               {/* Students by Level Chart */}
               <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-                <h3 className="text-lg font-semibold text-gray-900 mb-6">Élèves par Niveau</h3>
+                <h3 className="text-lg font-semibold text-gray-900 mb-6">{t('students_by_level')}</h3>
                 <div className="h-64 w-full">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={studentLevelData}>
@@ -582,7 +582,7 @@ export default function Dashboard() {
                         cursor={{ fill: '#f9fafb' }}
                         contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
                       />
-                      <Bar dataKey="value" name="Nombre d'élèves" fill="#3b82f6" radius={[4, 4, 0, 0]} maxBarSize={40} />
+                      <Bar dataKey="value" name={t('number_of_students')} fill="#3b82f6" radius={[4, 4, 0, 0]} maxBarSize={40} />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
@@ -617,7 +617,7 @@ export default function Dashboard() {
             </div>
 
             <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-              <h3 className="text-lg font-semibold text-gray-900 mb-6">Répartition par classe (%)</h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-6">{t('class_distribution_percent')}</h3>
               {classData.length > 0 ? (
                 <>
                   <div className="h-64 w-full">
@@ -639,7 +639,7 @@ export default function Dashboard() {
                         </Pie>
                         <Tooltip 
                           contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                          formatter={(value, name, props) => [`${props.payload.percentage}%`, `Part de l'école`]}
+                          formatter={(value, name, props) => [`${props.payload.percentage}%`, t('school_share')]}
                         />
                       </PieChart>
                     </ResponsiveContainer>

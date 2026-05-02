@@ -72,17 +72,17 @@ export default function Profile() {
     setSuccess('');
 
     if (newPassword !== confirmPassword) {
-      setError("Les nouveaux mots de passe ne correspondent pas.");
+      setError(t('password_mismatch'));
       return;
     }
 
     if (newPassword.length < 6) {
-      setError("Le nouveau mot de passe doit contenir au moins 6 caractères.");
+      setError(t('password_short'));
       return;
     }
 
     if (!auth.currentUser || !auth.currentUser.email) {
-      setError("Utilisateur non authentifié.");
+      setError(t('unauthenticated_error'));
       return;
     }
 
@@ -95,18 +95,18 @@ export default function Profile() {
       // Update password
       await updatePassword(auth.currentUser, newPassword);
       
-      setSuccess("Votre mot de passe a été mis à jour avec succès.");
+      setSuccess(t('password_updated_success'));
       setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
     } catch (err: any) {
       console.error(err);
       if (err.code === 'auth/invalid-credential' || err.code === 'auth/wrong-password') {
-        setError("Le mot de passe actuel est incorrect.");
+        setError(t('wrong_password_error'));
       } else if (err.code === 'auth/too-many-requests') {
-        setError("Trop de tentatives. Veuillez réessayer plus tard.");
+        setError(t('too_many_requests'));
       } else {
-        setError("Erreur lors de la mise à jour du mot de passe.");
+        setError(t('update_error'));
       }
     } finally {
       setLoading(false);
@@ -125,7 +125,7 @@ export default function Profile() {
       // Note: currentUser will be updated via onSnapshot in AuthContext
     } catch (err) {
       console.error("Erreur lors de la mise à jour de la biographie:", err);
-      alert("Erreur lors de la mise à jour de la biographie.");
+      alert(t('bio_update_error'));
     } finally {
       setSavingBio(false);
     }
@@ -147,7 +147,7 @@ export default function Profile() {
       setIsEditingInfo(false);
     } catch (err) {
       console.error("Erreur lors de la mise à jour des informations:", err);
-      alert("Erreur lors de la mise à jour des informations.");
+      alert(t('info_update_error'));
     } finally {
       setSavingInfo(false);
     }
@@ -165,7 +165,7 @@ export default function Profile() {
       setIsEditingMatieres(false);
     } catch (err) {
       console.error("Erreur lors de la mise à jour des matières:", err);
-      alert("Erreur lors de la mise à jour des matières.");
+      alert(t('subjects_update_error'));
     } finally {
       setSavingMatieres(false);
     }
@@ -203,10 +203,10 @@ export default function Profile() {
       
       const userRef = doc(db, 'users', currentUser.id);
       await updateDoc(userRef, { [type]: downloadURL });
-      setSuccess(`Votre ${type === 'photo' ? 'photo de profil' : 'photo de couverture'} a été mise à jour.`);
+      setSuccess(t('photo_updated_success').replace('{{type}}', type === 'photo' ? t('profile_photo') : t('cover_photo')));
     } catch (err) {
       console.error(err);
-      setError(`Erreur lors de l'upload de la ${type === 'photo' ? 'photo' : 'couverture'}.`);
+      setError(t('upload_error'));
     } finally {
       if (type === 'photo') setUploadingPhoto(false);
       else setUploadingCover(false);
@@ -215,44 +215,44 @@ export default function Profile() {
 
   const roleDetails = {
     'admin': {
-      title: "Administrateur Système",
-      description: "En tant qu'administrateur, vous avez le contrôle total sur la plateforme ShopUniversities. Votre rôle est crucial pour le bon fonctionnement et la sécurité de l'établissement.",
+      title: t('admin_role_title'),
+      description: t('admin_role_desc'),
       missions: [
-        "Gestion complète des utilisateurs (élèves, enseignants, personnel)",
-        "Configuration des paramètres globaux du système",
-        "Supervision des présences et résolution des anomalies",
-        "Génération et analyse des rapports statistiques",
-        "Gestion des bornes de pointage et de la sécurité biométrique"
+        t('admin_mission_1'),
+        t('admin_mission_2'),
+        t('admin_mission_3'),
+        t('admin_mission_4'),
+        t('admin_mission_5')
       ]
     },
     'enseignant': {
-      title: "Enseignant",
-      description: "En tant qu'enseignant, vous êtes au cœur du dispositif pédagogique. Vous assurez le suivi de vos classes et la validation des présences.",
+      title: t('teacher_role_title'),
+      description: t('teacher_role_desc'),
       missions: [
-        "Gestion de l'appel en classe et validation des présences",
-        "Suivi de l'assiduité des élèves de vos cours",
-        "Consultation des emplois du temps et des listes de classes",
-        "Communication avec l'administration concernant les absences"
+        t('teacher_mission_1'),
+        t('teacher_mission_2'),
+        t('teacher_mission_3'),
+        t('teacher_mission_4')
       ]
     },
     'élève': {
-      title: "Élève / Étudiant",
-      description: "En tant qu'élève, cette plateforme vous permet de suivre votre assiduité et de valider votre présence aux cours de manière autonome.",
+      title: t('student_role_title'),
+      description: t('student_role_desc'),
       missions: [
-        "Pointage biométrique ou par QR code aux bornes de l'établissement",
-        "Consultation de votre historique de présence et de vos statistiques",
-        "Visualisation de votre emploi du temps et de vos classes",
-        "Justification des absences et retards auprès de l'administration"
+        t('student_mission_1'),
+        t('student_mission_2'),
+        t('student_mission_3'),
+        t('student_mission_4')
       ]
     },
     'personnel administratif': {
-      title: "Personnel Administratif",
-      description: "En tant que membre de l'administration, vous assurez le suivi quotidien de la vie scolaire et la gestion des flux d'élèves.",
+      title: t('admin_staff_role_title'),
+      description: t('admin_staff_role_desc'),
       missions: [
-        "Contrôle des accès et supervision des bornes de pointage",
-        "Gestion des retards, absences et justifications des élèves",
-        "Assistance aux élèves et enseignants sur l'utilisation du système",
-        "Suivi administratif des dossiers scolaires et édition de rapports"
+        t('admin_staff_mission_1'),
+        t('admin_staff_mission_2'),
+        t('admin_staff_mission_3'),
+        t('admin_staff_mission_4')
       ]
     }
   };
@@ -262,8 +262,8 @@ export default function Profile() {
   return (
     <div className="max-w-4xl mx-auto space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Mon Profil</h1>
-        <p className="text-sm text-gray-500 mt-1">Gérez vos informations personnelles et votre sécurité</p>
+        <h1 className="text-2xl font-bold text-gray-900 tracking-tight">{t('my_profile')}</h1>
+        <p className="text-sm text-gray-500 mt-1">{t('manage_personal_info')}</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -299,7 +299,7 @@ export default function Profile() {
               </div>
               
               <h2 className="mt-2 text-xl font-bold text-gray-900">
-                {currentUser.prenom || currentUser.nom ? `${currentUser.prenom || ''} ${currentUser.nom || ''}`.trim() : currentUser.email?.split('@')[0] || 'Utilisateur'}
+                {currentUser.prenom || currentUser.nom ? `${currentUser.prenom || ''} ${currentUser.nom || ''}`.trim() : currentUser.email?.split('@')[0] || t('user')}
               </h2>
               <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium capitalize mt-2 ${
                 currentUser.role === 'élève' ? 'bg-blue-100 text-blue-700' :
@@ -360,9 +360,9 @@ export default function Profile() {
                 <div className="flex items-center gap-3 text-sm">
                   <Calendar className="text-gray-400" size={18} />
                   <div>
-                    <p className="text-gray-500 text-xs">Membre depuis</p>
+                    <p className="text-gray-500 text-xs">{t('member_since')}</p>
                     <p className="font-medium text-gray-900">
-                      {new Date(currentUser.date_creation).toLocaleDateString('fr-FR', {
+                      {new Date(currentUser.date_creation).toLocaleDateString(language === 'fr' ? 'fr-FR' : 'en-US', {
                         year: 'numeric',
                         month: 'long',
                         day: 'numeric'
@@ -397,14 +397,14 @@ export default function Profile() {
               onClick={() => setViewTab('info')}
               className={`flex-1 py-4 text-sm font-bold transition-all ${viewTab === 'info' ? 'text-indigo-600 bg-white border-b-2 border-indigo-600' : 'text-gray-500 bg-gray-50 hover:bg-gray-100'}`}
             >
-              Mon Profil
+              {t('my_profile')}
             </button>
             <button 
               onClick={() => setViewTab('history')}
               className={`flex-1 py-4 text-sm font-bold transition-all flex items-center justify-center gap-2 ${viewTab === 'history' ? 'text-indigo-600 bg-white border-b-2 border-indigo-600' : 'text-gray-500 bg-gray-50 hover:bg-gray-100'}`}
             >
               <History size={16} />
-              Historique de Présence
+              {t('attendance_history')}
             </button>
           </div>
 
@@ -418,14 +418,14 @@ export default function Profile() {
                 <div className="p-2 bg-indigo-50 text-indigo-600 rounded-lg">
                   <UserCircle size={20} />
                 </div>
-                <h2 className="text-lg font-bold text-gray-900">Informations Complémentaires</h2>
+                <h2 className="text-lg font-bold text-gray-900">{t('additional_info')}</h2>
               </div>
               {!isEditingInfo ? (
                 <button 
                   onClick={() => setIsEditingInfo(true)}
                   className="text-indigo-600 hover:text-indigo-800 text-sm flex items-center gap-1"
                 >
-                  <Edit2 size={14} /> Modifier
+                  <Edit2 size={14} /> {t('edit')}
                 </button>
               ) : (
                 <div className="flex items-center gap-2">
@@ -442,7 +442,7 @@ export default function Profile() {
                     className="text-gray-500 hover:text-gray-700 text-sm"
                     disabled={savingInfo}
                   >
-                    Annuler
+                    {t('cancel')}
                   </button>
                   <button 
                     onClick={handleSaveInfo}
@@ -450,7 +450,7 @@ export default function Profile() {
                     className="bg-indigo-600 text-white px-3 py-1 rounded-md text-sm flex items-center gap-1 hover:bg-indigo-700 disabled:opacity-50"
                   >
                     {savingInfo ? <RefreshCw size={14} className="animate-spin" /> : <Save size={14} />}
-                    Enregistrer
+                    {t('save')}
                   </button>
                 </div>
               )}
@@ -572,24 +572,26 @@ export default function Profile() {
           </div>
 
           {/* Role & Missions Section */}
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-            <div className="flex items-center gap-3 mb-6">
-              <div className="p-2 bg-indigo-50 text-indigo-600 rounded-lg">
-                <Briefcase size={20} />
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 mb-6">
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-indigo-50 text-indigo-600 rounded-lg">
+                  <Briefcase size={20} />
+                </div>
+                <h2 className="text-lg font-bold text-gray-900">{t('role_missions')}</h2>
               </div>
-              <h2 className="text-lg font-bold text-gray-900">Rôle et Missions</h2>
             </div>
             
             <div className="space-y-6">
               <div>
                 <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-md font-semibold text-gray-900">Biographie</h3>
+                  <h3 className="text-md font-semibold text-gray-900">{t('bio')}</h3>
                   {!isEditingBio ? (
                     <button 
                       onClick={() => setIsEditingBio(true)}
                       className="text-indigo-600 hover:text-indigo-800 text-sm flex items-center gap-1"
                     >
-                      <Edit2 size={14} /> Modifier
+                      <Edit2 size={14} /> {t('edit')}
                     </button>
                   ) : (
                     <div className="flex items-center gap-2">
@@ -601,7 +603,7 @@ export default function Profile() {
                         className="text-gray-500 hover:text-gray-700 text-sm"
                         disabled={savingBio}
                       >
-                        Annuler
+                        {t('cancel')}
                       </button>
                       <button 
                         onClick={handleSaveBio}
@@ -609,7 +611,7 @@ export default function Profile() {
                         className="bg-indigo-600 text-white px-3 py-1 rounded-md text-sm flex items-center gap-1 hover:bg-indigo-700 disabled:opacity-50"
                       >
                         {savingBio ? <RefreshCw size={14} className="animate-spin" /> : <Save size={14} />}
-                        Enregistrer
+                        {t('save')}
                       </button>
                     </div>
                   )}
@@ -620,14 +622,14 @@ export default function Profile() {
                     value={biographie}
                     onChange={(e) => setBiographie(e.target.value)}
                     className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 min-h-[120px] text-sm"
-                    placeholder="Parlez-nous un peu de vous..."
+                    placeholder={t('biography_placeholder')}
                   />
                 ) : (
                   <div className="bg-gray-50 p-4 rounded-xl border border-gray-100 min-h-[80px]">
                     {currentUser.biographie ? (
                       <p className="text-gray-700 text-sm whitespace-pre-wrap">{currentUser.biographie}</p>
                     ) : (
-                      <p className="text-gray-400 text-sm italic">Aucune biographie renseignée.</p>
+                      <p className="text-gray-400 text-sm italic">{t('no_biography')}</p>
                     )}
                   </div>
                 )}
@@ -642,7 +644,7 @@ export default function Profile() {
                         onClick={() => setIsEditingMatieres(true)}
                         className="text-indigo-600 hover:text-indigo-800 text-sm flex items-center gap-1"
                       >
-                        <Edit2 size={14} /> Modifier
+                        <Edit2 size={14} /> {t('edit')}
                       </button>
                     ) : (
                       <div className="flex items-center gap-2">
@@ -654,7 +656,7 @@ export default function Profile() {
                           className="text-gray-500 hover:text-gray-700 text-sm"
                           disabled={savingMatieres}
                         >
-                          Annuler
+                          {t('cancel')}
                         </button>
                         <button 
                           onClick={handleSaveMatieres}
@@ -662,7 +664,7 @@ export default function Profile() {
                           className="bg-indigo-600 text-white px-3 py-1 rounded-md text-sm flex items-center gap-1 hover:bg-indigo-700 disabled:opacity-50"
                         >
                           {savingMatieres ? <RefreshCw size={14} className="animate-spin" /> : <Save size={14} />}
-                          Enregistrer
+                          {t('save')}
                         </button>
                       </div>
                     )}
@@ -676,7 +678,7 @@ export default function Profile() {
                           value={newMatiere}
                           onChange={(e) => setNewMatiere(e.target.value)}
                           onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addMatiere())}
-                          placeholder="Ajouter une matière (ex: Mathématiques)"
+                          placeholder={t('add_subject_placeholder')}
                           className="flex-1 px-3 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 text-sm"
                         />
                         <button
@@ -707,7 +709,7 @@ export default function Profile() {
                           </span>
                         ))
                       ) : (
-                        <p className="text-gray-400 text-sm italic">Aucune matière renseignée.</p>
+                        <p className="text-gray-400 text-sm italic">{t('no_subjects')}</p>
                       )}
                     </div>
                   )}
@@ -724,7 +726,7 @@ export default function Profile() {
               <div className="bg-gray-50 rounded-xl p-5 border border-gray-100">
                 <div className="flex items-center gap-2 mb-4 text-gray-900 font-semibold">
                   <Target size={18} className="text-indigo-600" />
-                  <h4>Vos missions principales</h4>
+                  <h4>{t(' missions_title')}</h4>
                 </div>
                 <ul className="space-y-3">
                   {currentRoleInfo.missions.map((mission, idx) => (
@@ -743,7 +745,7 @@ export default function Profile() {
               <div className="p-2 bg-indigo-50 text-indigo-600 rounded-lg">
                 <Lock size={20} />
               </div>
-              <h2 className="text-lg font-bold text-gray-900">Sécurité et Mot de passe</h2>
+              <h2 className="text-lg font-bold text-gray-900">{t('security')} & {t('password')}</h2>
             </div>
 
             <form onSubmit={handlePasswordChange} className="space-y-4 max-w-md">
@@ -762,7 +764,7 @@ export default function Profile() {
               )}
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Mot de passe actuel</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t('current_password')}</label>
                 <input
                   type="password"
                   required
@@ -774,7 +776,7 @@ export default function Profile() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Nouveau mot de passe</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t('new_password')}</label>
                 <input
                   type="password"
                   required
@@ -784,11 +786,11 @@ export default function Profile() {
                   className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all"
                   placeholder="••••••••"
                 />
-                <p className="text-xs text-gray-500 mt-1">Au moins 6 caractères.</p>
+                <p className="text-xs text-gray-500 mt-1">{t('min_password_length_hint')}</p>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Confirmer le nouveau mot de passe</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t('confirm_new_password')}</label>
                 <input
                   type="password"
                   required
@@ -804,46 +806,46 @@ export default function Profile() {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="px-6 py-2 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 font-medium transition-colors disabled:opacity-50 flex items-center gap-2"
+                  className="px-6 py-2 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 font-bold transition-colors disabled:opacity-50 flex items-center gap-2"
                 >
                   {loading ? <RefreshCw className="animate-spin" size={18} /> : null}
-                  Mettre à jour le mot de passe
+                  {t('update_password_btn')}
                 </button>
               </div>
             </form>
           </div>
         </>
       ) : (
-        <div className="bg-white rounded-b-2xl border border-gray-100 shadow-sm p-6">
+          <div className="bg-white rounded-b-2xl border border-gray-100 shadow-sm p-6">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
                 <History size={20} className="text-indigo-600" />
-                Mes Pointages Récents
+                {t('recent_scans')}
               </h2>
-              <span className="text-[10px] font-black uppercase text-gray-400 tracking-widest">{userLogs.length} scans enregistrés</span>
+              <span className="text-[10px] font-black uppercase text-gray-400 tracking-widest">{userLogs.length} {t('scans_recorded')}</span>
             </div>
 
             <div className="overflow-hidden border border-gray-100 rounded-2xl">
               <table className="w-full text-sm text-left text-gray-500">
                 <thead className="text-[10px] text-gray-400 uppercase bg-gray-50">
                   <tr>
-                    <th className="px-4 py-3 font-black">Date</th>
-                    <th className="px-4 py-3 font-black">Heure</th>
-                    <th className="px-4 py-3 font-black">Action</th>
+                    <th className="px-4 py-3 font-black">{t('date')}</th>
+                    <th className="px-4 py-3 font-black">{t('time')}</th>
+                    <th className="px-4 py-3 font-black">{t('action')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50 font-medium">
                   {userLogs.length === 0 ? (
                     <tr>
                       <td colSpan={3} className="px-4 py-12 text-center text-gray-400 italic">
-                        Aucun pointage enregistré pour le moment.
+                        {t('no_scans_recorded')}
                       </td>
                     </tr>
                   ) : (
                     userLogs.map((log) => (
                       <tr key={log.id} className="hover:bg-gray-50 transition-colors">
                         <td className="px-4 py-3 text-gray-600">
-                          {new Date(log.date).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' })}
+                          {new Date(log.date).toLocaleDateString(language === 'fr' ? 'fr-FR' : 'en-US', { day: '2-digit', month: 'short', year: 'numeric' })}
                         </td>
                         <td className="px-4 py-3 font-mono text-gray-900">
                           {log.time}
@@ -852,7 +854,7 @@ export default function Profile() {
                           <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-tighter ${
                             log.type === 'entrée' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'
                           }`}>
-                            {log.type} {log.isLate && <span className="ml-1 text-red-600">(RETARD)</span>}
+                            {log.type === 'entrée' ? t('arrival') : log.type === 'sortie' ? t('departure') : tData(log.type)} {log.isLate && <span className="ml-1 text-red-600">({t('late').toUpperCase()})</span>}
                           </span>
                         </td>
                       </tr>

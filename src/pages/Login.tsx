@@ -73,7 +73,7 @@ export default function Login() {
 
         // Security reinforcement: Only allow specific email to register as admin
         if (role === 'admin' && email.toLowerCase() !== 'martinienmvezogo@gmail.com') {
-          setError("Seul martinienmvezogo@gmail.com peut s'inscrire en tant qu'administrateur.");
+          setError(t('only_admin_can_register'));
           return;
         }
 
@@ -111,7 +111,7 @@ export default function Login() {
       } else if (err.code === 'auth/network-request-failed') {
         setError(t('network_error'));
       } else {
-        setError(err.message || "Une erreur est survenue.");
+        setError(err.message || t('error_occurred'));
       }
     }
   };
@@ -121,7 +121,7 @@ export default function Login() {
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
         <img src="/logo.png" alt="Logo" className="h-24 mx-auto object-contain" />
         <p className="mt-6 text-center text-sm text-gray-600 uppercase font-black tracking-widest">
-          Système de gestion des présences
+          {t('attendance_management_system')}
         </p>
       </div>
 

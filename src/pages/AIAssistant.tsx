@@ -8,25 +8,26 @@ import { db } from '../lib/firebase';
 import { GoogleGenAI } from "@google/genai";
 
 let aiInstance: GoogleGenAI | null = null;
-const getAI = () => {
-  if (!aiInstance) {
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) {
-      throw new Error("La clé API Gemini n'est pas configurée.");
-    }
-    aiInstance = new GoogleGenAI({ apiKey });
-  }
-  return aiInstance;
-};
 
 interface AIAssistantProps {
   onNavigate?: (tab: string, params?: any) => void;
 }
 
 export default function AIAssistant({ onNavigate }: AIAssistantProps) {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const { currentUser } = useAuth();
   const [activeTab, setActiveTab] = useState<'grading' | 'preparations' | 'prompts' | 'my_preps'>('grading');
+
+  const getAI = () => {
+    if (!aiInstance) {
+      const apiKey = process.env.GEMINI_API_KEY;
+      if (!apiKey) {
+        throw new Error(t('gemini_api_not_configured'));
+      }
+      aiInstance = new GoogleGenAI({ apiKey });
+    }
+    return aiInstance;
+  };
 
   // Grading State
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -58,27 +59,27 @@ export default function AIAssistant({ onNavigate }: AIAssistantProps) {
   const promptTemplates = [
     {
       id: 'p1',
-      title: 'Plan de cours structuré',
-      description: 'Génère un plan de cours complet avec objectifs, matériel et étapes.',
-      prompt: 'Rédige un plan de cours détaillé pour une séance de 55 minutes sur [SUJET] pour des élèves de [NIVEAU]. Inclus : Objectifs pédagogiques, Matériel nécessaire, Introduction (5 min), Développement (40 min), et Conclusion/Évaluation (10 min).'
+      title: t('lesson_plan'),
+      description: t('ai_lesson_plan_desc_short'),
+      prompt: t('ai_lesson_plan_prompt')
     },
     {
       id: 'p2',
-      title: 'Générateur d\'exercices',
-      description: 'Crée une série d\'exercices progressifs avec corrigés.',
-      prompt: 'Génère 5 exercices progressifs sur [SUJET] pour le niveau [NIVEAU]. Les exercices doivent aller du plus simple au plus complexe. Fournis également les corrigés détaillés pour chaque exercice.'
+      title: t('exercises_generator'),
+      description: t('ai_exercises_desc_short'),
+      prompt: t('ai_exercises_prompt')
     },
     {
       id: 'p3',
-      title: 'Simplification de concept',
-      description: 'Explique un concept complexe avec des mots simples.',
-      prompt: 'Explique le concept de [CONCEPT] à un enfant de 10 ans en utilisant des analogies simples et un langage accessible. Évite le jargon technique.'
+      title: t('concept_simplification'),
+      description: t('ai_concept_desc_short'),
+      prompt: t('ai_concept_prompt')
     },
     {
       id: 'p4',
-      title: 'Création de Quiz QCM',
-      description: 'Génère un QCM de 10 questions avec options et explications.',
-      prompt: 'Crée un QCM de 10 questions sur [SUJET] pour le niveau [NIVEAU]. Pour chaque question, propose 4 options (A, B, C, D) et indique la bonne réponse avec une brève explication.'
+      title: t('quiz_generator'),
+      description: t('ai_quiz_desc_short'),
+      prompt: t('ai_quiz_prompt')
     }
   ];
 
@@ -139,13 +140,13 @@ export default function AIAssistant({ onNavigate }: AIAssistantProps) {
       const base64Data = previewUrl.split(',')[1];
 
       const prompt = `
-        Tu es un assistant pédagogique expert. Analyse ce travail d'élève (image).
-        1. Identifie le sujet du travail.
-        2. Liste les points forts.
-        3. Liste les points à améliorer.
-        4. Suggère une note sur 20.
-        5. Rédige un court message d'encouragement personnalisé pour l'élève.
-        Réponds en français de manière structurée avec des titres clairs.
+        You are an expert pedagogical assistant. Analyze this student work (image).
+        1. Identify the subject of the work.
+        2. List strengths.
+        3. List points to improve.
+        4. Suggest a score out of 20 (format X/20).
+        5. Write a short personalized encouragement message for the student.
+        Respond in ${language === 'fr' ? 'French' : language === 'es' ? 'Spanish' : language === 'zh' ? 'Chinese' : language === 'ja' ? 'Japanese' : 'English'} in a structured way with clear titles.
       `;
 
       const response = await getAI().models.generateContent({
@@ -160,7 +161,7 @@ export default function AIAssistant({ onNavigate }: AIAssistantProps) {
 
       const result = response.text;
       
-      if (!result) throw new Error("Réponse vide de l'IA");
+      if (!result) throw new Error(t('ai_empty_response'));
       
       setAiFeedback(result);
       
@@ -169,7 +170,7 @@ export default function AIAssistant({ onNavigate }: AIAssistantProps) {
 
     } catch (error: any) {
       console.error("AI Analysis error:", error);
-      alert(`Erreur lors de l'analyse par l'IA : ${error.message}`);
+      alert(`${t('ai_analysis_error')} : ${error.message}`);
     } finally {
       setIsAnalyzing(false);
     }
@@ -190,10 +191,10 @@ export default function AIAssistant({ onNavigate }: AIAssistantProps) {
       }
 
       const prompt = `
-        Tu es un assistant pédagogique expert en ${prepSubject}. Génère ${typeLabel} pour le sujet suivant : "${prepTopic}".
-        Niveau scolaire : ${prepGrade}.
-        La réponse doit être structurée, professionnelle et prête à l'emploi pour un enseignant.
-        Réponds en français.
+        You are an expert pedagogical assistant in ${prepSubject}. Generate ${typeLabel} for the following subject: "${prepTopic}".
+        Grade level: ${prepGrade}.
+        The response must be structured, professional and ready to use for a teacher.
+        Respond in ${language === 'fr' ? 'French' : language === 'es' ? 'Spanish' : language === 'zh' ? 'Chinese' : language === 'ja' ? 'Japanese' : 'English'}.
       `;
 
       const response = await getAI().models.generateContent({
@@ -201,11 +202,11 @@ export default function AIAssistant({ onNavigate }: AIAssistantProps) {
         contents: { parts: [{ text: prompt }] }
       });
 
-      if (!response.text) throw new Error("Réponse vide de l'IA");
+      if (!response.text) throw new Error(t('ai_empty_response'));
       setGeneratedPrep(response.text);
     } catch (error: any) {
       console.error("AI Generation error:", error);
-      alert(`Erreur lors de la génération par l'IA : ${error.message}`);
+      alert(`${t('ai_generation_error')} : ${error.message}`);
     } finally {
       setIsGeneratingPrep(false);
     }
@@ -225,14 +226,14 @@ export default function AIAssistant({ onNavigate }: AIAssistantProps) {
         content: generatedPrep,
         createdAt: serverTimestamp()
       });
-      alert("Préparation enregistrée avec succès !");
+      alert(t('prep_saved_success'));
       setGeneratedPrep(null);
       setPrepTopic('');
       setPrepGrade('');
       setPrepSubject('');
     } catch (error) {
       console.error("Error saving preparation:", error);
-      alert("Erreur lors de l'enregistrement.");
+      alert(t('save_error'));
     } finally {
       setIsSavingPrep(false);
     }
@@ -244,20 +245,20 @@ export default function AIAssistant({ onNavigate }: AIAssistantProps) {
     try {
       await createNotification({
         user_id: selectedStudentId,
-        title: "Nouveau Feedback IA",
-        message: `Votre enseignant a partagé un feedback IA sur votre travail. Note suggérée : ${suggestedScore || 'N/A'}`,
+        title: t('new_ai_feedback'),
+        message: t('ai_feedback_shared_msg').replace('{{score}}', suggestedScore || 'N/A'),
         content: aiFeedback,
         type: 'success',
         targetTab: 'student_dashboard'
       });
-      alert("Feedback envoyé avec succès !");
+      alert(t('feedback_sent_success'));
       setAiFeedback(null);
       setSuggestedScore(null);
       setSelectedFile(null);
       setPreviewUrl(null);
     } catch (error) {
       console.error("Error sending feedback:", error);
-      alert("Erreur lors de l'envoi du feedback.");
+      alert(t('feedback_send_error'));
     } finally {
       setIsSending(false);
     }
@@ -270,7 +271,7 @@ export default function AIAssistant({ onNavigate }: AIAssistantProps) {
   };
 
   const deletePrep = async (id: string) => {
-    if (!confirm("Êtes-vous sûr de vouloir supprimer cette préparation ?")) return;
+    if (!confirm(t('delete_prep_confirm'))) return;
     try {
       await deleteDoc(doc(db, 'preparations', id));
       if (selectedPrep?.id === id) setSelectedPrep(null);
@@ -281,7 +282,7 @@ export default function AIAssistant({ onNavigate }: AIAssistantProps) {
 
   // Group preparations by subject
   const groupedPreps = savedPreps.reduce((acc: any, prep) => {
-    const subject = prep.subject || 'Autre';
+    const subject = prep.subject || t('other');
     if (!acc[subject]) acc[subject] = [];
     acc[subject].push(prep);
     return acc;
@@ -302,7 +303,7 @@ export default function AIAssistant({ onNavigate }: AIAssistantProps) {
           </div>
           <div>
             <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{t('ai_assistant')}</h1>
-            <p className="text-gray-500 dark:text-gray-400">Boostez votre pédagogie avec Gemini</p>
+            <p className="text-gray-500 dark:text-gray-400">{t('ai_gemini_boost')}</p>
           </div>
         </div>
 
@@ -352,7 +353,7 @@ export default function AIAssistant({ onNavigate }: AIAssistantProps) {
                 ) : (
                   <div className="absolute inset-0 flex flex-col items-center justify-center text-gray-400">
                     <ImageIcon size={48} className="mb-2" />
-                    <span className="text-sm">Cliquez pour sélectionner une photo</span>
+                    <span className="text-sm">{t('click_to_select_photo')}</span>
                   </div>
                 )}
                 <input type="file" accept="image/*" className="hidden" onChange={handleFileSelect} />
@@ -380,10 +381,10 @@ export default function AIAssistant({ onNavigate }: AIAssistantProps) {
             <div className="bg-indigo-50 dark:bg-indigo-900/20 p-4 rounded-xl border border-indigo-100 dark:border-indigo-800">
               <h3 className="text-sm font-bold text-indigo-800 dark:text-indigo-300 mb-2 flex items-center gap-2">
                 <AlertCircle size={16} />
-                Conseil d'utilisation
+                {t('ai_usage_tip')}
               </h3>
               <p className="text-xs text-indigo-700 dark:text-indigo-400 leading-relaxed">
-                Prenez une photo claire du travail de l'élève. L'IA peut analyser l'écriture manuscrite, les dessins et les schémas pour fournir une évaluation détaillée.
+                {t('ai_usage_tip_desc')}
               </p>
             </div>
           </div>
@@ -411,14 +412,14 @@ export default function AIAssistant({ onNavigate }: AIAssistantProps) {
                 <div className="pt-6 border-t border-gray-200 dark:border-gray-700 space-y-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Sélectionner l'élève destinataire
+                      {t('select_student_recipient')}
                     </label>
                     <select
                       value={selectedStudentId}
                       onChange={(e) => setSelectedStudentId(e.target.value)}
                       className="w-full p-2.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
                     >
-                      <option value="">Choisir un élève...</option>
+                      <option value="">{t('choose_student')}</option>
                       {students.map(s => (
                         <option key={s.id} value={s.id}>{s.prenom} {s.nom} ({s.classe || 'N/A'})</option>
                       ))}
@@ -440,7 +441,7 @@ export default function AIAssistant({ onNavigate }: AIAssistantProps) {
                 <div className="p-6 bg-white dark:bg-gray-800 rounded-full shadow-sm mb-4">
                   <FileText size={48} className="opacity-20" />
                 </div>
-                <p className="text-center max-w-xs">Les résultats de l'analyse apparaîtront ici après avoir utilisé Gemini.</p>
+                <p className="text-center max-w-xs">{t('ai_results_placeholder')}</p>
               </div>
             )}
           </div>
@@ -454,7 +455,7 @@ export default function AIAssistant({ onNavigate }: AIAssistantProps) {
             <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-200 dark:border-gray-700">
               <h2 className="text-lg font-semibold mb-6 flex items-center gap-2">
                 <BookOpen size={20} className="text-indigo-600" />
-                Configuration
+                {t('configuration')}
               </h2>
               
               <div className="space-y-4">
@@ -544,7 +545,7 @@ export default function AIAssistant({ onNavigate }: AIAssistantProps) {
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-lg font-semibold flex items-center gap-2">
                     <CheckCircle size={20} className="text-green-500" />
-                    Aperçu de la préparation
+                    {t('prep_preview')}
                   </h2>
                   <button
                     onClick={savePreparation}
@@ -565,7 +566,7 @@ export default function AIAssistant({ onNavigate }: AIAssistantProps) {
                 <div className="p-6 bg-white dark:bg-gray-800 rounded-full shadow-sm mb-4">
                   <BookOpen size={48} className="opacity-20" />
                 </div>
-                <p className="text-center max-w-xs">Configurez votre préparation à gauche et laissez Gemini générer votre contenu pédagogique.</p>
+                <p className="text-center max-w-xs">{t('prep_config_placeholder')}</p>
               </div>
             )}
           </div>
@@ -583,7 +584,7 @@ export default function AIAssistant({ onNavigate }: AIAssistantProps) {
                   type="text"
                   value={prepSearchQuery}
                   onChange={(e) => setPrepSearchQuery(e.target.value)}
-                  placeholder="Rechercher une matière ou un sujet..."
+                  placeholder={t('search_prep_placeholder')}
                   className="w-full pl-10 pr-4 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
                 />
               </div>
@@ -652,7 +653,7 @@ export default function AIAssistant({ onNavigate }: AIAssistantProps) {
                       </span>
                     </div>
                     <h2 className="text-2xl font-bold text-gray-900 dark:text-white">{selectedPrep.topic}</h2>
-                    <p className="text-sm text-gray-500 mt-1">Généré le {new Date(selectedPrep.createdAt?.toDate()).toLocaleDateString()}</p>
+                    <p className="text-sm text-gray-500 mt-1">{t('generated_on')} {new Date(selectedPrep.createdAt?.toDate()).toLocaleDateString()}</p>
                   </div>
                   <button
                     onClick={() => deletePrep(selectedPrep.id)}
@@ -672,7 +673,7 @@ export default function AIAssistant({ onNavigate }: AIAssistantProps) {
                 <div className="p-6 bg-white dark:bg-gray-800 rounded-full shadow-sm mb-4">
                   <FileText size={48} className="opacity-20" />
                 </div>
-                <p className="text-center max-w-xs">Sélectionnez une préparation dans la liste pour voir son contenu détaillé.</p>
+                <p className="text-center max-w-xs">{t('select_prep_desc')}</p>
               </div>
             )}
           </div>
@@ -729,9 +730,9 @@ export default function AIAssistant({ onNavigate }: AIAssistantProps) {
               <AlertCircle className="text-amber-600 dark:text-amber-400" size={20} />
             </div>
             <div>
-              <h4 className="font-bold text-amber-800 dark:text-amber-300 mb-1">Comment utiliser ces prompts ?</h4>
+              <h4 className="font-bold text-amber-800 dark:text-amber-300 mb-1">{t('how_to_use_prompts')}</h4>
               <p className="text-sm text-amber-700 dark:text-amber-400 leading-relaxed">
-                Copiez le prompt de votre choix et collez-le dans l'onglet <strong>Préparations IA</strong> ou utilisez-le directement avec un outil comme Gemini ou ChatGPT. Remplacez les parties entre crochets (ex: [SUJET]) par vos propres informations pour des résultats optimaux.
+                {t('how_to_use_prompts_desc')}
               </p>
             </div>
           </div>

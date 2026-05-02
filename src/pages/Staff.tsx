@@ -84,12 +84,12 @@ export default function Staff() {
   });
 
   const handleDeleteStaff = async (id: string) => {
-    if (!window.confirm('Êtes-vous sûr de vouloir supprimer ce membre du personnel administratif ?')) return;
+    if (!window.confirm(t('staff_delete_confirm'))) return;
     try {
       await deleteDoc(doc(db, 'users', id));
     } catch (error) {
       console.error("Error deleting staff member:", error);
-      alert("Erreur lors de la suppression.");
+      alert(t('error_occurred'));
     }
   };
 
@@ -104,7 +104,7 @@ export default function Staff() {
             {t('admin_staff')}
           </h1>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-            Gestion et annuaire des membres de l'administration
+            {t('staff_mgmt_desc')}
           </p>
         </div>
       </div>
@@ -116,7 +116,7 @@ export default function Staff() {
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
               <input
                 type="text"
-                placeholder="Rechercher par nom ou email..."
+                placeholder={t('search_staff_placeholder')}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-2xl focus:ring-2 focus:ring-indigo-500 text-sm outline-none transition-all shadow-sm"
@@ -129,11 +129,11 @@ export default function Staff() {
           <table className="w-full table-fixed min-w-[700px]">
             <thead>
               <tr className="bg-gray-50 dark:bg-gray-700/50 text-left">
-                <th className="w-1/3 px-6 py-4 text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Membre</th>
-                <th className="w-1/4 px-6 py-4 text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Contact</th>
-                <th className="w-1/4 px-6 py-4 text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Département</th>
-                <th className="w-24 px-6 py-4 text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Statut</th>
-                <th className="w-32 px-6 py-4 text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider text-right">Actions</th>
+                <th className="w-1/3 px-6 py-4 text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">{t('staff_member')}</th>
+                <th className="w-1/4 px-6 py-4 text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">{t('contact')}</th>
+                <th className="w-1/4 px-6 py-4 text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">{t('department')}</th>
+                <th className="w-24 px-6 py-4 text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">{t('status')}</th>
+                <th className="w-32 px-6 py-4 text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider text-right">{t('actions')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
@@ -142,7 +142,7 @@ export default function Staff() {
                   <td colSpan={5} className="px-6 py-20 text-center text-gray-500">
                     <div className="flex flex-col items-center gap-3">
                       <div className="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
-                      <p className="text-sm font-medium">Chargement du personnel...</p>
+                      <p className="text-sm font-medium">{t('loading_staff')}</p>
                     </div>
                   </td>
                 </tr>
@@ -151,8 +151,8 @@ export default function Staff() {
                   <td colSpan={5} className="px-6 py-20 text-center text-gray-500">
                     <div className="flex flex-col items-center gap-3">
                       <Users size={40} className="text-gray-300" />
-                      <p className="text-sm font-medium">Aucun membre du personnel administratif trouvé.</p>
-                      <p className="text-xs text-gray-400">Assurez-vous que les utilisateurs ont le rôle "personnel administratif".</p>
+                      <p className="text-sm font-medium">{t('no_staff_found')}</p>
+                      <p className="text-xs text-gray-400">{t('check_role_admin_staff')}</p>
                     </div>
                   </td>
                 </tr>
@@ -191,8 +191,8 @@ export default function Staff() {
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      <div className="text-sm text-gray-900 dark:text-white font-medium truncate">{member.position || 'Cadre Administratif'}</div>
-                      <div className="text-[10px] text-gray-500 dark:text-gray-400 uppercase font-bold tracking-wider">{member.department || 'Administration Centrale'}</div>
+                      <div className="text-sm text-gray-900 dark:text-white font-medium truncate">{member.position || t('default_position')}</div>
+                      <div className="text-[10px] text-gray-500 dark:text-gray-400 uppercase font-bold tracking-wider">{member.department || t('default_department')}</div>
                     </td>
                     <td className="px-6 py-4">
                       <span className={`inline-flex items-center px-2 py-0.5 rounded-lg text-[10px] font-bold uppercase tracking-wider ${
@@ -200,7 +200,7 @@ export default function Staff() {
                         ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
                         : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400'
                       }`}>
-                        {member.status === 'online' ? 'En ligne' : 'Inactif'}
+                        {member.status === 'online' ? t('online') : t('inactive')}
                       </span>
                     </td>
                     <td className="px-6 py-4 text-right">
@@ -208,14 +208,14 @@ export default function Staff() {
                         <button 
                           onClick={() => setSelectedStaff(member)}
                           className="p-2 text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded-lg transition-all"
-                          title="Voir détails"
+                          title={t('view_details')}
                         >
                           <ExternalLink size={18} />
                         </button>
                         <button 
                           onClick={() => handleDeleteStaff(member.id)}
                           className="p-2 text-gray-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-all"
-                          title="Supprimer"
+                          title={t('delete')}
                         >
                           <Trash2 size={18} />
                         </button>
@@ -275,7 +275,7 @@ export default function Staff() {
                     </h2>
                     <div className="flex items-center justify-center gap-2 mt-2">
                        <span className="px-3 py-1 bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 text-xs font-black uppercase tracking-widest rounded-full">
-                        {selectedStaff.role}
+                        {tData(selectedStaff.role)}
                       </span>
                     </div>
                   </div>
@@ -283,13 +283,13 @@ export default function Staff() {
                   <div className="grid grid-cols-2 gap-4">
                     <div className="p-5 bg-gray-50 dark:bg-gray-700/50 rounded-3xl border border-gray-100 dark:border-gray-600/50 transition-all hover:shadow-md">
                       <Briefcase className="text-indigo-500 mb-2" size={20} />
-                      <p className="text-[10px] text-gray-500 uppercase font-black tracking-widest mb-1">Département</p>
-                      <p className="text-sm font-bold text-gray-900 dark:text-white">{selectedStaff.department || 'Administration Centrale'}</p>
+                      <p className="text-[10px] text-gray-500 uppercase font-black tracking-widest mb-1">{t('department')}</p>
+                      <p className="text-sm font-bold text-gray-900 dark:text-white">{selectedStaff.department || t('default_department')}</p>
                     </div>
                     <div className="p-5 bg-gray-50 dark:bg-gray-700/50 rounded-3xl border border-gray-100 dark:border-gray-600/50 transition-all hover:shadow-md">
                       <Shield className="text-purple-500 mb-2" size={20} />
-                      <p className="text-[10px] text-gray-500 uppercase font-black tracking-widest mb-1">Poste</p>
-                      <p className="text-sm font-bold text-gray-900 dark:text-white">{selectedStaff.position || 'Cadre Administratif'}</p>
+                      <p className="text-[10px] text-gray-500 uppercase font-black tracking-widest mb-1">{t('position')}</p>
+                      <p className="text-sm font-bold text-gray-900 dark:text-white">{selectedStaff.position || t('default_position')}</p>
                     </div>
                   </div>
 
@@ -299,7 +299,7 @@ export default function Staff() {
                         <Mail size={18} className="text-indigo-500" />
                       </div>
                       <div className="text-left">
-                        <p className="text-[10px] font-black uppercase text-gray-400 leading-none mb-1">Email professionnel</p>
+                        <p className="text-[10px] font-black uppercase text-gray-400 leading-none mb-1">{t('professional_email')}</p>
                         <p className="text-sm font-bold">{selectedStaff.email}</p>
                       </div>
                     </div>
@@ -309,7 +309,7 @@ export default function Staff() {
                           <Phone size={18} className="text-green-500" />
                         </div>
                         <div className="text-left">
-                          <p className="text-[10px] font-black uppercase text-gray-400 leading-none mb-1">Téléphone</p>
+                          <p className="text-[10px] font-black uppercase text-gray-400 leading-none mb-1">{t('phone')}</p>
                           <p className="text-sm font-bold">{selectedStaff.phone || selectedStaff.contact}</p>
                         </div>
                       </div>
@@ -320,7 +320,7 @@ export default function Staff() {
                           <MapPin size={18} className="text-red-500" />
                         </div>
                         <div className="text-left">
-                          <p className="text-[10px] font-black uppercase text-gray-400 leading-none mb-1">Adresse</p>
+                          <p className="text-[10px] font-black uppercase text-gray-400 leading-none mb-1">{t('address')}</p>
                           <p className="text-sm font-bold truncate max-w-[250px]">{selectedStaff.address}</p>
                         </div>
                       </div>
@@ -331,7 +331,7 @@ export default function Staff() {
                     onClick={() => setSelectedStaff(null)}
                     className="w-full py-5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-[2rem] font-black hover:scale-[1.02] active:scale-[0.98] transition-all shadow-xl shadow-gray-200 dark:shadow-none"
                   >
-                    Fermer la fiche
+                    {t('close_sheet')}
                   </button>
                 </div>
               </div>

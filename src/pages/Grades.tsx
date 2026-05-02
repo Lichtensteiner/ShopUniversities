@@ -202,8 +202,8 @@ const Grades: React.FC = () => {
     const pendingCount = studentHomework.length - completedCount;
 
     const hwData = [
-      { name: 'Terminés', value: completedCount, color: '#10b981' },
-      { name: 'À faire', value: pendingCount, color: '#6366f1' }
+      { name: t('completed'), value: completedCount, color: '#10b981' },
+      { name: t('to_do'), value: pendingCount, color: '#6366f1' }
     ];
 
     // 3. Performance by Subject
@@ -221,7 +221,7 @@ const Grades: React.FC = () => {
   const { evolutionData, hwData, subjectAverages } = getAnalyticsData();
 
   const handleDeleteGrade = async (id: string) => {
-    if (!window.confirm('Êtes-vous sûr de vouloir supprimer cette note ?')) return;
+    if (!window.confirm(t('confirm_delete_grade') || 'Êtes-vous sûr de vouloir supprimer cette note ?')) return;
     try {
       await deleteDoc(doc(db, 'grades', id));
     } catch (error) {
@@ -257,7 +257,7 @@ const Grades: React.FC = () => {
         score: parseFloat(newGrade.score),
         maxScore: parseFloat(newGrade.maxScore),
         coefficient: parseFloat(newGrade.coefficient),
-        studentName: student ? `${student.prenom} ${student.nom}` : 'Inconnu',
+        studentName: student ? `${student.prenom} ${student.nom}` : t('unknown'),
         teacherId: currentUser.id,
         updatedAt: serverTimestamp()
       };
@@ -285,10 +285,10 @@ const Grades: React.FC = () => {
         type: 'interrogation'
       });
       setSuccessInfo({
-        title: editingGrade ? "Note Mise à Jour !" : "Note Enregistrée !",
+        title: editingGrade ? t('grade_updated') : t('grade_registered'),
         message: editingGrade 
-          ? "Les modifications ont été sauvegardées avec succès." 
-          : "La nouvelle évaluation a été ajoutée au dossier de l'élève."
+          ? t('grade_update_success_msg') 
+          : t('grade_add_success_msg')
       });
       setShowSuccess(true);
     } catch (error) {
@@ -307,22 +307,22 @@ const Grades: React.FC = () => {
             {t('grades')}
           </h1>
           <p className="text-gray-500 dark:text-gray-400">
-            {currentUser?.role === 'élève' ? 'Consultez vos résultats académiques' : 'Gérez les notes des élèves'}
+            {currentUser?.role === 'élève' ? t('view_results_desc') : t('manage_grades_desc')}
           </p>
         </div>
 
         <div className="flex items-center gap-2">
           <button className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors shadow-sm">
             <Download size={18} />
-            Exporter PDF
+            {t('export_pdf')}
           </button>
-          {currentUser?.role === 'enseignant' && (
+          {(currentUser?.role === 'enseignant' || currentUser?.role === 'admin') && (
             <button 
               onClick={() => setShowAddModal(true)}
               className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-xl text-sm font-medium hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-500/20"
             >
               <Plus size={18} />
-              Saisir des notes
+              {t('enter_grades')}
             </button>
           )}
         </div>
@@ -341,9 +341,9 @@ const Grades: React.FC = () => {
             <div>
               <h2 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
                 <Activity size={20} className="text-indigo-600" />
-                Courbe de Progression Académique
+                {t('academic_progression_curve')}
               </h2>
-              <p className="text-xs text-gray-500 dark:text-gray-400">Évolution de la moyenne sur 20 au fil des évaluations</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">{t('average_evolution_desc')}</p>
             </div>
             {(currentUser?.role === 'enseignant' || currentUser?.role === 'admin') && (
               <select
@@ -351,7 +351,7 @@ const Grades: React.FC = () => {
                 onChange={(e) => setSelectedStudentId(e.target.value)}
                 className="text-xs font-bold px-3 py-2 bg-gray-50 dark:bg-gray-700/50 border border-gray-100 dark:border-gray-700 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
               >
-                <option value="">Tous les élèves</option>
+                <option value="">{t('all_students')}</option>
                 {students.map(s => (
                   <option key={s.id} value={s.id}>{s.prenom} {s.nom}</option>
                 ))}
@@ -391,7 +391,7 @@ const Grades: React.FC = () => {
                   <Area 
                     type="monotone" 
                     dataKey="score" 
-                    name="Moyenne"
+                    name={t('average')}
                     stroke="#6366f1" 
                     strokeWidth={3} 
                     fillOpacity={1} 
@@ -403,7 +403,7 @@ const Grades: React.FC = () => {
             ) : (
               <div className="h-full flex flex-col items-center justify-center text-gray-400 gap-3">
                 <TrendingUp size={48} className="opacity-20" />
-                <p className="text-sm font-medium">Pas assez de données pour générer le graphique</p>
+                <p className="text-sm font-medium">{t('not_enough_data_chart')}</p>
               </div>
             )}
           </div>
@@ -419,7 +419,7 @@ const Grades: React.FC = () => {
           >
             <h2 className="text-sm font-black text-gray-900 dark:text-white uppercase tracking-widest mb-6 flex items-center gap-2">
               <CheckCircle2 size={16} className="text-emerald-500" />
-              Sérieux aux devoirs
+              {t('homework_seriousness')}
             </h2>
             <div className="h-[150px] w-full">
               <ResponsiveContainer width="100%" height="100%">
@@ -454,7 +454,7 @@ const Grades: React.FC = () => {
           >
             <h2 className="text-sm font-black text-gray-900 dark:text-white uppercase tracking-widest mb-6 flex items-center gap-2">
               <Award size={16} className="text-amber-500" />
-              Moyennes par Matière
+              {t('subject_averages')}
             </h2>
             <div className="space-y-4 max-h-[200px] overflow-y-auto custom-scrollbar pr-2">
               {subjectAverages.length > 0 ? subjectAverages.map((sub, i) => (
@@ -472,7 +472,7 @@ const Grades: React.FC = () => {
                   </div>
                 </div>
               )) : (
-                <p className="text-center text-xs text-gray-400 py-4 italic">Aucune donnée disponible</p>
+                <p className="text-center text-xs text-gray-400 py-4 italic">{t('no_data_available')}</p>
               )}
             </div>
           </motion.div>
@@ -493,7 +493,7 @@ const Grades: React.FC = () => {
               +0.5
             </span>
           </div>
-          <p className="text-sm text-gray-500 dark:text-gray-400">Moyenne Générale</p>
+          <p className="text-sm text-gray-500 dark:text-gray-400">{t('general_average')}</p>
           <h3 className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
             {generalAverage.toFixed(2)}/20
           </h3>
@@ -510,7 +510,7 @@ const Grades: React.FC = () => {
               <Award size={24} />
             </div>
           </div>
-          <p className="text-sm text-gray-500 dark:text-gray-400">Meilleure Note</p>
+          <p className="text-sm text-gray-500 dark:text-gray-400">{t('best_grade')}</p>
           <h3 className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
             {grades.length > 0 ? Math.max(...grades.map(g => (g.score / g.maxScore * 20))).toFixed(1) : '0'}/20
           </h3>
@@ -527,7 +527,7 @@ const Grades: React.FC = () => {
               <BookOpen size={24} />
             </div>
           </div>
-          <p className="text-sm text-gray-500 dark:text-gray-400">Évaluations</p>
+          <p className="text-sm text-gray-500 dark:text-gray-400">{t('evaluations_count')}</p>
           <h3 className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
             {grades.length}
           </h3>
@@ -544,9 +544,9 @@ const Grades: React.FC = () => {
               <TrendingUp size={24} />
             </div>
           </div>
-          <p className="text-sm text-gray-500 dark:text-gray-400">Progression</p>
+          <p className="text-sm text-gray-500 dark:text-gray-400">{t('progression_status')}</p>
           <h3 className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
-            Stable
+            {t('stable') || 'Stable'}
           </h3>
         </motion.div>
       </div>
@@ -557,7 +557,7 @@ const Grades: React.FC = () => {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
           <input
             type="text"
-            placeholder="Rechercher une évaluation..."
+            placeholder={t('search_evaluation_placeholder')}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full pl-10 pr-4 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
@@ -570,7 +570,7 @@ const Grades: React.FC = () => {
             onChange={(e) => setSelectedSubject(e.target.value)}
             className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-2 outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
           >
-            <option value="all">Toutes les matières</option>
+            <option value="all">{t('all_subjects')}</option>
             {subjects.map(subject => (
               <option key={subject} value={subject}>{subject}</option>
             ))}
@@ -584,14 +584,14 @@ const Grades: React.FC = () => {
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-gray-50 dark:bg-gray-700/50 border-b border-gray-100 dark:border-gray-700">
-                <th className="px-6 py-4 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Date</th>
-                <th className="px-6 py-4 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Élève</th>
-                <th className="px-6 py-4 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Classe</th>
-                <th className="px-6 py-4 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Matière</th>
-                <th className="px-6 py-4 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Évaluation</th>
-                <th className="px-6 py-4 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider text-center">Note</th>
-                <th className="px-6 py-4 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider text-center">Coef.</th>
-                <th className="px-6 py-4 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider text-center">Moyenne Classe</th>
+                <th className="px-6 py-4 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">{t('date')}</th>
+                <th className="px-6 py-4 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">{t('student')}</th>
+                <th className="px-6 py-4 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">{t('class')}</th>
+                <th className="px-6 py-4 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">{t('subject')}</th>
+                <th className="px-6 py-4 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">{t('evaluation')}</th>
+                <th className="px-6 py-4 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider text-center">{t('grade_label')}</th>
+                <th className="px-6 py-4 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider text-center">{t('coefficient_short')}</th>
+                <th className="px-6 py-4 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider text-center">{t('class_average')}</th>
                 <th className="px-6 py-4 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider"></th>
               </tr>
             </thead>
@@ -599,13 +599,13 @@ const Grades: React.FC = () => {
               {loading ? (
                 <tr>
                   <td colSpan={9} className="px-6 py-12 text-center text-gray-500 dark:text-gray-400">
-                    Chargement des notes...
+                    {t('loading_grades')}
                   </td>
                 </tr>
               ) : filteredGrades.length === 0 ? (
                 <tr>
                   <td colSpan={9} className="px-6 py-12 text-center text-gray-500 dark:text-gray-400">
-                    Aucune note trouvée.
+                    {t('no_grades_found')}
                   </td>
                 </tr>
               ) : (
@@ -698,10 +698,10 @@ const Grades: React.FC = () => {
                   </div>
                   <div>
                     <h2 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white">
-                      {editingGrade ? 'Modifier l\'Évaluation' : 'Nouvelle Évaluation'}
+                      {editingGrade ? t('edit_evaluation') : t('new_evaluation')}
                     </h2>
                     <p className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-400">
-                      {editingGrade ? 'Mettre à jour les notes et détails' : 'Saisie des notes et calcul automatique'}
+                      {editingGrade ? t('update_grade_details') : t('enter_grades_auto_calc')}
                     </p>
                   </div>
                 </div>
@@ -719,45 +719,45 @@ const Grades: React.FC = () => {
               <div className="flex-1 overflow-y-auto custom-scrollbar">
                 <form id="add-grade-form" onSubmit={handleAddGrade} className="p-4 sm:p-6 space-y-6">
                   {/* Section 1: Élève et Matière */}
-                  <div className="space-y-4">
+                  <div className="space-y-4 text-left">
                     <div className="flex items-center gap-2 text-indigo-600 dark:text-indigo-400 font-bold text-xs uppercase tracking-widest">
                       <UserCircle size={14} />
-                      Informations de base
+                      {t('basic_info')}
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div className="sm:col-span-2">
-                        <label className="block text-xs font-black text-gray-500 uppercase mb-1">Élève</label>
+                      <div className="sm:col-span-2 text-left">
+                        <label className="block text-xs font-black text-gray-500 uppercase mb-1">{t('student')}</label>
                         <select
                           required
                           value={newGrade.studentId}
                           onChange={(e) => setNewGrade({...newGrade, studentId: e.target.value})}
-                          className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all font-medium text-sm"
+                          className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all font-medium text-sm dark:text-white"
                         >
-                          <option value="">Sélectionner un élève</option>
+                          <option value="">{t('select_student')}</option>
                           {students.map(s => (
                             <option key={s.id} value={s.id}>{s.prenom} {s.nom} ({s.classe})</option>
                           ))}
                         </select>
                       </div>
-                      <div>
-                        <label className="block text-xs font-black text-gray-500 uppercase mb-1">Matière</label>
+                      <div className="text-left">
+                        <label className="block text-xs font-black text-gray-500 uppercase mb-1">{t('subject')}</label>
                         <input
                           type="text"
                           required
                           value={newGrade.subject}
                           onChange={(e) => setNewGrade({...newGrade, subject: e.target.value})}
-                          className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-sm"
+                          className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-sm dark:text-white"
                           placeholder="Ex: Mathématiques"
                         />
                       </div>
-                      <div>
-                        <label className="block text-xs font-black text-gray-500 uppercase mb-1">Classe</label>
+                      <div className="text-left">
+                        <label className="block text-xs font-black text-gray-500 uppercase mb-1">{t('class')}</label>
                         <input
                           type="text"
                           required
                           value={newGrade.classId}
                           onChange={(e) => setNewGrade({...newGrade, classId: e.target.value})}
-                          className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-sm"
+                          className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-sm dark:text-white"
                           placeholder="Ex: 6ème A"
                         />
                       </div>
@@ -765,28 +765,28 @@ const Grades: React.FC = () => {
                   </div>
 
                   {/* Section 2: Détails de l'évaluation */}
-                  <div className="space-y-4 pt-4 border-t border-gray-50 dark:border-gray-700">
+                  <div className="space-y-4 pt-4 border-t border-gray-50 dark:border-gray-700 text-left">
                     <div className="flex items-center gap-2 text-indigo-600 dark:text-indigo-400 font-bold text-xs uppercase tracking-widest">
                       <TrendingUp size={14} />
-                      Résultats & Type
+                      {t('results_and_type')}
                     </div>
                     <div className="grid grid-cols-2 gap-4">
-                      <div className="col-span-2">
-                        <label className="block text-xs font-black text-gray-500 uppercase mb-1">Type d'évaluation</label>
+                      <div className="col-span-2 text-left">
+                        <label className="block text-xs font-black text-gray-500 uppercase mb-1">{t('evaluation_type')}</label>
                         <div className="grid grid-cols-2 gap-2">
                           <button
                             type="button"
                             onClick={() => setNewGrade({...newGrade, type: 'interrogation', coefficient: '1'})}
                             className={`px-4 py-3 rounded-xl border text-xs sm:text-sm font-bold transition-all ${newGrade.type === 'interrogation' ? 'bg-indigo-600 border-indigo-600 text-white shadow-lg shadow-indigo-200' : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400'}`}
                           >
-                            Interrogation
+                            {t('interrogation')}
                           </button>
                           <button
                             type="button"
                             onClick={() => setNewGrade({...newGrade, type: 'evaluation', coefficient: '2'})}
                             className={`px-4 py-3 rounded-xl border text-xs sm:text-sm font-bold transition-all ${newGrade.type === 'evaluation' ? 'bg-purple-600 border-purple-600 text-white shadow-lg shadow-purple-200' : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400'}`}
                           >
-                            Évaluation
+                            {t('evaluation')}
                           </button>
                         </div>
                       </div>
@@ -799,9 +799,9 @@ const Grades: React.FC = () => {
                               <BookOpen size={16} />
                             </div>
                             <div>
-                              <p className="text-xs font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider">Section Interrogation</p>
+                              <p className="text-xs font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider">{t('interrogation_section')}</p>
                               <p className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                                Contrôle rapide servant à vérifier les bases. Coefficient par défaut: 1. Idéal pour les classes de 6ème à Terminale.
+                                {t('interrogation_desc_help')}
                               </p>
                             </div>
                           </div>
@@ -811,28 +811,28 @@ const Grades: React.FC = () => {
                               <Award size={16} />
                             </div>
                             <div>
-                              <p className="text-xs font-bold text-purple-600 dark:text-purple-400 uppercase tracking-wider">Section Évaluation Période</p>
+                              <p className="text-xs font-bold text-purple-600 dark:text-purple-400 uppercase tracking-wider">{t('evaluation_period_section')}</p>
                               <p className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                                Devoir surveillé ou examen de fin de période. Coefficient par défaut: 2. Précisez la classe pour une meilleure visibilité.
+                                {t('evaluation_desc_help')}
                               </p>
                             </div>
                           </div>
                         )}
                       </div>
 
-                      <div className="col-span-2">
-                        <label className="block text-xs font-black text-gray-500 uppercase mb-1">Titre de l'évaluation</label>
+                      <div className="col-span-2 text-left">
+                        <label className="block text-xs font-black text-gray-500 uppercase mb-1">{t('evaluation_title')}</label>
                         <input
                           type="text"
                           required
                           value={newGrade.title}
                           onChange={(e) => setNewGrade({...newGrade, title: e.target.value})}
-                          className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-sm"
+                          className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-sm dark:text-white"
                           placeholder="Ex: Contrôle n°1"
                         />
                       </div>
-                      <div>
-                        <label className="block text-xs font-black text-gray-500 uppercase mb-1">Note ({newGrade.maxScore})</label>
+                      <div className="text-left">
+                        <label className="block text-xs font-black text-gray-500 uppercase mb-1">{t('grade_label')} ({newGrade.maxScore})</label>
                         <input
                           type="number"
                           step="0.25"
@@ -842,27 +842,27 @@ const Grades: React.FC = () => {
                           className="w-full px-4 py-3 bg-white dark:bg-gray-700 border-2 border-indigo-100 dark:border-indigo-900 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-xl font-black text-indigo-600 dark:text-indigo-400 text-center"
                         />
                       </div>
-                      <div>
-                        <label className="block text-xs font-black text-gray-500 uppercase mb-1">Note Max</label>
+                      <div className="text-left">
+                        <label className="block text-xs font-black text-gray-500 uppercase mb-1">{t('max_score')}</label>
                         <input
                           type="number"
                           required
                           value={newGrade.maxScore}
                           onChange={(e) => setNewGrade({...newGrade, maxScore: e.target.value})}
-                          className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-center text-sm"
+                          className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-center text-sm dark:text-white"
                         />
                       </div>
                     </div>
                   </div>
                   
-                  <div>
-                    <label className="block text-xs font-black text-gray-500 uppercase mb-1">Commentaire (optionnel)</label>
+                  <div className="text-left">
+                    <label className="block text-xs font-black text-gray-500 uppercase mb-1">{t('comment_optional')}</label>
                     <textarea
                       rows={2}
                       value={newGrade.comment}
                       onChange={(e) => setNewGrade({...newGrade, comment: e.target.value})}
-                      className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all resize-none text-xs sm:text-sm"
-                      placeholder="Éloge ou axes d'amélioration..."
+                      className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all resize-none text-xs sm:text-sm dark:text-white"
+                      placeholder={t('praise_or_improvement')}
                     />
                   </div>
                 </form>
@@ -878,7 +878,7 @@ const Grades: React.FC = () => {
                     }}
                     className="flex-1 px-4 py-3 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 font-bold transition-all text-sm"
                   >
-                    Annuler
+                    {t('cancel')}
                   </button>
                   <button
                     type="submit"
@@ -889,7 +889,7 @@ const Grades: React.FC = () => {
                     {isSaving ? (
                       <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                     ) : (
-                      <>Enregistrer</>
+                      <>{t('save')}</>
                     )}
                   </button>
                 </div>
@@ -913,7 +913,7 @@ const Grades: React.FC = () => {
                   <div className={`p-2 rounded-lg ${viewingGrade.type === 'evaluation' ? 'bg-purple-600' : 'bg-indigo-600'} text-white`}>
                     <Eye size={20} />
                   </div>
-                  <h2 className="text-xl font-bold dark:text-white">Détails de la note</h2>
+                  <h2 className="text-xl font-bold dark:text-white">{t('grade_details')}</h2>
                 </div>
                 <button onClick={() => setViewingGrade(null)} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors">
                   <X size={20} className="text-gray-400" />
@@ -921,32 +921,32 @@ const Grades: React.FC = () => {
               </div>
               <div className="p-6 space-y-4">
                 <div className="flex justify-between items-center p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl">
-                  <span className="text-sm text-gray-500 uppercase font-black">Score Final</span>
+                  <span className="text-sm text-gray-500 uppercase font-black">{t('final_score')}</span>
                   <span className={`text-2xl font-black ${viewingGrade.score / viewingGrade.maxScore >= 0.5 ? 'text-green-600' : 'text-red-600'}`}>
                     {viewingGrade.score}/{viewingGrade.maxScore}
                   </span>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <p className="text-[10px] text-gray-400 uppercase font-black">Élève</p>
+                    <p className="text-[10px] text-gray-400 uppercase font-black">{t('student')}</p>
                     <p className="font-bold dark:text-white">{viewingGrade.studentName}</p>
                   </div>
                   <div>
-                    <p className="text-[10px] text-gray-400 uppercase font-black">Matière</p>
+                    <p className="text-[10px] text-gray-400 uppercase font-black">{t('subject')}</p>
                     <p className="font-bold dark:text-white">{viewingGrade.subject}</p>
                   </div>
                   <div>
-                    <p className="text-[10px] text-gray-400 uppercase font-black">Type</p>
-                    <p className="font-bold dark:text-white capitalize">{viewingGrade.type}</p>
+                    <p className="text-[10px] text-gray-400 uppercase font-black">{t('type')}</p>
+                    <p className="font-bold dark:text-white capitalize">{tData(viewingGrade.type)}</p>
                   </div>
                   <div>
-                    <p className="text-[10px] text-gray-400 uppercase font-black">Coefficient</p>
+                    <p className="text-[10px] text-gray-400 uppercase font-black">{t('coefficient_short')}</p>
                     <p className="font-bold dark:text-white">{viewingGrade.coefficient}</p>
                   </div>
                 </div>
                 {viewingGrade.comment && (
                   <div className="pt-4 border-t border-gray-100 dark:border-gray-700">
-                    <p className="text-[10px] text-gray-400 uppercase font-black mb-1">Commentaire</p>
+                    <p className="text-[10px] text-gray-400 uppercase font-black mb-1">{t('comment')}</p>
                     <p className="text-sm text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-700/50 p-3 rounded-lg italic">
                       "{viewingGrade.comment}"
                     </p>
@@ -955,7 +955,7 @@ const Grades: React.FC = () => {
               </div>
               <div className="p-6 border-t border-gray-100 dark:border-gray-700">
                 <button onClick={() => setViewingGrade(null)} className="w-full py-3 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-xl font-bold transition-all">
-                  Fermer
+                  {t('close')}
                 </button>
               </div>
             </motion.div>

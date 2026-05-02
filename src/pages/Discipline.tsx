@@ -112,8 +112,8 @@ const Discipline: React.FC = () => {
         duration: '',
       });
       setSuccessInfo({
-        title: "Sanction Enregistrée !",
-        message: `La mesure disciplinaire a été ajoutée au dossier de l'élève.`
+        title: t('sanction_recorded_success'),
+        message: t('sanction_recorded_success_msg')
       });
       setShowSuccess(true);
     } catch (error) {
@@ -124,7 +124,7 @@ const Discipline: React.FC = () => {
   };
 
   const handleDeleteSanction = async (id: string) => {
-    if (window.confirm("Supprimer cette sanction ?")) {
+    if (window.confirm(t('delete_sanction_confirm'))) {
       try {
         await deleteDoc(doc(db, 'sanctions', id));
       } catch (error) {
@@ -160,7 +160,7 @@ const Discipline: React.FC = () => {
             <ShieldAlert className="text-red-600" />
             {t('discipline')}
           </h1>
-          <p className="text-gray-500 dark:text-gray-400">Suivi disciplinaire et sanctions</p>
+          <p className="text-gray-500 dark:text-gray-400">{t('discipline_desc')}</p>
         </div>
 
         <button 
@@ -168,7 +168,7 @@ const Discipline: React.FC = () => {
           className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-xl text-sm font-medium hover:bg-red-700 transition-colors shadow-lg shadow-red-500/20"
         >
           <Plus size={18} />
-          Nouvelle sanction
+          {t('new_sanction')}
         </button>
       </div>
 
@@ -178,7 +178,7 @@ const Discipline: React.FC = () => {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
           <input
             type="text"
-            placeholder="Rechercher un élève ou un motif..."
+            placeholder={t('search_discipline_placeholder')}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full pl-10 pr-4 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
@@ -191,12 +191,12 @@ const Discipline: React.FC = () => {
             onChange={(e) => setFilterType(e.target.value)}
             className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-2 outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
           >
-            <option value="all">Toutes les sanctions</option>
-            <option value="warning">Avertissement</option>
-            <option value="detention">Heure de colle</option>
-            <option value="exclusion">Exclusion temporaire</option>
-            <option value="expulsion">Exclusion définitive</option>
-            <option value="other">Autre</option>
+            <option value="all">{t('all_sanctions')}</option>
+            <option value="warning">{t('warning_type')}</option>
+            <option value="detention">{t('detention_type')}</option>
+            <option value="exclusion">{t('exclusion_type')}</option>
+            <option value="expulsion">{t('expulsion_type')}</option>
+            <option value="other">{t('other_type')}</option>
           </select>
         </div>
       </div>
@@ -208,8 +208,8 @@ const Discipline: React.FC = () => {
         ) : filteredSanctions.length === 0 ? (
           <div className="col-span-full bg-white dark:bg-gray-800 rounded-2xl p-12 text-center border border-dashed border-gray-300 dark:border-gray-700">
             <ShieldAlert size={48} className="mx-auto text-gray-300 mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 dark:text-white">Aucune sanction</h3>
-            <p className="text-gray-500 dark:text-gray-400">Le dossier disciplinaire est vide.</p>
+            <h3 className="text-lg font-medium text-gray-900 dark:text-white">{t('no_sanctions')}</h3>
+            <p className="text-gray-500 dark:text-gray-400">{t('no_sanctions_desc')}</p>
           </div>
         ) : (
           filteredSanctions.map((sanction) => (
@@ -223,7 +223,7 @@ const Discipline: React.FC = () => {
               <div className="flex justify-between items-start mb-4">
                 <div className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5 ${getStatusColor(sanction.status)}`}>
                   {getTypeIcon(sanction.type)}
-                  {sanction.type}
+                  {t(`${sanction.type}_type`)}
                 </div>
                 <button 
                   onClick={() => handleDeleteSanction(sanction.id)}
@@ -253,17 +253,17 @@ const Discipline: React.FC = () => {
               {sanction.duration && (
                 <div className="flex items-center gap-2 text-xs text-gray-500 mb-4">
                   <Clock size={14} />
-                  <span>Durée: {sanction.duration}</span>
+                  <span>{t('duration_label').split(' (')[0]}: {sanction.duration}</span>
                 </div>
               )}
 
               <div className="pt-4 border-t border-gray-100 dark:border-gray-700 flex items-center justify-between">
                 <div className="flex items-center gap-1 text-[10px] text-gray-400">
                   <User size={10} />
-                  <span>Par {sanction.recordedByName}</span>
+                  <span>{t('by_recorded')} {sanction.recordedByName}</span>
                 </div>
                 <span className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 uppercase">
-                  {sanction.status}
+                  {t(`${sanction.status}_status`)}
                 </span>
               </div>
             </motion.div>
@@ -282,7 +282,7 @@ const Discipline: React.FC = () => {
               className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl max-w-lg w-full overflow-hidden"
             >
               <div className="p-6 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between">
-                <h2 className="text-xl font-bold text-gray-900 dark:text-white">Nouvelle sanction</h2>
+                <h2 className="text-xl font-bold text-gray-900 dark:text-white">{t('new_sanction')}</h2>
                 <button onClick={() => setShowAddModal(false)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
                   <Plus className="rotate-45" size={24} />
                 </button>
@@ -290,14 +290,14 @@ const Discipline: React.FC = () => {
               
               <form onSubmit={handleAddSanction} className="p-6 space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Élève</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('student_label')}</label>
                   <select
                     required
                     value={newSanction.studentId}
                     onChange={(e) => setNewSanction({...newSanction, studentId: e.target.value})}
                     className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
                   >
-                    <option value="">Sélectionner un élève</option>
+                    <option value="">{t('select_student')}</option>
                     {students.map(s => (
                       <option key={s.id} value={s.id}>{s.prenom} {s.nom} ({s.classe})</option>
                     ))}
@@ -306,40 +306,40 @@ const Discipline: React.FC = () => {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Type</label>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('type_label')}</label>
                     <select
                       value={newSanction.type}
                       onChange={(e) => setNewSanction({...newSanction, type: e.target.value as any})}
                       className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
                     >
-                      <option value="warning">Avertissement</option>
-                      <option value="detention">Heure de colle</option>
-                      <option value="exclusion">Exclusion temporaire</option>
-                      <option value="expulsion">Exclusion définitive</option>
-                      <option value="other">Autre</option>
+                      <option value="warning">{t('warning_type')}</option>
+                      <option value="detention">{t('detention_type')}</option>
+                      <option value="exclusion">{t('exclusion_type')}</option>
+                      <option value="expulsion">{t('expulsion_type')}</option>
+                      <option value="other">{t('other_type')}</option>
                     </select>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Durée (si applicable)</label>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('duration_label')}</label>
                     <input
                       type="text"
                       value={newSanction.duration}
                       onChange={(e) => setNewSanction({...newSanction, duration: e.target.value})}
                       className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
-                      placeholder="Ex: 2 heures, 3 jours..."
+                      placeholder={t('duration_placeholder')}
                     />
                   </div>
                 </div>
                 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Motif détaillé</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('reason_detailed_label')}</label>
                   <textarea
                     required
                     rows={4}
                     value={newSanction.reason}
                     onChange={(e) => setNewSanction({...newSanction, reason: e.target.value})}
                     className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all resize-none"
-                    placeholder="Expliquez la raison de la sanction..."
+                    placeholder={t('reason_placeholder')}
                   />
                 </div>
                 
@@ -349,14 +349,14 @@ const Discipline: React.FC = () => {
                     onClick={() => setShowAddModal(false)}
                     className="flex-1 py-2 text-gray-700 dark:text-gray-300 font-medium hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl transition-colors"
                   >
-                    Annuler
+                    {t('cancel')}
                   </button>
                   <button
                     type="submit"
                     disabled={isSaving}
                     className="flex-1 py-2 bg-red-600 text-white font-bold rounded-xl hover:bg-red-700 transition-colors shadow-lg shadow-red-500/20 disabled:opacity-50"
                   >
-                    {isSaving ? 'Enregistrement...' : 'Enregistrer la sanction'}
+                    {isSaving ? t('saving_status') : t('save_sanction')}
                   </button>
                 </div>
               </form>

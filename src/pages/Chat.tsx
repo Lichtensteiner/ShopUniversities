@@ -65,7 +65,7 @@ export default function Chat({ conversationId, onBack }: ChatProps) {
   }, []);
 
   const handleDeleteMessage = async (messageId: string) => {
-    if (!window.confirm("Voulez-vous vraiment supprimer ce message pour tout le monde ?")) return;
+    if (!window.confirm(t('delete_message_confirm'))) return;
     
     try {
       await updateDoc(doc(db, `conversations/${conversationId}/messages`, messageId), {
@@ -195,9 +195,9 @@ export default function Chat({ conversationId, onBack }: ChatProps) {
               
               let lastMsgText = msg.text;
               if (!lastMsgText && msg.mediaType) {
-                if (msg.mediaType === 'image') lastMsgText = '📷 Image';
-                else if (msg.mediaType === 'video') lastMsgText = '🎥 Vidéo';
-                else lastMsgText = '📎 Fichier';
+                if (msg.mediaType === 'image') lastMsgText = `📷 ${t('image')}`;
+                else if (msg.mediaType === 'video') lastMsgText = `🎥 ${t('video')}`;
+                else lastMsgText = `📎 ${t('file')}`;
               }
 
               const updateData: any = {
@@ -262,7 +262,7 @@ export default function Chat({ conversationId, onBack }: ChatProps) {
     if ((!newMessage.trim() && !selectedFile) || !currentUser || !conversationId) return;
 
     if (currentUser.chatBlocked) {
-      alert("Votre accès à la messagerie a été restreint par l'administrateur.");
+      alert(t('messaging_blocked_notice'));
       return;
     }
 
@@ -316,9 +316,9 @@ export default function Chat({ conversationId, onBack }: ChatProps) {
       if (!scheduledTimestamp) {
         let lastMsgText = newMessage.trim();
         if (!lastMsgText && finalMediaType) {
-          if (finalMediaType === 'image') lastMsgText = '📷 Image';
-          else if (finalMediaType === 'video') lastMsgText = '🎥 Vidéo';
-          else lastMsgText = '📎 Fichier';
+          if (finalMediaType === 'image') lastMsgText = `📷 ${t('image')}`;
+          else if (finalMediaType === 'video') lastMsgText = `🎥 ${t('video')}`;
+          else lastMsgText = `📎 ${t('file')}`;
         }
 
         const updateData: any = {
@@ -339,13 +339,13 @@ export default function Chat({ conversationId, onBack }: ChatProps) {
         
         // Notify other participants
         if (conversationData && conversationData.participants) {
-          const senderName = currentUser.prenom || currentUser.nom ? `${currentUser.prenom || ''} ${currentUser.nom || ''}`.trim() : currentUser.email?.split('@')[0] || 'Utilisateur';
+          const senderName = currentUser.prenom || currentUser.nom ? `${currentUser.prenom || ''} ${currentUser.nom || ''}`.trim() : currentUser.email?.split('@')[0] || t('user');
           
           const notificationPromises = conversationData.participants
             .filter((pId: string) => pId !== currentUser.id)
             .map((pId: string) => createNotification({
               user_id: pId,
-              title: conversationData.isGroup ? `Nouveau message dans ${conversationData.groupName}` : `Nouveau message de ${senderName}`,
+              title: conversationData.isGroup ? `${t('new_message_in')} ${conversationData.groupName}` : `${t('new_message_from')} ${senderName}`,
               message: lastMsgText,
               type: 'info',
               targetTab: 'messaging'
@@ -400,15 +400,15 @@ export default function Chat({ conversationId, onBack }: ChatProps) {
             <h2 className="font-bold text-gray-900 dark:text-white">
               {conversationData?.isGroup 
                 ? conversationData.groupName 
-                : (otherUser ? `${otherUser.prenom} ${otherUser.nom}` : 'Chargement...')}
+                : (otherUser ? `${otherUser.prenom} ${otherUser.nom}` : t('loading'))}
             </h2>
             {!conversationData?.isGroup && otherUser && (
               <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1">
                 {otherUser.status === 'online' ? (
-                  <span className="text-green-500 font-medium">En ligne</span>
+                  <span className="text-green-500 font-medium">{t('online_status')}</span>
                 ) : (
                   <span>
-                    En ligne {otherUser.lastSeen ? format(otherUser.lastSeen.toDate(), "'le' dd/MM 'à' HH:mm", { locale: fr }) : 'récemment'}
+                    {t('online_status')} {otherUser.lastSeen ? t('online_at').replace('{{date}}', format(otherUser.lastSeen.toDate(), 'dd/MM')).replace('{{time}}', format(otherUser.lastSeen.toDate(), 'HH:mm')) : t('recently')}
                   </span>
                 )}
               </p>
@@ -426,23 +426,23 @@ export default function Chat({ conversationId, onBack }: ChatProps) {
           {showOptions && (
             <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-100 dark:border-gray-700 overflow-hidden z-50 py-1">
               <button 
-                onClick={() => { setShowOptions(false); alert('Voir le profil'); }}
+                onClick={() => { setShowOptions(false); alert(t('view_profile')); }}
                 className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
               >
-                Voir le profil
+                {t('view_profile')}
               </button>
               <button 
-                onClick={() => { setShowOptions(false); alert('Rechercher dans la conversation'); }}
+                onClick={() => { setShowOptions(false); alert(t('search_in_conversation')); }}
                 className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
               >
-                Rechercher
+                {t('search_in_conversation')}
               </button>
               <div className="h-px bg-gray-100 dark:bg-gray-700 my-1"></div>
               <button 
-                onClick={() => { setShowOptions(false); alert('Bloquer l\'utilisateur'); }}
+                onClick={() => { setShowOptions(false); alert(t('block_user')); }}
                 className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
               >
-                Bloquer
+                {t('block_user')}
               </button>
             </div>
           )}
@@ -480,7 +480,7 @@ export default function Chat({ conversationId, onBack }: ChatProps) {
                   <span className="text-xs text-gray-500 dark:text-gray-400 ml-1 mb-1 font-medium">
                     {participantsMap[msg.senderId]?.prenom || participantsMap[msg.senderId]?.nom 
                       ? `${participantsMap[msg.senderId]?.prenom || ''} ${participantsMap[msg.senderId]?.nom || ''}`.trim() 
-                      : participantsMap[msg.senderId]?.email?.split('@')[0] || 'Utilisateur'}
+                      : participantsMap[msg.senderId]?.email?.split('@')[0] || t('user')}
                   </span>
                 )}
                 <div className={`relative group rounded-2xl px-4 py-2 ${
@@ -499,13 +499,13 @@ export default function Chat({ conversationId, onBack }: ChatProps) {
                       
                       {activeMessageMenu === msg.id && (
                         <div className="absolute right-0 mt-1 w-48 bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-100 dark:border-gray-700 overflow-hidden z-50">
-                          <button 
-                            onClick={() => handleDeleteMessage(msg.id)}
-                            className="w-full flex items-center gap-2 px-4 py-3 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
-                          >
-                            <Trash2 size={16} />
-                            Supprimer pour tous
-                          </button>
+                            <button 
+                              onClick={() => handleDeleteMessage(msg.id)}
+                              className="w-full flex items-center gap-2 px-4 py-3 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                            >
+                              <Trash2 size={16} />
+                              {t('delete_for_everyone')}
+                            </button>
                         </div>
                       )}
                     </div>
@@ -514,14 +514,14 @@ export default function Chat({ conversationId, onBack }: ChatProps) {
                   {msg.isDeleted ? (
                     <div className="flex items-center gap-2 text-sm italic opacity-70 py-1">
                       <Ban size={14} />
-                      Ce message a été supprimé
+                      {t('message_deleted')}
                     </div>
                   ) : (
                     <>
                       {isScheduled && (
                         <div className="flex items-center gap-1 text-xs text-indigo-100 mb-1 font-medium">
                           <Clock size={12} />
-                          Programmé pour le {format(msg.scheduledFor.toDate(), "dd/MM 'à' HH:mm", { locale: fr })}
+                          {t('scheduled_for')} {format(msg.scheduledFor.toDate(), "dd/MM 'à' HH:mm")}
                         </div>
                       )}
                       {msg.mediaUrl && (
@@ -535,7 +535,7 @@ export default function Chat({ conversationId, onBack }: ChatProps) {
                           {msg.mediaType === 'file' && (
                             <a href={msg.mediaUrl} target="_blank" rel="noopener noreferrer" className={`flex items-center gap-2 p-3 ${isMine ? 'text-white hover:bg-white/10' : 'text-indigo-600 hover:bg-gray-100 dark:text-indigo-400 dark:hover:bg-gray-800'} transition-colors`}>
                               <Paperclip size={20} />
-                              <span className="font-medium underline text-sm">Fichier joint</span>
+                              <span className="font-medium underline text-sm">{t('attached_file')}</span>
                             </a>
                           )}
                         </div>
@@ -593,7 +593,7 @@ export default function Chat({ conversationId, onBack }: ChatProps) {
               value={newMessage}
               onChange={handleTextareaChange}
               disabled={currentUser?.chatBlocked}
-              placeholder={currentUser?.chatBlocked ? "Messagerie bloquée par l'administrateur" : "Écrivez un message..."}
+              placeholder={currentUser?.chatBlocked ? t('messaging_blocked_notice') : t('chat_placeholder')}
               className="w-full bg-transparent border-none focus:ring-0 p-3 text-gray-900 dark:text-white resize-none custom-scrollbar disabled:opacity-50"
               rows={1}
               style={{ minHeight: '44px', maxHeight: '120px' }}
@@ -606,15 +606,15 @@ export default function Chat({ conversationId, onBack }: ChatProps) {
             />
             <div className="flex flex-wrap items-center justify-between px-2 pb-2 gap-2">
               <div className="flex items-center gap-1 shrink-0">
-                <label className="p-1.5 text-gray-500 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-full hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors cursor-pointer" title="Image">
+                <label className="p-1.5 text-gray-500 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-full hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors cursor-pointer" title={t('image')}>
                   <Image size={18} />
                   <input type="file" accept="image/*" className="hidden" onChange={(e) => handleFileSelect(e, 'image')} />
                 </label>
-                <label className="p-1.5 text-gray-500 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-full hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors cursor-pointer" title="Vidéo">
+                <label className="p-1.5 text-gray-500 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-full hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors cursor-pointer" title={t('video')}>
                   <Video size={18} />
                   <input type="file" accept="video/*" className="hidden" onChange={(e) => handleFileSelect(e, 'video')} />
                 </label>
-                <label className="p-1.5 text-gray-500 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-full hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors cursor-pointer" title="Fichier">
+                <label className="p-1.5 text-gray-500 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-full hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors cursor-pointer" title={t('file')}>
                   <Paperclip size={18} />
                   <input type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx" className="hidden" onChange={(e) => handleFileSelect(e, 'file')} />
                 </label>
@@ -627,7 +627,7 @@ export default function Chat({ conversationId, onBack }: ChatProps) {
                       <EmojiPicker 
                         onEmojiClick={onEmojiClick}
                         theme={document.documentElement.classList.contains('dark') ? Theme.DARK : Theme.LIGHT}
-                        searchPlaceHolder="Rechercher un emoji..."
+                        searchPlaceHolder={t('search_emoji')}
                         width={window.innerWidth < 640 ? 280 : 320}
                         height={400}
                       />
@@ -645,7 +645,7 @@ export default function Chat({ conversationId, onBack }: ChatProps) {
                     </button>
                   </div>
                 )}
-                <button type="button" onClick={() => setShowScheduleModal(true)} className={`p-1.5 rounded-full transition-colors shrink-0 ${scheduledDate ? 'text-indigo-600 bg-indigo-50 dark:bg-indigo-900/30' : 'text-gray-500 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-gray-200 dark:hover:bg-gray-800'}`} title="Programmer">
+                <button type="button" onClick={() => setShowScheduleModal(true)} className={`p-1.5 rounded-full transition-colors shrink-0 ${scheduledDate ? 'text-indigo-600 bg-indigo-50 dark:bg-indigo-900/30' : 'text-gray-500 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-gray-200 dark:hover:bg-gray-800'}`} title={t('schedule')}>
                   <Clock size={18} />
                 </button>
               </div>
@@ -668,7 +668,7 @@ export default function Chat({ conversationId, onBack }: ChatProps) {
             <div className="p-4 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center">
               <h3 className="font-bold text-gray-900 dark:text-white flex items-center gap-2">
                 <Clock size={18} className="text-indigo-600" />
-                Programmer le message
+                {t('schedule_message')}
               </h3>
               <button onClick={() => setShowScheduleModal(false)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
                 <X size={20} />
@@ -676,7 +676,7 @@ export default function Chat({ conversationId, onBack }: ChatProps) {
             </div>
             <div className="p-4 space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Date d'envoi</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('send_date')}</label>
                 <input 
                   type="date" 
                   min={new Date().toISOString().split('T')[0]}
@@ -686,7 +686,7 @@ export default function Chat({ conversationId, onBack }: ChatProps) {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Heure d'envoi</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('send_time')}</label>
                 <input 
                   type="time" 
                   value={scheduledTime}
@@ -700,14 +700,14 @@ export default function Chat({ conversationId, onBack }: ChatProps) {
                 onClick={() => { setScheduledDate(''); setScheduledTime(''); setShowScheduleModal(false); }}
                 className="px-4 py-2 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg font-medium transition-colors"
               >
-                Annuler
+                {t('cancel')}
               </button>
               <button 
                 onClick={() => setShowScheduleModal(false)}
                 disabled={!scheduledDate || !scheduledTime}
                 className="px-4 py-2 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 transition-colors disabled:opacity-50"
               >
-                Valider
+                {t('validate')}
               </button>
             </div>
           </div>
