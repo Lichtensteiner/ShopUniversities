@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { db } from '../lib/firebase';
+import { recordAuditLog } from '../services/auditService';
 import { collection, query, getDocs, where, addDoc, serverTimestamp, onSnapshot, doc, updateDoc } from 'firebase/firestore';
 import { 
   Wallet, 
@@ -271,6 +272,16 @@ const Finance: React.FC = () => {
         status: 'paid',
         recordedBy: currentUser.id
       });
+
+      await recordAuditLog({
+        userId: currentUser.id,
+        userName: `${currentUser.prenom} ${currentUser.nom}`,
+        userRole: currentUser.role,
+        action: "Enregistrement de paiement",
+        details: `Élève: ${student ? student.prenom + ' ' + student.nom : 'Inconnu'}, Montant: ${newPayment.amount} FCFA, Type: ${newPayment.type}`,
+        category: 'finance'
+      });
+
       setShowAddModal(false);
       setNewPayment({
         studentId: '',

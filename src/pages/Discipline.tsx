@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { db } from '../lib/firebase';
+import { recordAuditLog } from '../services/auditService';
 import { collection, query, getDocs, where, addDoc, serverTimestamp, onSnapshot, doc, deleteDoc } from 'firebase/firestore';
 import { 
   ShieldAlert, 
@@ -104,6 +105,16 @@ const Discipline: React.FC = () => {
         recordedBy: currentUser.id,
         recordedByName: `${currentUser.prenom || ''} ${currentUser.nom || ''}`.trim()
       });
+
+      await recordAuditLog({
+        userId: currentUser.id,
+        userName: `${currentUser.prenom} ${currentUser.nom}`,
+        userRole: currentUser.role,
+        action: "Ajout de sanction",
+        details: `Élève: ${student ? student.prenom + ' ' + student.nom : 'Inconnu'}, Type: ${newSanction.type}, Motif: ${newSanction.reason}`,
+        category: 'discipline'
+      });
+
       setShowAddModal(false);
       setNewSanction({
         studentId: '',
@@ -126,7 +137,19 @@ const Discipline: React.FC = () => {
   const handleDeleteSanction = async (id: string) => {
     if (window.confirm(t('delete_sanction_confirm'))) {
       try {
+        const sanctionToDelete = sanctions.find(s => s.id === id);
         await deleteDoc(doc(db, 'sanctions', id));
+
+        if (currentUser) {
+          await recordAuditLog({
+            userId: currentUser.id,
+            userName: `${currentUser.prenom} ${currentUser.nom}`,
+            userRole: currentUser.role,
+            action: "Suppression de sanction",
+            details: `Élève: ${sanctionToDelete?.studentName || id}, Type: ${sanctionToDelete?.type}`,
+            category: 'discipline'
+          });
+        }
       } catch (error) {
         console.error("Error deleting sanction:", error);
       }

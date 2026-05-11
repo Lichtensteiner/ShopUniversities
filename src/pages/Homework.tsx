@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { db, storage } from '../lib/firebase';
+import { recordAuditLog } from '../services/auditService';
 import { collection, query, where, onSnapshot, orderBy, addDoc, serverTimestamp, deleteDoc, doc, updateDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { 
@@ -116,6 +117,17 @@ const Homework: React.FC = () => {
 
     try {
       await updateDoc(homeworkRef, { completedBy: newCompletedBy });
+
+      if (currentUser) {
+        await recordAuditLog({
+          userId: currentUser.id,
+          userName: `${currentUser.prenom} ${currentUser.nom}`,
+          userRole: currentUser.role,
+          action: isCompleted ? "Annulation de devoir" : "Marquage de devoir terminé",
+          details: `Devoir: ${item.title}, Matière: ${item.subject}`,
+          category: 'homework'
+        });
+      }
     } catch (error) {
       console.error("Error updating homework status:", error);
     }
@@ -183,6 +195,15 @@ const Homework: React.FC = () => {
         dueDate: new Date(newHomework.dueDate)
       });
       
+      await recordAuditLog({
+        userId: currentUser.id,
+        userName: `${currentUser.prenom} ${currentUser.nom}`,
+        userRole: currentUser.role,
+        action: "Assignation de devoir",
+        details: `Titre: ${newHomework.title}, Date d'échéance: ${newHomework.dueDate}`,
+        category: 'homework'
+      });
+
       setUploadProgress(100);
       
       setTimeout(() => {
@@ -209,7 +230,19 @@ const Homework: React.FC = () => {
   const handleDeleteHomework = async (id: string) => {
     if (window.confirm(t('confirm_delete'))) {
       try {
+        const itemToDelete = homework.find(h => h.id === id);
         await deleteDoc(doc(db, 'homework', id));
+
+        if (currentUser) {
+          await recordAuditLog({
+            userId: currentUser.id,
+            userName: `${currentUser.prenom} ${currentUser.nom}`,
+            userRole: currentUser.role,
+            action: "Suppression de devoir",
+            details: `Devoir supprimé: ${itemToDelete?.title || id}`,
+            category: 'homework'
+          });
+        }
       } catch (error) {
         console.error("Error deleting homework:", error);
       }

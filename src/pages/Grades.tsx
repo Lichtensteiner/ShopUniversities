@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { db } from '../lib/firebase';
+import { recordAuditLog } from '../services/auditService';
 import { collection, query, where, onSnapshot, orderBy, addDoc, serverTimestamp, getDocs, deleteDoc, doc, updateDoc } from 'firebase/firestore';
 import { 
   FileText, 
@@ -246,6 +247,17 @@ const Grades: React.FC = () => {
     if (!window.confirm(t('confirm_delete_grade') || 'Êtes-vous sûr de vouloir supprimer cette note ?')) return;
     try {
       await deleteDoc(doc(db, 'grades', id));
+
+      if (currentUser) {
+        await recordAuditLog({
+          userId: currentUser.id,
+          userName: `${currentUser.prenom} ${currentUser.nom}`,
+          userRole: currentUser.role,
+          action: "Suppression de note",
+          details: `Note supprimée pour ${grade.studentName}: ${grade.title} (${grade.score}/${grade.maxScore})`,
+          category: 'grades'
+        });
+      }
     } catch (error) {
       console.error("Error deleting grade:", error);
     }
@@ -295,10 +307,28 @@ const Grades: React.FC = () => {
 
       if (editingGrade) {
         await updateDoc(doc(db, 'grades', editingGrade.id), gradeData);
+        
+        await recordAuditLog({
+          userId: currentUser.id,
+          userName: `${currentUser.prenom} ${currentUser.nom}`,
+          userRole: currentUser.role,
+          action: "Modification de note",
+          details: `Élève: ${gradeData.studentName}, Note: ${gradeData.score}/${gradeData.maxScore}, Matière: ${gradeData.subject}`,
+          category: 'grades'
+        });
       } else {
         await addDoc(collection(db, 'grades'), {
           ...gradeData,
           date: serverTimestamp()
+        });
+
+        await recordAuditLog({
+          userId: currentUser.id,
+          userName: `${currentUser.prenom} ${currentUser.nom}`,
+          userRole: currentUser.role,
+          action: "Ajout de note",
+          details: `Élève: ${gradeData.studentName}, Note: ${gradeData.score}/${gradeData.maxScore}, Matière: ${gradeData.subject}`,
+          category: 'grades'
         });
       }
       

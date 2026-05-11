@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
-import { db } from '../lib/firebase';
-import { collection, query, getDocs, orderBy, limit, onSnapshot } from 'firebase/firestore';
+import { subscribeToRecentLogs, AuditLog } from '../services/auditService';
 import { 
   History, 
   Search, 
@@ -38,23 +37,10 @@ const AuditLogs: React.FC = () => {
   useEffect(() => {
     if (!currentUser || currentUser.role !== 'admin') return;
 
-    // In a real app, we would have a dedicated 'audit_logs' collection
-    // For now, we'll simulate it or use a collection if it exists
-    const unsubscribe = onSnapshot(
-      query(collection(db, 'audit_logs'), orderBy('timestamp', 'desc'), limit(100)), 
-      (snap) => {
-        const logData = snap.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        })) as AuditLog[];
-        setLogs(logData);
-        setLoading(false);
-      },
-      (error) => {
-        console.error("Error fetching audit logs:", error);
-        setLoading(false);
-      }
-    );
+    const unsubscribe = subscribeToRecentLogs((logsData) => {
+      setLogs(logsData);
+      setLoading(false);
+    });
 
     return () => unsubscribe();
   }, [currentUser]);
@@ -62,7 +48,7 @@ const AuditLogs: React.FC = () => {
   const filteredLogs = logs.filter(log => 
     log.userName.toLowerCase().includes(searchTerm.toLowerCase()) ||
     log.action.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    log.entity.toLowerCase().includes(searchTerm.toLowerCase())
+    log.details.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   if (currentUser?.role !== 'admin') {
@@ -100,21 +86,20 @@ const AuditLogs: React.FC = () => {
                 <th className="px-6 py-4 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Horodatage</th>
                 <th className="px-6 py-4 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Utilisateur</th>
                 <th className="px-6 py-4 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Action</th>
-                <th className="px-6 py-4 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Entité</th>
                 <th className="px-6 py-4 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Détails</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
               {loading ? (
                 <tr>
-                  <td colSpan={5} className="px-6 py-12 text-center text-gray-500">Chargement des logs...</td>
+                  <td colSpan={4} className="px-6 py-12 text-center text-gray-500">Chargement des logs...</td>
                 </tr>
               ) : filteredLogs.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-6 py-12 text-center text-gray-500">
+                  <td colSpan={4} className="px-6 py-12 text-center text-gray-500">
                     <div className="flex flex-col items-center gap-2">
                       <Info size={32} className="text-gray-300" />
-                      <p>Aucun log d'audit trouvé.</p>
+                      <p>Aucun log d'audit pour les dernières 24 heures.</p>
                     </div>
                   </td>
                 </tr>
@@ -132,27 +117,27 @@ const AuditLogs: React.FC = () => {
                         <div className="w-8 h-8 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center text-gray-600 dark:text-gray-400">
                           <User size={14} />
                         </div>
-                        <span className="text-sm font-medium text-gray-900 dark:text-white">{log.userName}</span>
+                        <div>
+                          <span className="text-sm font-medium text-gray-900 dark:text-white block">{log.userName}</span>
+                          <span className="text-[10px] text-gray-500 uppercase">{log.userRole}</span>
+                        </div>
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`px-2 py-1 rounded-md text-xs font-bold uppercase ${
-                        log.action.includes('DELETE') ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' :
-                        log.action.includes('UPDATE') ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' :
-                        'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                        log.category === 'security' ? 'bg-red-100 text-red-700' :
+                        log.category === 'attendance' ? 'bg-blue-100 text-blue-700' :
+                        log.category === 'grades' ? 'bg-green-100 text-green-700' :
+                        log.category === 'homework' ? 'bg-purple-100 text-purple-700' :
+                        log.category === 'management' ? 'bg-indigo-100 text-indigo-700' :
+                        log.category === 'discipline' ? 'bg-orange-100 text-orange-700' :
+                        log.category === 'finance' ? 'bg-emerald-100 text-emerald-700' :
+                        'bg-gray-100 text-gray-700'
                       }`}>
                         {log.action}
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
-                        <Database size={14} />
-                        {log.entity}
-                        <ArrowRight size={12} className="text-gray-300" />
-                        <span className="font-mono text-[10px]">{log.entityId.substring(0, 8)}...</span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-400 max-w-xs truncate">
+                    <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">
                       {log.details || '-'}
                     </td>
                   </tr>

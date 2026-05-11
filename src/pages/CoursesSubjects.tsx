@@ -4,6 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { collection, query, where, onSnapshot, orderBy, addDoc, serverTimestamp, doc, deleteDoc, updateDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '../lib/firebase';
+import { recordAuditLog } from '../services/auditService';
 import { 
   BookOpen, 
   GraduationCap, 
@@ -64,7 +65,6 @@ export default function CoursesSubjects({ initialPrepId }: CoursesSubjectsProps)
   });
 
   const isAdmin = currentUser?.role === 'admin' || 
-                  currentUser?.email === 'ludo.consulting3@gmail.com' || 
                   currentUser?.email === 'martinienmvezogo@gmail.com';
 
   useEffect(() => {
@@ -185,6 +185,18 @@ export default function CoursesSubjects({ initialPrepId }: CoursesSubjectsProps)
         createdAt: serverTimestamp()
       });
       console.log("Subject added successfully");
+      
+      if (currentUser) {
+        await recordAuditLog({
+          userId: currentUser.id,
+          userName: `${currentUser.prenom} ${currentUser.nom}`,
+          userRole: currentUser.role,
+          action: "Ajout de matière globale",
+          details: `${newSubjectName.trim()} (Enseignant: ${teacherName || 'Aucun'})`,
+          category: 'management'
+        });
+      }
+
       setNewSubjectName('');
       setNewSubjectTeacherId('');
     } catch (error) {
@@ -199,7 +211,19 @@ export default function CoursesSubjects({ initialPrepId }: CoursesSubjectsProps)
     if (window.confirm('Êtes-vous sûr de vouloir supprimer cette matière ?')) {
       try {
         console.log("Deleting subject:", subjectId);
+        const subjToDelete = subjects.find(s => s.id === subjectId);
         await deleteDoc(doc(db, 'subjects', subjectId));
+
+        if (currentUser) {
+          await recordAuditLog({
+            userId: currentUser.id,
+            userName: `${currentUser.prenom} ${currentUser.nom}`,
+            userRole: currentUser.role,
+            action: "Suppression de matière globale",
+            details: `Matière supprimée: ${subjToDelete?.name || subjectId}`,
+            category: 'management'
+          });
+        }
       } catch (error) {
         console.error("Error deleting subject:", error);
         alert("Erreur lors de la suppression");
@@ -220,6 +244,18 @@ export default function CoursesSubjects({ initialPrepId }: CoursesSubjectsProps)
         teacherId: editingSubject.teacherId || '',
         teacherName: teacherName
       });
+
+      if (currentUser) {
+        await recordAuditLog({
+          userId: currentUser.id,
+          userName: `${currentUser.prenom} ${currentUser.nom}`,
+          userRole: currentUser.role,
+          action: "Modification de matière globale",
+          details: `Nouveau nom: ${editingSubject.name.trim()}, Enseignant: ${teacherName || 'Aucun'}`,
+          category: 'management'
+        });
+      }
+      
       setEditingSubject(null);
     } catch (error) {
       console.error("Error updating subject:", error);
@@ -246,6 +282,18 @@ export default function CoursesSubjects({ initialPrepId }: CoursesSubjectsProps)
       await updateDoc(doc(db, 'classes', classId), {
         matieres: [...matieres, subjectName]
       });
+
+      if (currentUser) {
+        await recordAuditLog({
+          userId: currentUser.id,
+          userName: `${currentUser.prenom} ${currentUser.nom}`,
+          userRole: currentUser.role,
+          action: "Attribution de matière à une classe",
+          details: `Classe: ${cls?.nom}, Matière: ${subjectName}`,
+          category: 'management'
+        });
+      }
+
       console.log("Subject assigned to class successfully");
       setAddingSubjectToClass(null);
     } catch (error) {
@@ -265,6 +313,17 @@ export default function CoursesSubjects({ initialPrepId }: CoursesSubjectsProps)
       await updateDoc(doc(db, 'classes', classId), {
         matieres: matieres.filter((m: string) => m !== subjectName)
       });
+
+      if (currentUser) {
+        await recordAuditLog({
+          userId: currentUser.id,
+          userName: `${currentUser.prenom} ${currentUser.nom}`,
+          userRole: currentUser.role,
+          action: "Retrait de matière d'une classe",
+          details: `Classe: ${cls?.nom}, Matière: ${subjectName}`,
+          category: 'management'
+        });
+      }
     } catch (error) {
       console.error("Error removing subject from class:", error);
       alert("Erreur lors de la suppression de la matière");
@@ -334,6 +393,15 @@ export default function CoursesSubjects({ initialPrepId }: CoursesSubjectsProps)
         createdAt: serverTimestamp(),
       });
 
+      await recordAuditLog({
+        userId: currentUser.id,
+        userName: `${currentUser.prenom} ${currentUser.nom}`,
+        userRole: currentUser.role,
+        action: "Création de cours",
+        details: `Titre: ${newCourse.topic}, Matière: ${newCourse.subject} (${newCourse.grade})`,
+        category: 'homework'
+      });
+
       setUploadProgress(100);
 
       setTimeout(() => {
@@ -370,7 +438,20 @@ export default function CoursesSubjects({ initialPrepId }: CoursesSubjectsProps)
     e.stopPropagation();
     if (window.confirm('Êtes-vous sûr de vouloir supprimer ce cours ?')) {
       try {
+        const prepToDelete = preparations.find(p => p.id === prepId);
         await deleteDoc(doc(db, 'preparations', prepId));
+
+        if (currentUser) {
+          await recordAuditLog({
+            userId: currentUser.id,
+            userName: `${currentUser.prenom} ${currentUser.nom}`,
+            userRole: currentUser.role,
+            action: "Suppression de cours",
+            details: `Titre: ${prepToDelete?.topic || prepId}`,
+            category: 'homework'
+          });
+        }
+
         if (selectedPrep?.id === prepId) setSelectedPrep(null);
       } catch (error) {
         console.error("Error deleting preparation:", error);
@@ -394,6 +475,18 @@ export default function CoursesSubjects({ initialPrepId }: CoursesSubjectsProps)
         content: editContent,
         topic: editTopic
       });
+
+      if (currentUser) {
+        await recordAuditLog({
+          userId: currentUser.id,
+          userName: `${currentUser.prenom} ${currentUser.nom}`,
+          userRole: currentUser.role,
+          action: "Modification de cours",
+          details: `Titre: ${editTopic}`,
+          category: 'homework'
+        });
+      }
+
       setSelectedPrep({ ...selectedPrep, content: editContent, topic: editTopic });
       setIsEditing(false);
     } catch (error) {

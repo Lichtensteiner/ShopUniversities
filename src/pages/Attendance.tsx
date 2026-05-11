@@ -4,6 +4,7 @@ import { collection, getDocs, onSnapshot, doc, deleteDoc, updateDoc, query, wher
 import { db, isFirebaseConfigured } from '../lib/firebase';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
+import { recordAuditLog } from '../services/auditService';
 
 export default function Attendance() {
   const { currentUser } = useAuth();
@@ -97,10 +98,22 @@ export default function Attendance() {
     };
   }, [currentUser, selectedDate]);
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = async (id: string, record?: any) => {
     setActionLoading(id);
     try {
       await deleteDoc(doc(db, 'attendance', id));
+      
+      if (currentUser) {
+        await recordAuditLog({
+          userId: currentUser.id,
+          userName: `${currentUser.prenom} ${currentUser.nom}`,
+          userRole: currentUser.role,
+          action: "Suppression de présence",
+          details: `Suppression du record pour ${record?.user?.nom || 'Inconnu'} du ${record?.date || 'Inconnue'}`,
+          category: 'attendance'
+        });
+      }
+
       setConfirmDeleteId(null);
     } catch (error) {
       console.error("Erreur lors de la suppression:", error);
@@ -130,6 +143,18 @@ export default function Attendance() {
         heure_arrivee: editForm.heure_arrivee,
         heure_depart: editForm.heure_depart
       });
+
+      if (currentUser) {
+        const targetRecord = attendance.find(r => r.id === id);
+        await recordAuditLog({
+          userId: currentUser.id,
+          userName: `${currentUser.prenom} ${currentUser.nom}`,
+          userRole: currentUser.role,
+          action: "Modification de présence",
+          details: `${targetRecord?.user?.nom || 'Inconnu'} - Nouveau statut: ${editForm.statut}, Entrée: ${editForm.heure_arrivee}`,
+          category: 'attendance'
+        });
+      }
 
       // Mettre à jour le rapport correspondant si existant
       const record = attendance.find(r => r.id === id);
@@ -387,7 +412,7 @@ export default function Attendance() {
                           {confirmDeleteId === record.id ? (
                             <div className="flex items-center justify-end gap-2">
                               <span className="text-xs text-red-600 font-medium mr-1">{t('delete_question')}</span>
-                              <button onClick={() => handleDelete(record.id)} className="p-1.5 text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors" disabled={actionLoading === record.id} title={t('confirm')}>
+                              <button onClick={() => handleDelete(record.id, record)} className="p-1.5 text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors" disabled={actionLoading === record.id} title={t('confirm')}>
                                 {actionLoading === record.id ? <RefreshCw size={16} className="animate-spin" /> : <Check size={16} />}
                               </button>
                               <button onClick={() => setConfirmDeleteId(null)} className="p-1.5 text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors" disabled={actionLoading === record.id} title={t('cancel')}>

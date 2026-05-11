@@ -94,7 +94,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             const userData = docSnap.data();
             
             // Auto-fill admin/teacher email check
-            const isAdminEmail = firebaseUser.email === 'martinienmvezogo@gmail.com' || firebaseUser.email === 'ludo.consulting3@gmail.com';
+            const isAdminEmail = firebaseUser.email === 'martinienmvezogo@gmail.com';
             
             if (isAdminEmail && userData.role !== 'admin') {
               console.log("Upgrading user to admin role based on email...");
@@ -111,19 +111,32 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           } else {
             console.log("User profile does not exist in Firestore.");
             // Auto-create admin document if it doesn't exist
-            if (firebaseUser.email === 'martinienmvezogo@gmail.com' || firebaseUser.email === 'ludo.consulting3@gmail.com') {
+            if (firebaseUser.email === 'martinienmvezogo@gmail.com') {
               console.log("Creating admin profile...");
               const adminData = {
                 email: firebaseUser.email,
                 role: 'admin',
-                prenom: firebaseUser.email === 'martinienmvezogo@gmail.com' ? 'Martinien' : 'Ludo',
-                nom: firebaseUser.email === 'martinienmvezogo@gmail.com' ? 'Mvezogo' : 'Consulting',
+                prenom: 'Martinien',
+                nom: 'Mvezogo',
                 status: 'online',
                 lastSeen: serverTimestamp(),
                 date_creation: new Date().toISOString()
               };
               setDoc(docRef, adminData).catch(err => console.error("Error creating admin doc:", err));
               setCurrentUser({ id: firebaseUser.uid, ...adminData } as User);
+            } else if (firebaseUser.email === 'ludo.consulting3@gmail.com') {
+              console.log("Creating teacher profile for Ludovic...");
+              const teacherData = {
+                email: firebaseUser.email,
+                role: 'enseignant',
+                prenom: 'Ludovic',
+                nom: 'Consulting',
+                status: 'online',
+                lastSeen: serverTimestamp(),
+                date_creation: new Date().toISOString()
+              };
+              setDoc(docRef, teacherData).catch(err => console.error("Error creating teacher doc:", err));
+              setCurrentUser({ id: firebaseUser.uid, ...teacherData } as User);
             } else {
               setCurrentUser(null);
             }

@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { useAuth } from '../contexts/AuthContext';
+import { recordAuditLog } from '../services/auditService';
 import { Search, Filter, Plus, Fingerprint, RefreshCw, Eye, EyeOff, Edit2, Trash2, X, AlertCircle, BellRing, Key, Phone, MapPin, User2, Calendar, GraduationCap, History as HistoryIcon, Mail, Lock, Briefcase, User, Hash, Ban, ShieldOff } from 'lucide-react';
 import { collection, getDocs, doc, updateDoc, deleteDoc, setDoc, addDoc, onSnapshot, query, where } from 'firebase/firestore';
 import { initializeApp, getApp, getApps, deleteApp } from 'firebase/app';
@@ -9,6 +11,7 @@ import SuccessModal from '../components/SuccessModal';
 import { motion, AnimatePresence } from 'motion/react';
 
 export default function Users() {
+  const { currentUser } = useAuth();
   const { t, tData } = useLanguage();
   const [searchTerm, setSearchTerm] = useState('');
   const [filterRole, setFilterRole] = useState('all');
@@ -180,8 +183,15 @@ export default function Users() {
       
       // Sign out and clean up the secondary app
       await signOut(secondaryAuth);
-      await deleteApp(secondaryApp);
-      
+      await recordAuditLog({
+        userId: currentUser?.id || 'admin',
+        userName: currentUser ? `${currentUser.prenom} ${currentUser.nom}` : 'Administrateur',
+        userRole: currentUser?.role || 'admin',
+        action: "Création d'utilisateur",
+        details: `Nom: ${newUser.prenom} ${newUser.nom}, Email: ${newUser.email}, Rôle: ${newUser.role}`,
+        category: 'security'
+      });
+
       setShowAddUserModal(false);
       setNewUser({ nom: '', prenom: '', email: '', password: '', role: 'élève', classe: '', classes: [], matiere: '', matieres: [], matricule: '', contact: '', address: '', gender: 'not_specified', dateNaissance: '', lieuNaissance: '', diploma: '', experience_years: '', age: '', house_id: '' });
       setSuccessInfo({
@@ -228,6 +238,16 @@ export default function Users() {
         age: editUser.age ? parseInt(editUser.age.toString()) : null,
         house_id: editUser.role === 'élève' && editUser.house_id ? editUser.house_id : null
       });
+
+      await recordAuditLog({
+        userId: currentUser?.id || 'admin',
+        userName: currentUser ? `${currentUser.prenom} ${currentUser.nom}` : 'Administrateur',
+        userRole: currentUser?.role || 'admin',
+        action: "Mise à jour d'utilisateur",
+        details: `Utilisateur: ${editUser.prenom} ${editUser.nom}, ID: ${editUser.id}`,
+        category: 'security'
+      });
+
       setEditUser(null);
     } catch (err: any) {
       console.error(err);
@@ -244,6 +264,16 @@ export default function Users() {
     setError('');
     try {
       await deleteDoc(doc(db, 'users', deleteUser.id));
+
+      await recordAuditLog({
+        userId: currentUser?.id || 'admin',
+        userName: currentUser ? `${currentUser.prenom} ${currentUser.nom}` : 'Administrateur',
+        userRole: currentUser?.role || 'admin',
+        action: "Suppression d'utilisateur",
+        details: `Utilisateur supprimé: ${deleteUser.prenom} ${deleteUser.nom}, ID: ${deleteUser.id}`,
+        category: 'security'
+      });
+
       setDeleteUser(null);
     } catch (err: any) {
       console.error(err);
@@ -258,6 +288,16 @@ export default function Users() {
       await updateDoc(doc(db, 'users', user.id), {
         chatBlocked: !user.chatBlocked
       });
+
+      await recordAuditLog({
+        userId: currentUser?.id || 'admin',
+        userName: currentUser ? `${currentUser.prenom} ${currentUser.nom}` : 'Administrateur',
+        userRole: currentUser?.role || 'admin',
+        action: user.chatBlocked ? "Déblocage messagerie" : "Blocage messagerie",
+        details: `Utilisateur: ${user.prenom} ${user.nom}`,
+        category: 'security'
+      });
+
       const toastMsg = !user.chatBlocked ? t('messaging_blocked') : t('messaging_unblocked');
       alert(toastMsg.replace('{{name}}', `${user.prenom} ${user.nom}`));
     } catch (err) {
@@ -271,6 +311,16 @@ export default function Users() {
       await updateDoc(doc(db, 'users', user.id), {
         accessBlocked: !user.accessBlocked
       });
+
+      await recordAuditLog({
+        userId: currentUser?.id || 'admin',
+        userName: currentUser ? `${currentUser.prenom} ${currentUser.nom}` : 'Administrateur',
+        userRole: currentUser?.role || 'admin',
+        action: user.accessBlocked ? "Déblocage accès" : "Blocage accès",
+        details: `Utilisateur: ${user.prenom} ${user.nom}`,
+        category: 'security'
+      });
+
       const toastMsg = !user.accessBlocked ? t('access_blocked') : t('access_unblocked');
       alert(toastMsg.replace('{{name}}', `${user.prenom} ${user.nom}`));
     } catch (err) {
