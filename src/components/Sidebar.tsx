@@ -89,7 +89,7 @@ export default function Sidebar({ activeTab, setActiveTab, isMobileOpen, setIsMo
     {
       title: t('main_category'),
       items: [
-        { id: 'dashboard', labelKey: 'dashboard', icon: LayoutDashboard, roles: ['admin', 'enseignant', 'personnel administratif', 'parent'] },
+        { id: 'dashboard', labelKey: 'dashboard', icon: LayoutDashboard, roles: ['admin', 'enseignant', 'personnel administratif', 'parent', 'cuisinier'] },
         { id: 'student_dashboard', labelKey: 'student_dashboard', icon: LayoutDashboard, roles: ['élève'] },
         { id: 'newsfeed', labelKey: 'newsfeed', icon: MessageSquare, roles: ['admin', 'enseignant', 'personnel administratif', 'élève', 'parent'] },
         { id: 'directory', labelKey: 'directory', icon: BookUser, roles: ['admin', 'enseignant', 'personnel administratif'] },

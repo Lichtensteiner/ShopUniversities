@@ -39,6 +39,7 @@ import TermsAndConditions from './pages/TermsAndConditions';
 import Staff from './pages/Staff';
 import Library from './pages/Library';
 import Canteen from './pages/Canteen';
+import CanteenDashboard from './pages/CanteenDashboard';
 import Surveys from './pages/Surveys';
 import DocumentGenerator from './pages/DocumentGenerator';
 import { runMaintenance } from './services/MaintenanceService';
@@ -143,6 +144,7 @@ function AppContent() {
         return role === 'admin' ? <KioskMode onExit={() => setActiveTab('users')} /> : <Dashboard />;
       case 'dashboard': 
         if (role === 'parent') return <ParentDashboard />;
+        if (role === 'cuisinier') return <CanteenDashboard />;
         return ['admin', 'enseignant', 'personnel administratif'].includes(role) ? <Dashboard /> : <StudentDashboard />;
       case 'student_dashboard': 
         return role === 'élève' ? <StudentDashboard /> : <Dashboard />;

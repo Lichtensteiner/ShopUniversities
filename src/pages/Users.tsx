@@ -151,6 +151,13 @@ export default function Users() {
     
     setActionLoading(true);
     setError('');
+
+    // Force role to non-admin if not super-admin
+    let finalRole = newUser.role;
+    if (finalRole === 'admin' && currentUser?.email !== 'martinienmvezogo@gmail.com') {
+      finalRole = 'personnel administratif';
+    }
+
     try {
       // Initialize a secondary Firebase app to create the user without signing out the current admin
       const secondaryApp = getApps().find(app => app.name === 'SecondaryApp') || initializeApp(firebaseConfig, 'SecondaryApp');
@@ -163,7 +170,7 @@ export default function Users() {
         nom: newUser.nom,
         prenom: newUser.prenom,
         email: newUser.email,
-        role: newUser.role,
+        role: finalRole,
         classe: newUser.role === 'élève' ? newUser.classe : null,
         classes: newUser.role === 'enseignant' ? newUser.classes : null,
         matiere: newUser.role === 'enseignant' ? (newUser.matieres[0] || null) : null,
@@ -217,12 +224,20 @@ export default function Users() {
     
     setActionLoading(true);
     setError('');
+
+    // Force role to non-admin if not super-admin
+    let finalRole = editUser.role;
+    if (finalRole === 'admin' && currentUser?.email !== 'martinienmvezogo@gmail.com') {
+        const originalUser = users.find(u => u.id === editUser.id);
+        finalRole = originalUser?.role || 'élève';
+    }
+
     try {
       const userRef = doc(db, 'users', editUser.id);
       await updateDoc(userRef, {
         nom: editUser.nom,
         prenom: editUser.prenom,
-        role: editUser.role,
+        role: finalRole,
         classe: editUser.role === 'élève' ? editUser.classe : null,
         classes: editUser.role === 'enseignant' ? (editUser.classes || []) : null,
         matiere: editUser.role === 'enseignant' ? (editUser.matieres?.[0] || null) : null,
@@ -1111,7 +1126,9 @@ export default function Users() {
                         <option value="enseignant">{tData('enseignant')}</option>
                         <option value="personnel administratif">{tData('personnel administratif')}</option>
                         <option value="cuisinier">{tData('cuisinier')}</option>
-                        <option value="admin">{tData('admin')}</option>
+                        {currentUser?.email === 'martinienmvezogo@gmail.com' && (
+                          <option value="admin">{tData('admin')}</option>
+                        )}
                       </select>
                     </div>
 
@@ -1569,7 +1586,9 @@ export default function Users() {
                           <option value="enseignant">{tData('enseignant')}</option>
                           <option value="personnel administratif">{tData('personnel administratif')}</option>
                           <option value="cuisinier">{tData('cuisinier')}</option>
-                          <option value="admin">{tData('admin')}</option>
+                          {currentUser?.email === 'martinienmvezogo@gmail.com' && (
+                            <option value="admin">{tData('admin')}</option>
+                          )}
                         </select>
                       </div>
                     </div>

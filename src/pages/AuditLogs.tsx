@@ -15,18 +15,6 @@ import {
 } from 'lucide-react';
 import { motion } from 'motion/react';
 
-interface AuditLog {
-  id: string;
-  userId: string;
-  userName: string;
-  action: string;
-  entity: string;
-  entityId: string;
-  timestamp: any;
-  details?: string;
-  ip?: string;
-}
-
 const AuditLogs: React.FC = () => {
   const { currentUser } = useAuth();
   const { t, language } = useLanguage();
@@ -48,7 +36,7 @@ const AuditLogs: React.FC = () => {
   const filteredLogs = logs.filter(log => 
     log.userName.toLowerCase().includes(searchTerm.toLowerCase()) ||
     log.action.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    log.details.toLowerCase().includes(searchTerm.toLowerCase())
+    (log.details && log.details.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
   if (currentUser?.role !== 'admin') {
