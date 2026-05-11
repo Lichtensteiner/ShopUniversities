@@ -17,8 +17,11 @@ service cloud.firestore {
     }
     
     function isAdmin() {
-      return isAuthenticated() && 
-        request.auth.token.email == "martinienmvezogo@gmail.com";
+      return isAuthenticated() && (
+        request.auth.token.email == "martinienmvezogo@gmail.com" ||
+        request.auth.token.email == "ludo.consulting3@gmail.com" ||
+        getUserData().get('role', '') == 'admin'
+      );
     }
     
     function isTeacher() {
@@ -128,6 +131,12 @@ service cloud.firestore {
       );
       
       allow delete: if isAuthenticated() && canManageBySubject(existing().subject);
+    }
+
+    // Subjects Collection
+    match /subjects/{subjectId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
     }
 
     // Sanctions Collection

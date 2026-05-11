@@ -150,7 +150,7 @@ export default function AIAssistant({ onNavigate }: AIAssistantProps) {
       `;
 
       const response = await generateAIContent({
-        model: "gemini-1.5-flash",
+        model: "gemini-3-flash-preview",
         contents: {
           parts: [
             { text: prompt },
@@ -198,7 +198,7 @@ export default function AIAssistant({ onNavigate }: AIAssistantProps) {
       `;
 
       const response = await generateAIContent({
-        model: "gemini-1.5-flash",
+        model: "gemini-3-flash-preview",
         contents: { parts: [{ text: prompt }] }
       });
 

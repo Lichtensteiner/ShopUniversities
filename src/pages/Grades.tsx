@@ -53,6 +53,7 @@ interface Grade {
   title: string;
   comment?: string;
   classId: string;
+  teacherId?: string;
   type?: 'interrogation' | 'evaluation';
 }
 

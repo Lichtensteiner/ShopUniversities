@@ -93,47 +93,37 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           if (docSnap.exists()) {
             const userData = docSnap.data();
             
-            // Auto-fill admin name if missing
-            if (firebaseUser.email === 'martinienmvezogo@gmail.com' && (!userData.prenom || !userData.nom)) {
+            // Auto-fill admin/teacher email check
+            const isAdminEmail = firebaseUser.email === 'martinienmvezogo@gmail.com' || firebaseUser.email === 'ludo.consulting3@gmail.com';
+            
+            if (isAdminEmail && userData.role !== 'admin') {
+              console.log("Upgrading user to admin role based on email...");
+              setDoc(docRef, { role: 'admin' }, { merge: true }).catch(err => console.error(err));
+              setCurrentUser({ id: docSnap.id, ...userData, role: 'admin' } as User);
+            } else if (firebaseUser.email === 'martinienmvezogo@gmail.com' && (!userData.prenom || !userData.nom)) {
               console.log("Auto-filling admin name...");
-              setDoc(docRef, {
-                prenom: 'Martinien',
-                nom: 'Mvezogo'
-              }, { merge: true }).catch(err => console.error("Error updating admin name:", err));
-              
-              setCurrentUser({ id: docSnap.id, ...userData, prenom: 'Martinien', nom: 'Mvezogo' } as User);
+              const updateData = { prenom: 'Martinien', nom: 'Mvezogo' };
+              setDoc(docRef, updateData, { merge: true }).catch(err => console.error(err));
+              setCurrentUser({ id: docSnap.id, ...userData, ...updateData } as User);
             } else {
               setCurrentUser({ id: docSnap.id, ...userData } as User);
             }
           } else {
             console.log("User profile does not exist in Firestore.");
             // Auto-create admin document if it doesn't exist
-            if (firebaseUser.email === 'martinienmvezogo@gmail.com') {
+            if (firebaseUser.email === 'martinienmvezogo@gmail.com' || firebaseUser.email === 'ludo.consulting3@gmail.com') {
               console.log("Creating admin profile...");
               const adminData = {
                 email: firebaseUser.email,
                 role: 'admin',
-                prenom: 'Martinien',
-                nom: 'Mvezogo',
+                prenom: firebaseUser.email === 'martinienmvezogo@gmail.com' ? 'Martinien' : 'Ludo',
+                nom: firebaseUser.email === 'martinienmvezogo@gmail.com' ? 'Mvezogo' : 'Consulting',
                 status: 'online',
                 lastSeen: serverTimestamp(),
                 date_creation: new Date().toISOString()
               };
               setDoc(docRef, adminData).catch(err => console.error("Error creating admin doc:", err));
               setCurrentUser({ id: firebaseUser.uid, ...adminData } as User);
-            } else if (firebaseUser.email === 'ludo.consulting3@gmail.com') {
-              console.log("Creating teacher profile for Ludo...");
-              const teacherData = {
-                email: firebaseUser.email,
-                role: 'enseignant',
-                prenom: 'Ludo',
-                nom: 'Consulting',
-                status: 'online',
-                lastSeen: serverTimestamp(),
-                date_creation: new Date().toISOString()
-              };
-              setDoc(docRef, teacherData).catch(err => console.error("Error creating teacher doc:", err));
-              setCurrentUser({ id: firebaseUser.uid, ...teacherData } as User);
             } else {
               setCurrentUser(null);
             }

@@ -16,30 +16,45 @@ async function startServer() {
 
   app.use(express.json({ limit: '50mb' }));
 
-  // AI endpoint
+  // AI Generation Endpoint
   app.post("/api/ai/generate", async (req, res) => {
-    const { model, contents, config } = req.body;
-    
-    if (!process.env.GEMINI_API_KEY) {
-      console.error("GEMINI_API_KEY not found in environment");
-      return res.status(500).json({ error: "La clé API Gemini n'est pas configurée sur le serveur." });
-    }
-
     try {
-      const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-      
-      const result = await genAI.models.generateContent({
-        model: model || "gemini-3-flash-preview",
-        contents,
-        config
+      const { model, contents, config } = req.body;
+      const apiKey = process.env.GEMINI_API_KEY;
+
+      if (!apiKey) {
+        return res.status(500).json({ error: "Clé API Gemini non configurée sur le serveur." });
+      }
+
+      const genAI = new GoogleGenAI({ apiKey });
+
+      // Handle the contents format from the client
+      const promptContents = normalizeContents(contents);
+
+      const response = await genAI.models.generateContent({
+        model: model || "gemini-1.5-flash",
+        contents: promptContents,
+        config: config
       });
-      
-      res.json({ text: result.text });
+
+      res.json({ text: response.text });
     } catch (error: any) {
-      console.error("AI Generation Error:", error);
-      res.status(500).json({ error: error.message || "Erreur lors de la génération par l'IA" });
+      console.error("AI Server Error:", error);
+      res.status(500).json({ error: error.message || "Erreur AI interne" });
     }
   });
+
+  // Helper to normalize contents for Gemini
+  function normalizeContents(contents: any) {
+    if (Array.isArray(contents)) return contents;
+    if (contents.contents) {
+      return Array.isArray(contents.contents) ? contents.contents : [contents.contents];
+    }
+    if (contents.parts) {
+      return [{ parts: contents.parts }];
+    }
+    return [contents];
+  }
 
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {

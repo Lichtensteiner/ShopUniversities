@@ -34,9 +34,11 @@ export default function CoursesSubjects({ initialPrepId }: CoursesSubjectsProps)
   const { currentUser } = useAuth();
   const [classes, setClasses] = useState<any[]>([]);
   const [preparations, setPreparations] = useState<any[]>([]);
-  const [subjects, setSubjects] = useState<{id: string, name: string}[]>([]);
+  const [teachers, setTeachers] = useState<any[]>([]);
+  const [subjects, setSubjects] = useState<{id: string, name: string, teacherId?: string, teacherName?: string}[]>([]);
   const [newSubjectName, setNewSubjectName] = useState('');
-  const [editingSubject, setEditingSubject] = useState<{id: string, name: string} | null>(null);
+  const [newSubjectTeacherId, setNewSubjectTeacherId] = useState('');
+  const [editingSubject, setEditingSubject] = useState<{id: string, name: string, teacherId?: string} | null>(null);
   const [isAddingSubject, setIsAddingSubject] = useState(false);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -46,6 +48,7 @@ export default function CoursesSubjects({ initialPrepId }: CoursesSubjectsProps)
   const [editContent, setEditContent] = useState('');
   const [editTopic, setEditTopic] = useState('');
   const [activeTab, setActiveTab] = useState<'courses' | 'subjects'>('courses');
+  const [addingSubjectToClass, setAddingSubjectToClass] = useState<string | null>(null);
   
   // Add modal state
   const [showAddModal, setShowAddModal] = useState(false);
@@ -59,6 +62,10 @@ export default function CoursesSubjects({ initialPrepId }: CoursesSubjectsProps)
     content: '',
     type: 'course'
   });
+
+  const isAdmin = currentUser?.role === 'admin' || 
+                  currentUser?.email === 'ludo.consulting3@gmail.com' || 
+                  currentUser?.email === 'martinienmvezogo@gmail.com';
 
   useEffect(() => {
     if (initialPrepId && preparations.length > 0) {
@@ -74,7 +81,7 @@ export default function CoursesSubjects({ initialPrepId }: CoursesSubjectsProps)
 
     // Fetch classes
     let classesQuery;
-    if (currentUser.role === 'admin') {
+    if (isAdmin) {
       classesQuery = query(collection(db, 'classes'));
     } else {
       classesQuery = query(
@@ -86,11 +93,14 @@ export default function CoursesSubjects({ initialPrepId }: CoursesSubjectsProps)
     const unsubscribeClasses = onSnapshot(classesQuery, (snap) => {
       const classesData = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       setClasses(classesData);
+    }, (error) => {
+      console.error("Error fetching classes:", error);
+      setClasses([]);
     });
 
     // Fetch preparations (Courses)
     let prepsQuery;
-    if (currentUser.role === 'admin') {
+    if (isAdmin) {
       prepsQuery = query(collection(db, 'preparations'));
     } else {
       prepsQuery = query(
@@ -108,40 +118,78 @@ export default function CoursesSubjects({ initialPrepId }: CoursesSubjectsProps)
       });
       setPreparations(preps);
       setLoading(false);
+    }, (error) => {
+      console.error("Error fetching preps:", error);
+      setPreparations([]);
+      setLoading(false);
+    });
+
+    // Fetch teachers
+    const teachersQuery = query(collection(db, 'users'), where('role', '==', 'enseignant'));
+    const unsubscribeTeachers = onSnapshot(teachersQuery, (snap) => {
+      const teachersData = snap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as any[];
+      setTeachers(teachersData.sort((a, b) => (a.nom || '').localeCompare(b.nom || '')));
     });
 
     // Fetch Subjects
     const unsubscribeSubjects = onSnapshot(collection(db, 'subjects'), (snap) => {
-      if (snap.empty) {
-        // Initial population
+      const subjectsData = snap.docs.map(doc => ({ 
+        id: doc.id, 
+        name: doc.data().name as string,
+        teacherId: doc.data().teacherId,
+        teacherName: doc.data().teacherName
+      }));
+      setSubjects(subjectsData.sort((a, b) => a.name.localeCompare(b.name)));
+      
+      // Auto-populate if empty and user is admin
+      if (snap.empty && isAdmin) {
+        console.log("Subjects list is empty, auto-populating from constants...");
         SCHOOL_SUBJECTS.forEach(async (subj) => {
-          await addDoc(collection(db, 'subjects'), { name: subj, createdAt: serverTimestamp() });
+          try {
+            await addDoc(collection(db, 'subjects'), { name: subj, createdAt: serverTimestamp() });
+          } catch (error) {
+            console.error("Error auto-populating subjects:", error);
+          }
         });
-      } else {
-        const subjectsData = snap.docs.map(doc => ({ id: doc.id, name: doc.data().name as string }));
-        setSubjects(subjectsData.sort((a, b) => a.name.localeCompare(b.name)));
       }
+    }, (error) => {
+      console.error("Error fetching subjects:", error);
+      if (error.message.includes('permission')) {
+        alert("Erreur de permission Firestore: Impossible de lire les matières.");
+      }
+      setSubjects([]);
     });
 
     return () => {
       unsubscribeClasses();
       unsubscribePreps();
       unsubscribeSubjects();
+      unsubscribeTeachers();
     };
   }, [currentUser]);
 
   const handleAddSubject = async () => {
     if (!newSubjectName.trim()) return;
+    
+    // Find teacher name if teacherId is selected
+    const selectedTeacher = teachers.find(t => t.id === newSubjectTeacherId);
+    const teacherName = selectedTeacher ? `${selectedTeacher.prenom} ${selectedTeacher.nom}` : '';
+
+    console.log("Attempting to add global subject:", newSubjectName.trim(), "Teacher:", teacherName);
     setIsAddingSubject(true);
     try {
       await addDoc(collection(db, 'subjects'), {
         name: newSubjectName.trim(),
+        teacherId: newSubjectTeacherId || '',
+        teacherName: teacherName,
         createdAt: serverTimestamp()
       });
+      console.log("Subject added successfully");
       setNewSubjectName('');
+      setNewSubjectTeacherId('');
     } catch (error) {
       console.error("Error adding subject:", error);
-      alert("Erreur lors de l'ajout de la matière");
+      alert("Erreur lors de l'ajout de la matière (Vérifiez vos permissions)");
     } finally {
       setIsAddingSubject(false);
     }
@@ -150,6 +198,7 @@ export default function CoursesSubjects({ initialPrepId }: CoursesSubjectsProps)
   const handleDeleteSubject = async (subjectId: string) => {
     if (window.confirm('Êtes-vous sûr de vouloir supprimer cette matière ?')) {
       try {
+        console.log("Deleting subject:", subjectId);
         await deleteDoc(doc(db, 'subjects', subjectId));
       } catch (error) {
         console.error("Error deleting subject:", error);
@@ -158,16 +207,67 @@ export default function CoursesSubjects({ initialPrepId }: CoursesSubjectsProps)
     }
   };
 
-  const handleUpdateSubjectName = async () => {
+  const handleUpdateSubject = async () => {
     if (!editingSubject || !editingSubject.name.trim()) return;
+    
+    const selectedTeacher = teachers.find(t => t.id === editingSubject.teacherId);
+    const teacherName = selectedTeacher ? `${selectedTeacher.prenom} ${selectedTeacher.nom}` : '';
+
     try {
+      console.log("Updating subject:", editingSubject.id, editingSubject.name, "Teacher:", teacherName);
       await updateDoc(doc(db, 'subjects', editingSubject.id), {
-        name: editingSubject.name.trim()
+        name: editingSubject.name.trim(),
+        teacherId: editingSubject.teacherId || '',
+        teacherName: teacherName
       });
       setEditingSubject(null);
     } catch (error) {
       console.error("Error updating subject:", error);
       alert("Erreur lors de la mise à jour");
+    }
+  };
+
+  const handleAddSubjectToClass = async (classId: string, subjectName: string) => {
+    console.log("Adding subject to class:", subjectName, "Class ID:", classId);
+    const cls = classes.find(c => c.id === classId);
+    if (!cls) {
+      console.error("Class not found:", classId);
+      return;
+    }
+    
+    const matieres = cls.matieres || [];
+    if (matieres.includes(subjectName)) {
+      console.log("Subject already in class");
+      setAddingSubjectToClass(null);
+      return;
+    }
+
+    try {
+      await updateDoc(doc(db, 'classes', classId), {
+        matieres: [...matieres, subjectName]
+      });
+      console.log("Subject assigned to class successfully");
+      setAddingSubjectToClass(null);
+    } catch (error) {
+      console.error("Error adding subject to class:", error);
+      alert("Erreur lors de l'attribution de la matière");
+    }
+  };
+
+  const handleRemoveSubjectFromClass = async (classId: string, subjectName: string) => {
+    const cls = classes.find(c => c.id === classId);
+    if (!cls) return;
+    
+    if (!window.confirm(`Retirer ${subjectName} de la classe ${cls.nom} ?`)) return;
+
+    const matieres = cls.matieres || [];
+    try {
+      await updateDoc(doc(db, 'classes', classId), {
+        matieres: matieres.filter((m: string) => m !== subjectName)
+      });
+    } catch (error) {
+      console.error("Error removing subject from class:", error);
+      alert("Erreur lors de la suppression de la matière");
     }
   };
 
@@ -320,12 +420,12 @@ export default function CoursesSubjects({ initialPrepId }: CoursesSubjectsProps)
             {t('courses_subjects')}
           </h1>
           <p className="text-gray-500 dark:text-gray-400 mt-1">
-            {currentUser?.role === 'admin' 
+            {isAdmin 
               ? 'Supervision de tous les contenus pédagogiques de l\'établissement'
               : 'Gérez vos contenus pédagogiques et préparations IA par classe'}
           </p>
         </div>
-        {(currentUser?.role === 'admin' || currentUser?.role === 'enseignant') && (
+        {(isAdmin || currentUser?.role === 'enseignant') && (
           <button 
             onClick={() => setShowAddModal(true)}
             className="flex items-center justify-center gap-2 px-6 py-3 bg-indigo-600 text-white font-bold rounded-2xl hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200"
@@ -511,85 +611,157 @@ export default function CoursesSubjects({ initialPrepId }: CoursesSubjectsProps)
       ) : (
         <div className="space-y-8 animate-in fade-in duration-500">
           {/* Global Subjects Repertoire */}
-          <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm">
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+          <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
+            <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 mb-8">
               <div>
                 <h3 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
                   <BookOpen className="text-indigo-600" size={24} />
                   Répertoire des Matières
                 </h3>
-                <p className="text-xs text-gray-500 mt-1">Liste exhaustive de toutes les disciplines enseignées dans l'établissement</p>
+                <p className="text-xs text-gray-500 mt-1 italic">Configurez les matières globales et assignez les enseignants responsables</p>
               </div>
               
-              {currentUser?.role === 'admin' && (
-                <div className="flex gap-2 w-full md:w-auto">
+              {isAdmin && (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 w-full lg:w-auto">
                   <input
                     type="text"
                     value={newSubjectName}
                     onChange={(e) => setNewSubjectName(e.target.value)}
-                    placeholder="Nouvelle matière..."
-                    className="flex-1 md:w-64 px-4 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+                    placeholder="Nom de la matière..."
+                    className="px-4 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
                   />
+                  <select
+                    value={newSubjectTeacherId}
+                    onChange={(e) => setNewSubjectTeacherId(e.target.value)}
+                    className="px-4 py-2 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 text-sm text-gray-600 dark:text-gray-300"
+                  >
+                    <option value="">Sélectionner un enseignant...</option>
+                    {teachers.map(t => (
+                      <option key={t.id} value={t.id}>{t.prenom} {t.nom}</option>
+                    ))}
+                  </select>
                   <button
                     onClick={handleAddSubject}
                     disabled={isAddingSubject || !newSubjectName.trim()}
-                    className="px-4 py-2 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition-colors disabled:bg-indigo-400 flex items-center gap-2 whitespace-nowrap text-sm"
+                    className="px-6 py-2 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition-all shadow-md shadow-indigo-100 disabled:opacity-50 flex items-center justify-center gap-2 text-sm"
                   >
-                    <Plus size={18} />
-                    {isAddingSubject ? '...' : 'Ajouter'}
+                    {isAddingSubject ? (
+                      <RefreshCw size={18} className="animate-spin" />
+                    ) : (
+                      <Plus size={18} />
+                    )}
+                    Ajouter au répertoire
                   </button>
                 </div>
               )}
             </div>
 
             {subjects.length > 0 ? (
-              <div className="flex flex-wrap gap-2">
-                {subjects.map((subj) => (
-                  <div 
-                    key={subj.id} 
-                    className="flex items-center gap-2 px-4 py-2 bg-gray-50 dark:bg-gray-900/50 text-gray-700 dark:text-gray-300 text-sm font-bold rounded-xl border border-gray-100 dark:border-gray-700 group hover:border-indigo-200 dark:hover:border-indigo-900 transition-all hover:bg-white dark:hover:bg-gray-800"
-                  >
-                    {editingSubject?.id === subj.id ? (
-                      <div className="flex items-center gap-1">
-                        <input
-                          autoFocus
-                          type="text"
-                          value={editingSubject.name}
-                          onChange={(e) => setEditingSubject({ ...editingSubject, name: e.target.value })}
-                          className="bg-white dark:bg-gray-800 border border-indigo-500 rounded px-2 py-0.5 outline-none w-32"
-                          onKeyDown={(e) => e.key === 'Enter' && handleUpdateSubjectName()}
-                          onBlur={() => setEditingSubject(null)}
-                        />
-                      </div>
-                    ) : (
-                      <span>{subj.name}</span>
-                    )}
-                    
-                    {currentUser?.role === 'admin' && (
-                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity ml-2 border-l border-gray-200 dark:border-gray-700 pl-2">
-                        <button 
-                          onClick={() => setEditingSubject(subj)}
-                          className="p-1 hover:text-indigo-600 transition-colors"
-                          title="Modifier"
-                        >
-                          <Edit size={14} />
-                        </button>
-                        <button 
-                          onClick={() => handleDeleteSubject(subj.id)}
-                          className="p-1 hover:text-red-500 transition-colors"
-                          title="Supprimer"
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                ))}
+              <div className="overflow-x-auto rounded-xl border border-gray-100 dark:border-gray-700">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-gray-50 dark:bg-gray-900/50 border-b border-gray-100 dark:border-gray-700">
+                      <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest w-12">#</th>
+                      <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Matière</th>
+                      <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Enseignant Responsable</th>
+                      {isAdmin && <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right">Actions</th>}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-50 dark:divide-gray-700/50">
+                    {subjects.map((subj, index) => (
+                      <tr key={subj.id} className="group hover:bg-indigo-50/30 dark:hover:bg-indigo-900/10 transition-colors">
+                        <td className="px-6 py-4 text-xs text-gray-400 font-medium">{index + 1}</td>
+                        <td className="px-6 py-4">
+                          {editingSubject?.id === subj.id ? (
+                            <input
+                              autoFocus
+                              type="text"
+                              value={editingSubject.name}
+                              onChange={(e) => setEditingSubject({ ...editingSubject, name: e.target.value })}
+                              className="w-full bg-white dark:bg-gray-800 border border-indigo-500 rounded-lg px-3 py-1.5 text-sm outline-none shadow-sm"
+                              onKeyDown={(e) => e.key === 'Enter' && handleUpdateSubject()}
+                            />
+                          ) : (
+                            <span className="text-sm font-bold text-gray-900 dark:text-white uppercase tracking-tight">{subj.name}</span>
+                          )}
+                        </td>
+                        <td className="px-6 py-4">
+                          {editingSubject?.id === subj.id ? (
+                            <select
+                              value={editingSubject.teacherId || ''}
+                              onChange={(e) => setEditingSubject({ ...editingSubject, teacherId: e.target.value })}
+                              className="w-full bg-white dark:bg-gray-800 border border-indigo-500 rounded-lg px-3 py-1.5 text-sm outline-none shadow-sm"
+                            >
+                              <option value="">Non assigné</option>
+                              {teachers.map(t => (
+                                <option key={t.id} value={t.id}>{t.prenom} {t.nom}</option>
+                              ))}
+                            </select>
+                          ) : (
+                            <div className="flex items-center gap-2">
+                              {subj.teacherName ? (
+                                <>
+                                  <div className="w-7 h-7 bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 rounded-full flex items-center justify-center text-[10px] font-black">
+                                    {subj.teacherName.charAt(0)}
+                                  </div>
+                                  <span className="text-sm text-gray-700 dark:text-gray-300 font-medium">{subj.teacherName}</span>
+                                </>
+                              ) : (
+                                <span className="text-xs text-gray-400 italic">Aucun enseignant</span>
+                              )}
+                            </div>
+                          )}
+                        </td>
+                        {isAdmin && (
+                          <td className="px-6 py-4">
+                            <div className="flex justify-end items-center gap-2">
+                              {editingSubject?.id === subj.id ? (
+                                <>
+                                  <button 
+                                    onClick={handleUpdateSubject}
+                                    className="p-2 text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg transition-all"
+                                    title="Sauvegarder"
+                                  >
+                                    <Send size={16} />
+                                  </button>
+                                  <button 
+                                    onClick={() => setEditingSubject(null)}
+                                    className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-all"
+                                    title="Annuler"
+                                  >
+                                    <X size={16} />
+                                  </button>
+                                </>
+                              ) : (
+                                <>
+                                  <button 
+                                    onClick={() => setEditingSubject({ id: subj.id, name: subj.name, teacherId: subj.teacherId })}
+                                    className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-lg transition-all"
+                                    title="Modifier"
+                                  >
+                                    <Edit size={16} />
+                                  </button>
+                                  <button 
+                                    onClick={() => handleDeleteSubject(subj.id)}
+                                    className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-all"
+                                    title="Supprimer"
+                                  >
+                                    <Trash2 size={16} />
+                                  </button>
+                                </>
+                              )}
+                            </div>
+                          </td>
+                        )}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             ) : (
-              <div className="text-center py-8 bg-gray-50 dark:bg-gray-900/50 rounded-2xl border border-dashed border-gray-200 dark:border-gray-700">
-                <RefreshCw size={24} className="mx-auto text-gray-300 animate-spin mb-2" />
-                <p className="text-sm text-gray-500 italic">Chargement du répertoire...</p>
+              <div className="text-center py-12 bg-gray-50 dark:bg-gray-900/50 rounded-2xl border border-dashed border-gray-200 dark:border-gray-700">
+                <RefreshCw size={32} className="mx-auto text-gray-300 animate-spin mb-4" />
+                <p className="text-gray-500 dark:text-gray-400 font-medium">Chargement du répertoire des matières...</p>
               </div>
             )}
           </div>
@@ -615,21 +787,94 @@ export default function CoursesSubjects({ initialPrepId }: CoursesSubjectsProps)
                   <div className="p-6 space-y-4">
                     <div className="flex items-center justify-between">
                       <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Matières Active</h4>
-                      <span className="text-[10px] font-bold bg-indigo-100 dark:bg-indigo-900 text-indigo-600 px-2 py-0.5 rounded-full">
-                        {cls.matieres?.length || 0}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        {isAdmin && (
+                          <button 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              console.log("Setting addingSubjectToClass for:", cls.id);
+                              setAddingSubjectToClass(addingSubjectToClass === cls.id ? null : cls.id);
+                            }}
+                            className={`p-2 rounded-xl transition-all shadow-sm ${addingSubjectToClass === cls.id ? 'bg-indigo-600 text-white' : 'bg-indigo-50 text-indigo-600 hover:bg-indigo-100 hover:scale-105 active:scale-95'}`}
+                            title="Ajouter une matière"
+                          >
+                            <Plus size={16} />
+                          </button>
+                        )}
+                        <span className="text-[10px] font-bold bg-indigo-100 dark:bg-indigo-900 text-indigo-600 px-2 py-0.5 rounded-full">
+                          {cls.matieres?.length || 0}
+                        </span>
+                      </div>
                     </div>
+
+                    {addingSubjectToClass === cls.id && (
+                      <div className="animate-in slide-in-from-top-1 duration-200">
+                        {subjects.length > 0 ? (
+                          <div className="flex gap-2">
+                            <select
+                              className="flex-1 px-3 py-2 bg-indigo-100/50 dark:bg-indigo-900/40 border border-indigo-200 dark:border-indigo-800 rounded-xl text-[11px] font-bold text-indigo-700 dark:text-indigo-300 outline-none focus:ring-2 focus:ring-indigo-500"
+                              onChange={(e) => {
+                                if (e.target.value) handleAddSubjectToClass(cls.id, e.target.value);
+                              }}
+                              defaultValue=""
+                            >
+                              <option value="">+ Choisir une matière</option>
+                              {subjects
+                                .filter(s => !cls.matieres?.includes(s.name))
+                                .map(s => (
+                                  <option key={s.id} value={s.name}>{s.name}</option>
+                                ))
+                              }
+                            </select>
+                            <button 
+                              onClick={() => setAddingSubjectToClass(null)}
+                              className="p-2 text-gray-400 hover:text-red-500 transition-colors"
+                            >
+                              <X size={14} />
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="p-3 bg-amber-50 dark:bg-amber-900/10 border border-amber-100 dark:border-amber-900/50 rounded-xl text-[10px] text-amber-700 dark:text-amber-400">
+                            Veuillez d'abord ajouter des matières dans le répertoire ci-dessus.
+                          </div>
+                        )}
+                      </div>
+                    )}
+
                     {cls.matieres && cls.matieres.length > 0 ? (
                       <div className="flex flex-wrap gap-2">
                         {cls.matieres.sort().map((m: string, idx: number) => (
-                          <span key={idx} className="px-3 py-1.5 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-300 text-xs font-bold rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm">
-                            {m}
-                          </span>
+                          <div 
+                            key={idx} 
+                            className="group/tag flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-300 text-[11px] font-bold rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm hover:border-indigo-200 transition-colors"
+                          >
+                            <span>{m}</span>
+                            {isAdmin && (
+                              <button
+                                onClick={() => handleRemoveSubjectFromClass(cls.id, m)}
+                                className="opacity-0 group-hover/tag:opacity-100 p-0.5 hover:text-red-500 transition-all ml-1"
+                              >
+                                <X size={12} />
+                              </button>
+                            )}
+                          </div>
                         ))}
                       </div>
                     ) : (
-                      <div className="py-4 text-center bg-gray-50 dark:bg-gray-900/30 rounded-xl border border-dashed border-gray-200 dark:border-gray-700">
+                      <div className="py-4 text-center bg-gray-50 dark:bg-gray-900/30 rounded-xl border border-dashed border-gray-200 dark:border-gray-700 flex flex-col items-center gap-2">
                         <p className="text-xs text-gray-400 italic">Aucune matière définie</p>
+                        {isAdmin && (
+                          <button
+                            onClick={() => {
+                              console.log("Empty matieres - clicking add for:", cls.id);
+                              setAddingSubjectToClass(cls.id);
+                            }}
+                            className="mt-1 text-[10px] font-bold text-indigo-600 hover:text-indigo-700 bg-indigo-50 dark:bg-indigo-900/40 px-3 py-1.5 rounded-lg transition-all hover:scale-105 active:scale-95 flex items-center gap-1.5 shadow-sm border border-indigo-100"
+                          >
+                            <Plus size={12} />
+                            Attribuer une matière
+                          </button>
+                        )}
                       </div>
                     )}
                   </div>
@@ -638,7 +883,14 @@ export default function CoursesSubjects({ initialPrepId }: CoursesSubjectsProps)
             </div>
           </div>
           
-          {classes.length === 0 && (
+          {classes.length === 0 && !loading && (
+            <div className="col-span-full bg-white dark:bg-gray-800 rounded-2xl border border-dashed border-gray-200 dark:border-gray-700 p-12 text-center">
+              <BookOpen size={32} className="mx-auto text-gray-300 mb-4" />
+              <p className="text-gray-500 dark:text-gray-400 font-medium tracking-tight">Aucune classe n'est disponible ou ne vous est assignée.</p>
+            </div>
+          )}
+
+          {loading && (
             <div className="col-span-full bg-white dark:bg-gray-800 rounded-2xl border border-dashed border-gray-200 dark:border-gray-700 p-12 text-center">
               <RefreshCw size={32} className="mx-auto text-gray-300 animate-spin mb-4" />
               <p className="text-gray-500 dark:text-gray-400 font-medium tracking-tight">Récupération des données en temps réel...</p>
