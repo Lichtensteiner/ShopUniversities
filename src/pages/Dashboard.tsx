@@ -483,30 +483,30 @@ const TeacherDashboard = ({ currentUser, t, tData, onNavigate }: any) => {
             <h2 className="text-3xl font-black mb-2 lowercase first-letter:uppercase">{t('teacher_greeting')} {currentUser?.prenom} {currentUser?.nom} !</h2>
             <p className="text-blue-100 opacity-90 max-w-md">Prêt pour une nouvelle journée d'enseignement ? Voici un aperçu de vos classes et de vos tâches pédagogiques.</p>
           </div>
-          <div className="flex gap-4">
-            <div className="bg-white/10 backdrop-blur-md p-4 rounded-2xl border border-white/10 text-center flex-1">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 w-full md:w-auto">
+            <div className="bg-white/10 backdrop-blur-md p-3 sm:p-4 rounded-2xl border border-white/10 text-center flex-1">
               <BookOpen className="mx-auto mb-2 text-white/50" />
-              <p className="text-2xl font-black">{classes.length}</p>
+              <p className="text-xl sm:text-2xl font-black">{classes.length}</p>
               <p className="text-[10px] font-bold uppercase tracking-wider opacity-60">Classes</p>
             </div>
-            <div className="bg-white/10 backdrop-blur-md p-4 rounded-2xl border border-white/10 text-center flex-1 min-w-[100px]">
+            <div className="bg-white/10 backdrop-blur-md p-3 sm:p-4 rounded-2xl border border-white/10 text-center flex-1 min-w-0">
               <Users className="mx-auto mb-2 text-white/50" />
-              <p className="text-2xl font-black">
+              <p className="text-xl sm:text-2xl font-black truncate">
                 {classes.reduce((acc, cls) => acc + (studentCounts[cls.nom] || 0), 0)}
               </p>
               <p className="text-[10px] font-bold uppercase tracking-wider opacity-60">Étudiants</p>
             </div>
-            <div className="bg-white/10 backdrop-blur-md p-4 rounded-2xl border border-white/10 text-center flex-1">
+            <div className="bg-white/10 backdrop-blur-md p-3 sm:p-4 rounded-2xl border border-white/10 text-center flex-1">
               <ClipboardCheck className="mx-auto mb-2 text-white/50" />
-              <p className="text-2xl font-black">{myStats.presenceRate}%</p>
+              <p className="text-xl sm:text-2xl font-black">{myStats.presenceRate}%</p>
               <p className="text-[10px] font-bold uppercase tracking-wider opacity-60">Présence</p>
             </div>
             <button 
               onClick={() => onNavigate('settings')}
-              className="bg-white/10 backdrop-blur-md p-4 rounded-2xl border border-white/10 text-center flex-1 hover:bg-white/20 transition-all group"
+              className="bg-white/10 backdrop-blur-md p-3 sm:p-4 rounded-2xl border border-white/10 text-center flex-1 hover:bg-white/20 transition-all group"
             >
               <SettingsIcon className="mx-auto mb-2 text-white/50 group-hover:rotate-90 transition-transform" />
-              <p className="text-2xl font-black">...</p>
+              <p className="text-xl sm:text-2xl font-black">...</p>
               <p className="text-[10px] font-bold uppercase tracking-wider opacity-60">Paramètres</p>
             </button>
           </div>

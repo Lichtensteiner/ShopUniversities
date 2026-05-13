@@ -155,9 +155,9 @@ function AppContent() {
       case 'users': 
         return role === 'admin' ? <Users /> : <Dashboard onNavigate={handleNavigate} />;
       case 'attendance': 
-        return ['admin', 'enseignant', 'personnel administratif'].includes(role) ? <Attendance /> : <StudentDashboard />;
+        return ['admin', 'enseignant', 'personnel administratif'].includes(role) ? <Attendance /> : <StudentDashboard onNavigate={handleNavigate} />;
       case 'reports': 
-        return ['admin', 'enseignant', 'personnel administratif'].includes(role) ? <Reports /> : <StudentDashboard />;
+        return ['admin', 'enseignant', 'personnel administratif'].includes(role) ? <Reports /> : <StudentDashboard onNavigate={handleNavigate} />;
       case 'classes': 
         return role === 'admin' ? <Classes /> : <Dashboard onNavigate={handleNavigate} />;
       case 'settings': 
@@ -171,16 +171,16 @@ function AppContent() {
       case 'leaderboard': return <Leaderboard />;
       case 'houses': return <Houses />;
       case 'classroom': 
-        return ['admin', 'enseignant', 'élève'].includes(role) ? <Classroom /> : <Dashboard />;
+        return ['admin', 'enseignant', 'élève'].includes(role) ? <Classroom /> : <Dashboard onNavigate={handleNavigate} />;
       case 'courses_subjects':
-        return ['admin', 'enseignant'].includes(role) ? <CoursesSubjects initialPrepId={tabParams?.prepId} /> : <Dashboard />;
+        return ['admin', 'enseignant'].includes(role) ? <CoursesSubjects initialPrepId={tabParams?.prepId} /> : <StudentDashboard onNavigate={handleNavigate} />;
       case 'calendar': 
-        return ['admin', 'enseignant', 'personnel administratif'].includes(role) ? <Calendar /> : <StudentDashboard />;
+        return ['admin', 'enseignant', 'personnel administratif'].includes(role) ? <Calendar /> : <StudentDashboard onNavigate={handleNavigate} />;
       case 'newsfeed': return <NewsFeed />;
       case 'ai_assistant': 
-        return ['admin', 'enseignant'].includes(role) ? <AIAssistant onNavigate={handleNavigate} /> : <Dashboard />;
+        return ['admin', 'enseignant'].includes(role) ? <AIAssistant onNavigate={handleNavigate} /> : <StudentDashboard onNavigate={handleNavigate} />;
       case 'directory': 
-        return ['admin', 'enseignant', 'personnel administratif'].includes(role) ? <Directory onNavigate={handleNavigate} /> : <StudentDashboard />;
+        return ['admin', 'enseignant', 'personnel administratif'].includes(role) ? <Directory onNavigate={handleNavigate} /> : <StudentDashboard onNavigate={handleNavigate} />;
       case 'messaging': return <Messaging initialChatTargetId={tabParams?.userId} onClearTarget={() => setTabParams(null)} />;
       case 'grades': return <Grades />;
       case 'homework': return <Homework />;
@@ -204,7 +204,7 @@ function AppContent() {
       case 'profile': return <Profile />;
       case 'about': return <About />;
       case 'terms': return <TermsAndConditions />;
-      default: return role === 'élève' ? <StudentDashboard /> : <Dashboard onNavigate={handleNavigate} />;
+      default: return role === 'élève' ? <StudentDashboard onNavigate={handleNavigate} /> : <Dashboard onNavigate={handleNavigate} />;
     }
   };
 

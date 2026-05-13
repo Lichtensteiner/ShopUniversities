@@ -15,9 +15,6 @@ interface SidebarProps {
 export default function Sidebar({ activeTab, setActiveTab, isMobileOpen, setIsMobileOpen }: SidebarProps) {
   const { currentUser, logout } = useAuth();
   const { t, tData } = useLanguage();
-  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
-  const [isStandalone, setIsStandalone] = useState(false);
-  const [showInstallGuide, setShowInstallGuide] = useState(false);
   const [totalUnreadCount, setTotalUnreadCount] = useState(0);
 
   useEffect(() => {
@@ -44,49 +41,6 @@ export default function Sidebar({ activeTab, setActiveTab, isMobileOpen, setIsMo
 
     return () => unsubscribe();
   }, [currentUser]);
-
-  useEffect(() => {
-    // Check if already installed
-    const checkStandalone = () => {
-      const isStandaloneMode = window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone;
-      setIsStandalone(!!isStandaloneMode);
-    };
-    
-    checkStandalone();
-    window.matchMedia('(display-mode: standalone)').addEventListener('change', checkStandalone);
-
-    const handleBeforeInstallPrompt = (e: Event) => {
-      e.preventDefault();
-      setDeferredPrompt(e);
-    };
-
-    const handleAppInstalled = () => {
-      setDeferredPrompt(null);
-      setIsStandalone(true);
-    };
-
-    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-    window.addEventListener('appinstalled', handleAppInstalled);
-
-    return () => {
-      window.matchMedia('(display-mode: standalone)').removeEventListener('change', checkStandalone);
-      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-      window.removeEventListener('appinstalled', handleAppInstalled);
-    };
-  }, []);
-
-  const handleInstallClick = async () => {
-    if (deferredPrompt) {
-      deferredPrompt.prompt();
-      const { outcome } = await deferredPrompt.userChoice;
-      if (outcome === 'accepted') {
-        setDeferredPrompt(null);
-      }
-    } else {
-      // If no prompt is available (like on iOS), show the guide
-      setShowInstallGuide(true);
-    }
-  };
 
   const categories = [
     {
@@ -241,15 +195,6 @@ export default function Sidebar({ activeTab, setActiveTab, isMobileOpen, setIsMo
               </div>
             </div>
           )}
-          {!isStandalone && (
-            <button 
-              onClick={handleInstallClick}
-              className="w-full flex items-center gap-3 px-4 py-3 bg-indigo-600 text-white hover:bg-indigo-700 rounded-xl transition-colors shadow-sm"
-            >
-              <Download size={20} />
-              {t('install_app')}
-            </button>
-          )}
           <button 
             onClick={logout}
             className="w-full flex items-center gap-3 px-4 py-3 text-gray-600 dark:text-gray-400 hover:bg-red-50 dark:hover:bg-red-900/30 hover:text-red-600 dark:hover:text-red-400 rounded-xl transition-colors"
@@ -259,54 +204,6 @@ export default function Sidebar({ activeTab, setActiveTab, isMobileOpen, setIsMo
           </button>
         </div>
       </div>
-
-      {/* Install Guide Modal */}
-      {showInstallGuide && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-fade-in">
-            <div className="flex items-center justify-between p-4 border-b border-gray-100 dark:border-gray-700">
-              <h3 className="font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-                <Download size={20} className="text-indigo-600 dark:text-indigo-400" />
-                {t('install_app_title')}
-              </h3>
-              <button
-                onClick={() => setShowInstallGuide(false)}
-                className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl transition-colors"
-              >
-                <X size={20} />
-              </button>
-            </div>
-            <div className="p-6 space-y-4 text-gray-600 dark:text-gray-300">
-              <p>{t('install_app_desc')}</p>
-              
-              <div className="bg-gray-50 dark:bg-gray-700/50 p-4 rounded-xl space-y-2 border border-gray-100 dark:border-gray-600">
-                <p className="font-medium text-gray-900 dark:text-white">{t('install_ios')}</p>
-                <ol className="list-decimal list-inside space-y-1 text-sm">
-                  <li>{t('install_ios_step1')}</li>
-                  <li>{t('install_ios_step2')}</li>
-                  <li>{t('install_ios_step3')}</li>
-                </ol>
-              </div>
-
-              <div className="bg-gray-50 dark:bg-gray-700/50 p-4 rounded-xl space-y-2 border border-gray-100 dark:border-gray-600">
-                <p className="font-medium text-gray-900 dark:text-white">{t('install_android')}</p>
-                <ol className="list-decimal list-inside space-y-1 text-sm">
-                  <li>{t('install_android_step1')}</li>
-                  <li>{t('install_android_step2')}</li>
-                </ol>
-              </div>
-            </div>
-            <div className="p-4 border-t border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
-              <button
-                onClick={() => setShowInstallGuide(false)}
-                className="w-full py-2.5 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-white font-medium rounded-xl hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
-              >
-                {t('got_it')}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </>
   );
 }

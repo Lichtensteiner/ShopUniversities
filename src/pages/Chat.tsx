@@ -129,22 +129,37 @@ export default function Chat({ conversationId, onBack }: ChatProps) {
             });
           }
         } else {
-          // Fetch all participants for group chat
+          // Fetch all participants for group chat efficiently
           const fetchParticipants = async () => {
-             const newMap: Record<string, any> = { ...participantsMap };
-             let changed = false;
-             for (const pId of data.participants) {
-                if (pId !== currentUser.id && !newMap[pId]) {
-                   const uDoc = await getDoc(doc(db, 'users', pId));
-                   if (uDoc.exists()) {
-                      newMap[pId] = { id: uDoc.id, ...uDoc.data() };
-                      changed = true;
-                   }
-                }
-             }
-             if (changed) {
-               setParticipantsMap(prev => ({ ...prev, ...newMap }));
-             }
+            try {
+              const missingIds = data.participants.filter((pId: string) => pId !== currentUser.id && !participantsMap[pId]);
+              
+              if (missingIds.length === 0) return;
+
+              // Batch IDs in groups of 10 for 'in' query (Firestore limit)
+              const batches = [];
+              for (let i = 0; i < missingIds.length; i += 10) {
+                batches.push(missingIds.slice(i, i + 10));
+              }
+
+              const newMap: Record<string, any> = { ...participantsMap };
+              let changed = false;
+
+              for (const batch of batches) {
+                const q = query(collection(db, 'users'), where('__name__', 'in', batch));
+                const snap = await getDocs(q);
+                snap.docs.forEach(doc => {
+                  newMap[doc.id] = { id: doc.id, ...doc.data() };
+                  changed = true;
+                });
+              }
+
+              if (changed) {
+                setParticipantsMap(prev => ({ ...prev, ...newMap }));
+              }
+            } catch (error) {
+              console.error("Error fetching participants:", error);
+            }
           };
           fetchParticipants();
         }

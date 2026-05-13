@@ -112,6 +112,17 @@ export default function Messaging({ initialChatTargetId, onClearTarget }: Messag
     startChat();
   }, [initialChatTargetId, currentUser, onClearTarget]);
 
+  // Update usersInfo when allUsers changes
+  useEffect(() => {
+    if (allUsers.length > 0) {
+      const infoMap: Record<string, any> = {};
+      allUsers.forEach(u => {
+        infoMap[u.id] = u;
+      });
+      setUsersInfo(prev => ({ ...prev, ...infoMap }));
+    }
+  }, [allUsers]);
+
   useEffect(() => {
     if (!currentUser) return;
 
@@ -140,46 +151,6 @@ export default function Messaging({ initialChatTargetId, onClearTarget }: Messag
       });
       
       setConversations(convos);
-
-      // Fetch user info for participants we don't know yet
-      setUsersInfo(prevUsersInfo => {
-        const newUsersInfo = { ...prevUsersInfo };
-        let hasNewUsers = false;
-
-        for (const conv of convos) {
-          if (!conv.isGroup) {
-            const otherId = conv.participants.find(id => id !== currentUser.id);
-            if (otherId && !newUsersInfo[otherId] && !newUsersInfo[`_fetching_${otherId}`]) {
-              // Mark as fetching to avoid duplicate requests
-              newUsersInfo[`_fetching_${otherId}`] = true;
-              hasNewUsers = true;
-              
-              getDoc(doc(db, 'users', otherId)).then(userDoc => {
-                if (userDoc.exists()) {
-                  setUsersInfo(prev => ({
-                    ...prev,
-                    [otherId]: { id: userDoc.id, ...userDoc.data() }
-                  }));
-                  
-                  // Set up real-time listener for this user's presence
-                  onSnapshot(doc(db, 'users', otherId), (docSnap) => {
-                    if (docSnap.exists()) {
-                      setUsersInfo(prev => ({
-                        ...prev,
-                        [otherId]: { id: docSnap.id, ...docSnap.data() }
-                      }));
-                    }
-                  });
-                }
-              }).catch(err => {
-                console.error("Error fetching user info:", err);
-              });
-            }
-          }
-        }
-        
-        return hasNewUsers ? newUsersInfo : prevUsersInfo;
-      });
     });
 
     return () => unsubscribe();
