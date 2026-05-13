@@ -21,117 +21,243 @@ import {
   Layout,
   ListTodo,
   Plus,
-  X
+  X,
+  Settings as SettingsIcon
 } from 'lucide-react';
 import { motion } from 'motion/react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import { 
+  AreaChart, 
+  Area, 
+  BarChart, 
+  Bar, 
+  XAxis, 
+  YAxis, 
+  CartesianGrid, 
+  Tooltip, 
+  Legend, 
+  ResponsiveContainer, 
+  PieChart, 
+  Pie, 
+  Cell 
+} from 'recharts';
 import { collection, getDocs, query, where, onSnapshot, limit, orderBy, updateDoc, doc, serverTimestamp, addDoc } from 'firebase/firestore';
 import { db, isFirebaseConfigured } from '../lib/firebase';
 import LiveClock from '../components/LiveClock';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useTheme } from '../contexts/ThemeContext';
 import NewUserAnnouncement from '../components/NewUserAnnouncement';
 
 const COLORS = ['#4f46e5', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
 
 // --- Sub-components for better organization ---
 
-const AdminDashboard = ({ stats, weeklyData, studentLevelData, userDistribution, classData, recommendation, houses, alerts, ecoStats, mood, handleMoodSelect, t, tData }: any) => (
-  <div className="space-y-6">
-    {/* Insights Row */}
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-      {/* Wellbeing */}
-      <div className="bg-gradient-to-br from-indigo-500 to-purple-600 rounded-3xl p-6 text-white shadow-xl overflow-hidden relative group">
-        <div className="relative z-10">
-          <div className="flex justify-between items-start mb-4">
-            <div className="p-2 bg-white/20 rounded-xl backdrop-blur-md"><Activity size={20} /></div>
-            <span className="text-[10px] font-black uppercase tracking-widest opacity-70">{t('wellbeing')}</span>
-          </div>
-          <h3 className="text-lg font-black mb-1">{t('how_are_you')}</h3>
-          <p className="text-xs opacity-80 mb-4">{t('mood_desc')}</p>
-          <div className="flex justify-between gap-2">
-            {['😊', '😐', '😔', '😡'].map(m => (
-              <button key={m} onClick={() => handleMoodSelect(m)} className={`flex-1 aspect-square rounded-xl flex items-center justify-center text-xl transition-all ${mood === m ? 'bg-white text-indigo-600' : 'bg-white/10 hover:bg-white/20'}`}>{m}</button>
-            ))}
-          </div>
-        </div>
-        <Sparkles className="absolute -bottom-4 -right-4 w-24 h-24 text-white/10 rotate-12" />
-      </div>
-
-      {/* Eco Impact */}
-      <div className="bg-white dark:bg-gray-800 border border-emerald-100 rounded-3xl p-6 shadow-sm">
-        <div className="flex justify-between items-start mb-4">
-          <div className="p-2 bg-emerald-50 text-emerald-600 rounded-xl"><ShieldCheck size={20} /></div>
-          <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">{t('eco_impact')}</span>
-        </div>
-        <div className="space-y-3">
-          <p className="text-2xl font-black text-gray-900 dark:text-white">{ecoStats.trees} <span className="text-xs font-medium text-gray-400">Arbres</span></p>
-          <div className="h-1.5 bg-emerald-50 rounded-full overflow-hidden"><div className="h-full bg-emerald-500 w-[75%]" /></div>
-          <p className="text-[10px] text-gray-400 uppercase font-bold">Économisés cette année</p>
-        </div>
-      </div>
-
-      {/* AI recommendation */}
-      <div className="bg-white dark:bg-gray-800 border border-orange-100 rounded-3xl p-6 shadow-sm">
-        <div className="flex justify-between items-start mb-4">
-          <div className="p-2 bg-orange-50 text-orange-600 rounded-xl"><Sparkles size={20} /></div>
-          <span className="text-[10px] font-black text-orange-600 uppercase tracking-widest">IA Insight</span>
-        </div>
-        <p className="text-xs text-gray-600 leading-relaxed font-medium">
-          {recommendation?.text || "Analyse des tendances en cours pour optimiser les performances de l'établissement."}
-        </p>
-      </div>
-
-      {/* Competition */}
-      <div className="bg-slate-900 rounded-3xl p-6 text-white shadow-xl">
-        <div className="flex justify-between items-start mb-4">
-          <div className="p-2 bg-slate-800 rounded-xl"><Award size={20} className="text-yellow-400" /></div>
-          <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Compétition</span>
-        </div>
-        <div className="space-y-2">
-          {houses.slice(0, 3).map((house: any, idx: number) => (
-            <div key={house.id} className="flex justify-between items-center bg-slate-800/50 p-2 rounded-xl border border-slate-700">
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ backgroundColor: house.color }}>{house.name}</span>
-              <span className="font-black text-xs">{house.points} pts</span>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-
-    {/* Standard Stats */}
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-      <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4">
-        <div className="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center"><Users /></div>
-        <div><p className="text-sm font-medium text-gray-500">Effectif</p><h3 className="text-2xl font-bold">{stats.total}</h3></div>
-      </div>
-      <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4">
-        <div className="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center"><UserCheck /></div>
-        <div><p className="text-sm font-medium text-gray-500">Présents</p><h3 className="text-2xl font-bold">{stats.presents}</h3></div>
-      </div>
-      <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4">
-        <div className="w-12 h-12 bg-amber-50 text-amber-600 rounded-xl flex items-center justify-center"><Clock /></div>
-        <div><p className="text-sm font-medium text-gray-500">Retards</p><h3 className="text-2xl font-bold">{stats.retards}</h3></div>
-      </div>
-      <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4">
-        <div className="w-12 h-12 bg-red-50 text-red-600 rounded-xl flex items-center justify-center"><UserX /></div>
-        <div><p className="text-sm font-medium text-gray-500">Absents</p><h3 className="text-2xl font-bold">{stats.absents}</h3></div>
-      </div>
-    </div>
-
-    {/* Charts */}
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-        <h3 className="text-lg font-bold mb-6">Évolution hebdomadaire</h3>
-        <div className="h-64"><ResponsiveContainer><BarChart data={weeklyData}><CartesianGrid strokeDasharray="3 3" vertical={false} /><XAxis dataKey="name" /><YAxis /><Tooltip /><Legend /><Bar dataKey="presents" fill="#10b981" /><Bar dataKey="retards" fill="#f59e0b" /><Bar dataKey="absents" fill="#ef4444" /></BarChart></ResponsiveContainer></div>
-      </div>
-      <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-        <h3 className="text-lg font-bold mb-6">Répartition par niveau</h3>
-        <div className="h-64"><ResponsiveContainer><PieChart><Pie data={studentLevelData} innerRadius={60} outerRadius={80} dataKey="value" nameKey="name">{studentLevelData.map((_: any, index: number) => <Cell key={index} fill={COLORS[index % COLORS.length]} />)}</Pie><Tooltip /></PieChart></ResponsiveContainer></div>
-      </div>
-    </div>
+const MiniSparkline = ({ data, color }: { data: any[], color: string }) => (
+  <div className="h-10 w-24">
+    <ResponsiveContainer width="100%" height="100%">
+      <AreaChart data={data}>
+        <Area type="monotone" dataKey="value" stroke={color} fill={color} fillOpacity={0.1} strokeWidth={2} />
+      </AreaChart>
+    </ResponsiveContainer>
   </div>
 );
+
+const AdminDashboard = ({ stats, weeklyData, studentLevelData, userDistribution, classData, recommendation, houses, alerts, ecoStats, mood, handleMoodSelect, t, tData }: any) => {
+  const { theme } = useTheme();
+  const isDark = theme === 'dark';
+
+  return (
+    <div className="space-y-6">
+      {/* Top Indicators with Curves */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {[
+          { icon: Users, label: 'Effectif Total', value: Number(stats.total) || 0, color: '#4f46e5', bg: 'bg-indigo-50 dark:bg-indigo-900/30', text: 'text-indigo-600 dark:text-indigo-400', sparkData: [{value: 30}, {value: 40}, {value: 35}, {value: 50}, {value: Number(stats.total) || 0}] },
+          { icon: UserCheck, label: 'Taux de Présence', value: `${(Number(stats.total) || 0) > 0 ? Math.round(((Number(stats.presents) || 0) / (Number(stats.total) || 0)) * 100) : 0}%`, color: '#10b981', bg: 'bg-emerald-50 dark:bg-emerald-900/30', text: 'text-emerald-600 dark:text-emerald-400', sparkData: [{value: 70}, {value: 85}, {value: 80}, {value: 90}, {value: 92}] },
+          { icon: Clock, label: 'Moyenne Retards', value: Number(stats.retards) || 0, color: '#f59e0b', bg: 'bg-amber-50 dark:bg-amber-900/30', text: 'text-amber-600 dark:text-amber-400', sparkData: [{value: 5}, {value: 8}, {value: 4}, {value: 7}, {value: Number(stats.retards) || 0}] },
+          { icon: Award, label: 'Points Maisons', value: houses.reduce((acc: number, h: any) => acc + (Number(h.points) || 0), 0), color: '#8b5cf6', bg: 'bg-purple-50 dark:bg-purple-900/30', text: 'text-purple-600 dark:text-purple-400', sparkData: [{value: 1000}, {value: 1200}, {value: 1500}, {value: 1800}, {value: 2000}] }
+        ].map((item, i) => {
+          const sparkHistory = item.label === 'Effectif Total' 
+            ? [{value: item.value * 0.95}, {value: item.value * 1.02}, {value: item.value * 0.98}, {value: item.value * 1.01}, {value: item.value}]
+            : item.label === 'Taux de Présence'
+              ? weeklyData.map(d => ({ value: (stats.total > 0 ? (d.presents / stats.total) * 100 : 0) }))
+              : item.label === 'Moyenne Retards'
+                ? weeklyData.map(d => ({ value: d.retards }))
+                : [{value: 50}, {value: 70}, {value: 65}, {value: 80}, {value: item.value}];
+
+          return (
+            <div key={i} className="bg-white dark:bg-gray-800 p-6 rounded-3xl border border-gray-100 dark:border-gray-700 shadow-sm flex flex-col gap-4">
+              <div className="flex justify-between items-center">
+                <div className={`w-12 h-12 ${item.bg} ${item.text} rounded-2xl flex items-center justify-center`}><item.icon size={24} /></div>
+                <MiniSparkline data={sparkHistory.length > 0 ? sparkHistory : item.sparkData} color={item.color} />
+              </div>
+              <div>
+                <p className="text-xs font-black text-gray-400 uppercase tracking-widest">{item.label}</p>
+                <h3 className="text-3xl font-black text-gray-900 dark:text-white mt-1">{item.value}</h3>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* User Ecosystem Chart */}
+        <div className="lg:col-span-1 bg-white dark:bg-gray-800 p-8 rounded-3xl border border-gray-100 dark:border-gray-700 shadow-sm relative">
+           <h3 className="text-xl font-black text-gray-900 dark:text-white mb-6">Écosystème</h3>
+           <div className="h-64">
+             <ResponsiveContainer>
+               <PieChart>
+                 <Pie 
+                   data={userDistribution} 
+                   innerRadius={60} 
+                   outerRadius={80} 
+                   dataKey="value" 
+                   nameKey="name" 
+                   paddingAngle={8}
+                   stroke="none"
+                 >
+                   {userDistribution.map((entry: any, index: number) => (
+                     <Cell key={index} fill={COLORS[index % COLORS.length]} />
+                   ))}
+                 </Pie>
+                 <Tooltip 
+                    contentStyle={{ borderRadius: '16px', border: 'none', backgroundColor: isDark ? '#1F2937' : '#FFFFFF', color: isDark ? '#F3F4F6' : '#111827' }}
+                 />
+                 <Legend verticalAlign="bottom" align="center" iconType="circle" wrapperStyle={{ fontSize: '10px', fontWeight: 'bold' }} />
+               </PieChart>
+             </ResponsiveContainer>
+           </div>
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-center pointer-events-none mt-4">
+              <span className="text-[10px] font-black text-gray-400 uppercase">Total</span>
+              <p className="text-2xl font-black text-gray-900 dark:text-white">{Number(stats.total) || 0}</p>
+           </div>
+        </div>
+
+        {/* Weekly Curve Chart */}
+        <div className="lg:col-span-2 bg-white dark:bg-gray-800 p-8 rounded-3xl border border-gray-100 dark:border-gray-700 shadow-sm">
+           <div className="flex justify-between items-center mb-8">
+              <h3 className="text-xl font-black text-gray-900 dark:text-white">Assiduité Hebdo</h3>
+              <div className="flex gap-4">
+                 <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-indigo-500" /><span className="text-[10px] font-bold text-gray-400 uppercase">Présents</span></div>
+                 <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-amber-500" /><span className="text-[10px] font-bold text-gray-400 uppercase">Retards</span></div>
+              </div>
+           </div>
+           <div className="h-64">
+              <ResponsiveContainer>
+                <AreaChart data={weeklyData}>
+                  <defs>
+                    <linearGradient id="curvePresents" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#4f46e5" stopOpacity={0.1}/><stop offset="95%" stopColor="#4f46e5" stopOpacity={0}/></linearGradient>
+                    <linearGradient id="curveRetards" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#f59e0b" stopOpacity={0.1}/><stop offset="95%" stopColor="#f59e0b" stopOpacity={0}/></linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={isDark ? '#374151' : '#F3F4F6'} />
+                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#9CA3AF', fontSize: 10, fontWeight: 800 }} dy={10} />
+                  <YAxis axisLine={false} tickLine={false} tick={{ fill: '#9CA3AF', fontSize: 10, fontWeight: 800 }} />
+                  <Tooltip contentStyle={{ borderRadius: '16px', border: 'none', backgroundColor: isDark ? '#1F2937' : '#FFFFFF', color: isDark ? '#F3F4F6' : '#111827' }} />
+                  <Area type="monotone" dataKey="presents" stroke="#4f46e5" fill="url(#curvePresents)" strokeWidth={3} />
+                  <Area type="monotone" dataKey="retards" stroke="#f59e0b" fill="url(#curveRetards)" strokeWidth={3} />
+                </AreaChart>
+              </ResponsiveContainer>
+           </div>
+        </div>
+      </div>
+
+      {/* Class distribution indicators */}
+      <div className="bg-white dark:bg-gray-800 p-8 rounded-3xl border border-gray-100 dark:border-gray-700 shadow-sm">
+        <h3 className="text-xl font-black text-gray-900 dark:text-white mb-8 text-center sm:text-left">Démographie par Classe</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {classData.length > 0 ? (
+            classData.map((cls: any, i: number) => (
+              <div key={i} className="space-y-3 p-4 bg-gray-50 dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 transition-all hover:border-indigo-200 group">
+                <div className="flex justify-between items-center mb-1">
+                  <span className="text-xs font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest">{cls.name}</span>
+                  <span className="text-[10px] font-black py-0.5 px-2 bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-300 rounded-full">{cls.percentage}%</span>
+                </div>
+                <div className="flex items-end justify-between">
+                   <h4 className="text-2xl font-black text-gray-900 dark:text-white">{Number(cls.students) || 0} <span className="text-xs font-medium text-gray-400">Élèves</span></h4>
+                   <div className="w-10 h-10 group-hover:scale-110 transition-transform">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie 
+                            data={[{value: Number(cls.students) || 0}, {value: Math.max(0, (Number(stats.total) || 100) - (Number(cls.students) || 0))}]} 
+                            dataKey="value" 
+                            innerRadius={15} 
+                            outerRadius={20} 
+                            startAngle={90} 
+                            endAngle={450} 
+                            stroke="none"
+                          >
+                            <Cell fill={COLORS[i % COLORS.length]} />
+                            <Cell fill={isDark ? '#374151' : '#E5E7EB'} />
+                          </Pie>
+                        </PieChart>
+                      </ResponsiveContainer>
+                   </div>
+                </div>
+                <div className="h-1.5 w-full bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                  <div 
+                    className="h-full rounded-full transition-all duration-1000" 
+                    style={{ 
+                      width: `${cls.percentage}%`, 
+                      backgroundColor: COLORS[i % COLORS.length] 
+                    }} 
+                  />
+                </div>
+              </div>
+            ))
+          ) : (
+             <div className="col-span-full py-12 text-center text-gray-400 font-medium font-inter">Capture des données en cours...</div>
+          )}
+        </div>
+      </div>
+      
+      {/* Lower Row: AI Insights & Competition */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+         {/* AI Card */}
+         <div className="bg-gradient-to-br from-indigo-500 to-purple-600 p-8 rounded-3xl text-white shadow-xl relative overflow-hidden group">
+            <div className="relative z-10 flex flex-col h-full">
+               <div className="flex justify-between items-start mb-6">
+                  <div className="p-3 bg-white/20 rounded-2xl backdrop-blur-xl"><Sparkles size={24} /></div>
+                  <div className="px-3 py-1 bg-white/20 rounded-full backdrop-blur-xl text-[10px] font-black uppercase tracking-widest text-white/90">Analyse IA</div>
+               </div>
+               <h3 className="text-2xl font-black mb-2">Recommandation Stratégique</h3>
+               <p className="text-indigo-100 font-medium leading-relaxed mb-8">
+                  {recommendation?.text || "Vos indicateurs montrent une corrélation forte entre la ponctualité matinale et les taux de réussite. Envisagez un programme d'encouragement ciblé."}
+               </p>
+               <div className="mt-auto flex gap-4">
+                  <button className="flex-1 py-3 bg-white text-indigo-600 rounded-2xl font-black text-sm hover:bg-white/90 transition-colors">Détails</button>
+                  <button className="flex-1 py-3 bg-white/10 text-white rounded-2xl font-black text-sm hover:bg-white/20 transition-colors border border-white/20">Optimiser</button>
+               </div>
+            </div>
+            <Layout className="absolute -bottom-8 -right-8 w-40 h-40 text-black/5" />
+         </div>
+
+         {/* House Leaderboard */}
+         <div className="bg-slate-900 p-8 rounded-3xl shadow-xl relative overflow-hidden">
+            <h3 className="text-xl font-black text-white mb-8 border-b border-white/10 pb-4">Championnat des Maisons</h3>
+            <div className="space-y-4">
+               {houses.length > 0 ? houses.sort((a: any, b: any) => b.points - a.points).map((house: any, i: number) => (
+                  <div key={house.id} className="group flex items-center gap-4 bg-white/5 p-4 rounded-2xl border border-white/5 hover:border-white/20 transition-all">
+                     <div className="w-8 h-8 rounded-xl font-black text-slate-500 flex items-center justify-center text-xs group-hover:text-white transition-colors">{i + 1}</div>
+                     <div className="w-2 h-10 rounded-full" style={{ backgroundColor: house.color }} />
+                     <div className="flex-1">
+                        <p className="text-sm font-black text-white">{house.name}</p>
+                        <div className="h-1.5 w-full bg-slate-800 rounded-full mt-2 overflow-hidden">
+                           <div className="h-full rounded-full transition-all" style={{ width: `${(Number(houses[0]?.points) || 0) > 0 ? ((Number(house.points) || 0) / (Number(houses[0].points) || 0)) * 100 : 0}%`, backgroundColor: house.color }} />
+                        </div>
+                     </div>
+                     <div className="text-right">
+                        <p className="text-lg font-black text-white">{house.points}</p>
+                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Points</p>
+                     </div>
+                  </div>
+               )) : (
+                  <div className="py-12 text-center text-slate-500 text-xs italic">Aucune donnée de points disponible</div>
+               )}
+            </div>
+         </div>
+      </div>
+    </div>
+  );
+};
 
 const TeacherDashboard = ({ currentUser, t, tData, onNavigate }: any) => {
   const [classes, setClasses] = useState<any[]>([]);
@@ -308,6 +434,14 @@ const TeacherDashboard = ({ currentUser, t, tData, onNavigate }: any) => {
               <p className="text-2xl font-black">{myStats.presenceRate}%</p>
               <p className="text-[10px] font-bold uppercase tracking-wider opacity-60">Présence</p>
             </div>
+            <button 
+              onClick={() => onNavigate('settings')}
+              className="bg-white/10 backdrop-blur-md p-4 rounded-2xl border border-white/10 text-center flex-1 hover:bg-white/20 transition-all group"
+            >
+              <SettingsIcon className="mx-auto mb-2 text-white/50 group-hover:rotate-90 transition-transform" />
+              <p className="text-2xl font-black">...</p>
+              <p className="text-[10px] font-bold uppercase tracking-wider opacity-60">Paramètres</p>
+            </button>
           </div>
         </div>
         <Layout className="absolute -bottom-10 -left-10 w-48 h-48 text-white/5 rotate-12" />
@@ -537,29 +671,83 @@ export default function Dashboard({ onNavigate }: any) {
 
     // Admin specific distribution & presence
     if (currentUser.role === 'admin' || currentUser.role === 'personnel administratif') {
+      // Calculate last 5 days for weekly data
+      const last5Days = Array.from({length: 5}, (_, i) => {
+        const d = new Date();
+        d.setDate(d.getDate() - (4 - i));
+        return d.toISOString().split('T')[0];
+      });
+
+      const unsubWeeklyAtt = onSnapshot(
+        query(collection(db, 'attendance'), where('date', 'in', last5Days)),
+        (snapshot) => {
+          const countsByDay: {[key: string]: {presents: number, retards: number, absents: number}} = {};
+          last5Days.forEach(day => countsByDay[day] = {presents: 0, retards: 0, absents: 0});
+          
+          snapshot.docs.forEach(doc => {
+            const data = doc.data();
+            if (countsByDay[data.date]) {
+              if (data.statut === 'Présent') countsByDay[data.date].presents++;
+              else if (data.statut === 'Retard') countsByDay[data.date].retards++;
+            }
+          });
+
+          const dayLabels = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'];
+          const history = last5Days.map(day => {
+            const dateObj = new Date(day);
+            return {
+              name: dayLabels[dateObj.getDay()],
+              presents: countsByDay[day].presents,
+              retards: countsByDay[day].retards,
+              date: day
+            };
+          });
+          setWeeklyData(history);
+        }
+      );
+
       const unsubDashboard = onSnapshot(collection(db, 'users'), (userSnapshot) => {
         let expectedTotal = 0;
         let pCount = 0, eCount = 0, sCount = 0, parCount = 0;
         const usersMap = new Map();
+        const countsByClass: {[key: string]: number} = {};
 
         userSnapshot.forEach(doc => {
           const data = doc.data();
           usersMap.set(doc.id, data);
-          const role = data.role?.toLowerCase();
+          const role = data.role?.toLowerCase() || '';
+          
           if (role === 'enseignant') pCount++;
-          else if (role === 'élève' || role === 'eleve') eCount++;
-          else if (role === 'admin' || role === 'personnel') sCount++;
+          else if (role === 'élève' || role === 'eleve') {
+            eCount++;
+            if (data.classe) {
+              countsByClass[data.classe] = (countsByClass[data.classe] || 0) + 1;
+            }
+          }
+          else if (role === 'admin' || role === 'personnel' || role === 'personnel administratif') sCount++;
           else if (role === 'parent') parCount++;
 
-          if (['enseignant', 'élève', 'eleve', 'personnel', 'admin'].includes(role)) expectedTotal++;
+          if (['enseignant', 'élève', 'eleve', 'personnel', 'admin', 'personnel administratif'].includes(role)) {
+            expectedTotal++;
+          }
         });
 
         setUserDistribution([
-          { name: 'Enseignants', value: pCount, color: COLORS[0] },
           { name: 'Élèves', value: eCount, color: COLORS[1] },
-          { name: 'Personnel', value: sCount, color: COLORS[3] },
-          { name: 'Parents', value: parCount, color: COLORS[2] }
+          { name: 'Enseignants', value: pCount, color: COLORS[0] },
+          { name: 'Parents', value: parCount, color: COLORS[2] },
+          { name: 'Administration', value: sCount, color: COLORS[3] }
         ]);
+
+        const totalStudents = userSnapshot.docs.filter(d => ['élève', 'eleve'].includes(d.data().role?.toLowerCase())).length;
+
+        // Calculate class redistribution indicators
+        const cData = Object.entries(countsByClass).map(([name, students]) => ({
+          name,
+          students,
+          percentage: totalStudents > 0 ? ((students / totalStudents) * 100).toFixed(1) : '0'
+        })).sort((a, b) => b.students - a.students).slice(0, 8);
+        setClassData(cData);
 
         const levelMap = new Map();
         userSnapshot.docs.forEach(doc => {
@@ -587,7 +775,7 @@ export default function Dashboard({ onNavigate }: any) {
         setLoading(false);
         return () => unsubTodayAtt();
       });
-      return () => { unsubEco(); unsubWellbeing(); unsubHouses(); unsubDashboard(); };
+      return () => { unsubEco(); unsubWellbeing(); unsubHouses(); unsubDashboard(); unsubWeeklyAtt(); };
     } else {
       setLoading(false);
       return () => { unsubEco(); unsubWellbeing(); unsubHouses(); };
@@ -608,8 +796,19 @@ export default function Dashboard({ onNavigate }: any) {
           <h1 className="text-2xl font-bold text-gray-900 tracking-tight">{t('dashboard')}</h1>
           <p className="text-sm text-gray-500 mt-1">Bonjour {currentUser?.prenom}, ravi de vous revoir !</p>
         </div>
-        <div className="flex items-center gap-2 bg-white px-4 py-2 rounded-xl border border-gray-100 shadow-sm">
-          <LiveClock showDate={true} showTime={false} />
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 bg-white dark:bg-gray-800 px-4 py-2 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm">
+            <LiveClock showDate={true} showTime={false} />
+          </div>
+          {onNavigate && (
+            <button 
+              onClick={() => onNavigate('settings')}
+              className="p-2.5 bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400 border border-gray-100 dark:border-gray-700 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors shadow-sm"
+              title={t('settings')}
+            >
+              <SettingsIcon size={20} />
+            </button>
+          )}
         </div>
       </div>
 

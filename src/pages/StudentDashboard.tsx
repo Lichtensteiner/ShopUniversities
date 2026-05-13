@@ -18,7 +18,8 @@ import {
   Activity,
   TrendingUp,
   Award,
-  BookOpen
+  BookOpen,
+  Settings
 } from 'lucide-react';
 import { 
   AreaChart, 
@@ -45,7 +46,7 @@ interface Notification {
   type?: 'info' | 'warning' | 'success';
 }
 
-export default function StudentDashboard() {
+export default function StudentDashboard({ onNavigate }: { onNavigate?: (tab: string) => void }) {
   const { currentUser, logout } = useAuth();
   const [attendance, setAttendance] = useState<any[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -236,9 +237,20 @@ export default function StudentDashboard() {
               )}
             </div>
           </div>
-          <button onClick={logout} className="p-3 text-gray-500 hover:bg-red-50 hover:text-red-600 rounded-xl transition-colors" title="Déconnexion">
-            <LogOut size={24} />
-          </button>
+          <div className="flex items-center gap-2">
+            {onNavigate && (
+              <button 
+                onClick={() => onNavigate('settings')}
+                className="p-3 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl transition-colors"
+                title="Paramètres"
+              >
+                <Settings size={24} />
+              </button>
+            )}
+            <button onClick={logout} className="p-3 text-gray-500 hover:bg-red-50 hover:text-red-600 rounded-xl transition-colors" title="Déconnexion">
+              <LogOut size={24} />
+            </button>
+          </div>
         </div>
 
         {/* Real-time Analytics Section */}

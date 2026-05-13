@@ -37,6 +37,12 @@ export interface User {
   lastSeen?: any;
   chatBlocked?: boolean;
   accessBlocked?: boolean;
+  notifications?: {
+    push: boolean;
+    email: boolean;
+    sms: boolean;
+    urgent: boolean;
+  };
 }
 
 interface AuthContextType {

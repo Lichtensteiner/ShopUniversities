@@ -82,6 +82,7 @@ const translations: Translations = {
   'logout': { fr: 'Déconnexion', en: 'Logout', es: 'Cerrar sesión', zh: '登出', ja: 'ログアウト' },
   'about': { fr: 'À propos', en: 'About', es: 'Acerca de', zh: '关于', ja: 'アバウト' },
   'terms_and_conditions': { fr: 'Conditions & Droits', en: 'Terms & Rights', es: 'Términos y Derechos', zh: '条款与权利', ja: '利用規約と権利' },
+  'settings': { fr: 'Paramètres', en: 'Settings', es: 'Ajustes', zh: '设置', ja: '設定' },
   'ai_assistant': { fr: 'Assistant IA', en: 'AI Assistant', es: 'Asistente IA', zh: 'AI 助手', ja: 'AIアシスタント' },
   'parent_dashboard': { fr: 'Espace Parent', en: 'Parent Space', es: 'Espacio de Padres', zh: '家长空间', ja: '保護者スペース' },
   'my_children': { fr: 'Mes Enfants', en: 'My Children', es: 'Mis Hijos', zh: '我的孩子', ja: '私の子供' },

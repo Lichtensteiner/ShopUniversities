@@ -143,13 +143,13 @@ function AppContent() {
       case 'kiosk':
         return role === 'admin' ? <KioskMode onExit={() => setActiveTab('users')} /> : <Dashboard onNavigate={handleNavigate} />;
       case 'dashboard': 
-        if (role === 'parent') return <ParentDashboard />;
-        if (role === 'cuisinier') return <CanteenDashboard />;
-        return ['admin', 'enseignant', 'personnel administratif'].includes(role) ? <Dashboard onNavigate={handleNavigate} /> : <StudentDashboard />;
+        if (role === 'parent') return <ParentDashboard onNavigate={handleNavigate} />;
+        if (role === 'cuisinier') return <CanteenDashboard onNavigate={handleNavigate} />;
+        return ['admin', 'enseignant', 'personnel administratif'].includes(role) ? <Dashboard onNavigate={handleNavigate} /> : <StudentDashboard onNavigate={handleNavigate} />;
       case 'student_dashboard': 
-        return role === 'élève' ? <StudentDashboard /> : <Dashboard onNavigate={handleNavigate} />;
+        return role === 'élève' ? <StudentDashboard onNavigate={handleNavigate} /> : <Dashboard onNavigate={handleNavigate} />;
       case 'parent_dashboard':
-        return role === 'parent' ? <ParentDashboard /> : <Dashboard onNavigate={handleNavigate} />;
+        return role === 'parent' ? <ParentDashboard onNavigate={handleNavigate} /> : <Dashboard onNavigate={handleNavigate} />;
       case 'student_card': 
         return role === 'élève' ? <StudentCard /> : <Dashboard onNavigate={handleNavigate} />;
       case 'users': 
@@ -161,7 +161,7 @@ function AppContent() {
       case 'classes': 
         return role === 'admin' ? <Classes /> : <Dashboard onNavigate={handleNavigate} />;
       case 'settings': 
-        return role === 'admin' ? <Settings /> : <Dashboard onNavigate={handleNavigate} />;
+        return <Settings />;
       case 'scanner': 
         return role === 'admin' ? <Scanner /> : <Dashboard onNavigate={handleNavigate} />;
       case 'mobile_app': 

@@ -140,7 +140,7 @@ export default function Sidebar({ activeTab, setActiveTab, isMobileOpen, setIsMo
         { id: 'kiosk', labelKey: 'kiosk', icon: ScanFace, roles: ['admin'] },
         { id: 'mobile_app', labelKey: 'mobile_app', icon: Smartphone, roles: ['admin'] },
         { id: 'integration', labelKey: 'integration', icon: Code, roles: ['admin'] },
-        { id: 'settings', labelKey: 'settings', icon: Settings, roles: ['admin'] },
+        { id: 'settings', labelKey: 'settings', icon: Settings, roles: ['admin', 'enseignant', 'personnel administratif', 'parent', 'cuisinier', 'élève'] },
       ]
     }
   ];

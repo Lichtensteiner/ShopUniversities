@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Bell, Search, UserCircle, Clock, Check, Info, Globe, X, Menu, Download, Trash2, AlertTriangle, CheckCircle, ArrowLeft } from 'lucide-react';
+import { Bell, Search, UserCircle, Clock, Check, Info, Globe, X, Menu, Download, Trash2, AlertTriangle, CheckCircle, ArrowLeft, Settings } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage, Language } from '../contexts/LanguageContext';
 import { collection, query, where, orderBy, onSnapshot, updateDoc, doc, deleteDoc } from 'firebase/firestore';
@@ -380,6 +380,14 @@ export default function Header({ activeTab, setActiveTab, onMenuClick }: HeaderP
             </div>
           )}
         </div>
+
+        <button 
+          onClick={() => setActiveTab && setActiveTab('settings')}
+          className="p-2 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-xl transition-colors border border-transparent hover:border-gray-200 dark:hover:border-gray-600"
+          title={t('settings')}
+        >
+          <Settings size={20} />
+        </button>
 
         <div className="relative" ref={notifRef}>
           <button 

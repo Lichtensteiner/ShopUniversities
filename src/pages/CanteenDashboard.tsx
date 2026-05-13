@@ -19,7 +19,8 @@ import {
   Edit2,
   Package,
   ArrowRight,
-  Filter
+  Filter,
+  Settings
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
@@ -34,7 +35,7 @@ import { recordAuditLog } from '../services/auditService';
 
 const COLORS = ['#4f46e5', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
 
-export default function CanteenDashboard() {
+export default function CanteenDashboard({ onNavigate }: { onNavigate?: (tab: string) => void }) {
   const { currentUser } = useAuth();
   const { t } = useLanguage();
   const [meals, setMeals] = useState<any[]>([]);
@@ -218,6 +219,15 @@ export default function CanteenDashboard() {
             <ShoppingCart size={20} />
             Ajouter au Stock
           </button>
+          {onNavigate && (
+            <button 
+              onClick={() => onNavigate('settings')}
+              className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-200 px-6 py-3.5 rounded-2xl font-black transition-all shadow-xl shadow-gray-100 dark:shadow-none hover:scale-[1.02] active:scale-95 border border-gray-200 dark:border-gray-600 group"
+            >
+              <Settings size={20} className="group-hover:rotate-90 transition-transform" />
+              Paramètres
+            </button>
+          )}
         </div>
       </div>
 

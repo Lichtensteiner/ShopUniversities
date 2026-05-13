@@ -14,7 +14,8 @@ import {
   ChevronRight,
   User as UserIcon,
   Castle,
-  MessageSquare
+  MessageSquare,
+  Settings
 } from 'lucide-react';
 import LiveClock from '../components/LiveClock';
 import NewUserAnnouncement from '../components/NewUserAnnouncement';
@@ -29,7 +30,7 @@ interface Child {
   house_id?: string;
 }
 
-export default function ParentDashboard() {
+export default function ParentDashboard({ onNavigate }: { onNavigate?: (tab: string) => void }) {
   const { currentUser } = useAuth();
   const { t } = useLanguage();
   const [children, setChildren] = useState<Child[]>([]);
@@ -155,13 +156,24 @@ export default function ParentDashboard() {
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{t('parent_dashboard')}</h1>
           <p className="text-gray-500 dark:text-gray-400">Suivez la scolarité de vos enfants en temps réel</p>
         </div>
-        <button 
-          onClick={() => setLinkingChild(true)}
-          className="flex items-center justify-center gap-2 px-4 py-2.5 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-500/20"
-        >
-          <Plus size={20} />
-          {t('link_child')}
-        </button>
+        <div className="flex flex-wrap gap-4">
+          <button 
+            onClick={() => setLinkingChild(true)}
+            className="flex items-center justify-center gap-2 px-4 py-2.5 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-500/20"
+          >
+            <Plus size={20} />
+            {t('link_child')}
+          </button>
+          {onNavigate && (
+            <button 
+              onClick={() => onNavigate('settings')}
+              className="flex items-center justify-center gap-2 px-4 py-2.5 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-xl font-bold border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors shadow-sm"
+              title={t('settings')}
+            >
+              <Settings size={20} />
+            </button>
+          )}
+        </div>
       </div>
 
       {linkingChild && (
