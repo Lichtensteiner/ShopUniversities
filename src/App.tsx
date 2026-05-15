@@ -173,7 +173,7 @@ function AppContent() {
       case 'classroom': 
         return ['admin', 'enseignant', 'élève'].includes(role) ? <Classroom /> : <Dashboard onNavigate={handleNavigate} />;
       case 'courses_subjects':
-        return ['admin', 'enseignant'].includes(role) ? <CoursesSubjects initialPrepId={tabParams?.prepId} /> : <StudentDashboard onNavigate={handleNavigate} />;
+        return ['admin', 'enseignant', 'élève'].includes(role) ? <CoursesSubjects initialPrepId={tabParams?.prepId} /> : <Dashboard onNavigate={handleNavigate} />;
       case 'calendar': 
         return ['admin', 'enseignant', 'personnel administratif'].includes(role) ? <Calendar /> : <StudentDashboard onNavigate={handleNavigate} />;
       case 'newsfeed': return <NewsFeed />;

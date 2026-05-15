@@ -304,7 +304,7 @@ export default function StudentDashboard({ onNavigate }: { onNavigate?: (tab: st
           </div>
         </div>
 
-        {/* Real-time Analytics Section */}
+        {/* Primary Analytics Section */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Grade Evolution Chart */}
           <motion.div 
@@ -326,7 +326,7 @@ export default function StudentDashboard({ onNavigate }: { onNavigate?: (tab: st
               </div>
             </div>
 
-            <div className="h-[250px] w-full">
+            <div className="h-[300px] w-full">
               {evolutionData.length > 0 ? (
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={evolutionData}>
@@ -375,130 +375,8 @@ export default function StudentDashboard({ onNavigate }: { onNavigate?: (tab: st
             </div>
           </motion.div>
 
+          {/* Quick Access Sidebar */}
           <div className="space-y-6">
-            {/* Subject Courses Explorer */}
-            <motion.div
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              className="bg-white dark:bg-gray-800 p-6 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-700"
-            >
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-                <div>
-                  <h2 className="text-sm font-black text-gray-900 dark:text-white uppercase tracking-widest flex items-center gap-2">
-                    <Sparkles size={16} className="text-indigo-600" />
-                    Cours de la Matière
-                  </h2>
-                  <p className="text-[10px] text-gray-400 font-bold uppercase mt-0.5">Édition réelle • {currentUser?.classe}</p>
-                </div>
-                
-                {/* Subject Selector */}
-                <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
-                   {subjects.map(subject => (
-                     <button
-                       key={subject}
-                       onClick={() => setSelectedSubjectFilter(subject)}
-                       className={`px-3 py-1.5 rounded-full text-[9px] font-black uppercase transition-all whitespace-nowrap ${
-                         selectedSubjectFilter === subject 
-                         ? 'bg-indigo-600 text-white shadow-md scale-105' 
-                         : 'bg-gray-50 dark:bg-gray-900 text-gray-400 hover:text-indigo-600'
-                       }`}
-                     >
-                       {subject === 'all' ? 'Tous' : subject}
-                     </button>
-                   ))}
-                </div>
-              </div>
-              
-              <div className="space-y-4 max-h-[550px] overflow-y-auto pr-2 custom-scrollbar">
-                <AnimatePresence initial={false} mode="popLayout">
-                  {filteredCourses.length > 0 ? filteredCourses.map((course, i) => (
-                    <motion.div
-                      key={course.id || i}
-                      layout
-                      initial={{ opacity: 0, y: 10, scale: 0.98 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      exit={{ opacity: 0, scale: 0.95, transition: { duration: 0.2 } }}
-                      transition={{ 
-                        type: "spring",
-                        stiffness: 400,
-                        damping: 30,
-                        delay: Math.min(i * 0.05, 0.5) 
-                      }}
-                      className="group p-5 bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 hover:border-indigo-400 dark:hover:border-indigo-500 hover:shadow-xl transition-all cursor-pointer relative overflow-hidden active:scale-[0.98]"
-                      onClick={() => course.url ? window.open(course.url, '_blank') : course.fileUrl && window.open(course.fileUrl, '_blank')}
-                    >
-                      <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-indigo-600 transform scale-y-0 group-hover:scale-y-100 transition-transform duration-300 origin-center" />
-                      
-                      <div className="flex justify-between items-start gap-4">
-                        <div className="flex-1 min-w-0 text-left">
-                          <div className="flex items-center gap-2 mb-2">
-                            <div className="px-2 py-1 bg-indigo-50 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400 text-[9px] font-black uppercase rounded-lg tracking-tight">
-                              {course.subject || 'Général'}
-                            </div>
-                            <div className="flex items-center gap-1 text-[9px] text-gray-400 font-bold uppercase">
-                              <Clock size={10} />
-                              {course.timestamp ? new Date(course.timestamp).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' }) : 'Maintenant'}
-                            </div>
-                          </div>
-                          
-                          <h3 className="text-base font-black text-gray-900 dark:text-white line-clamp-2 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors leading-tight mb-4">
-                            {course.title || course.topic}
-                          </h3>
-                          
-                          {course.description && (
-                            <p className="text-xs text-gray-500 line-clamp-2 mb-4 leading-relaxed italic opacity-80 group-hover:opacity-100">
-                              {course.description}
-                            </p>
-                          )}
-                          
-                          <div className="flex items-center justify-between pt-4 border-t border-gray-50 dark:border-gray-700/50">
-                             <div className="flex items-center gap-2">
-                               <div className="w-7 h-7 rounded-full bg-indigo-50 dark:bg-gray-700 flex items-center justify-center text-[10px] font-black text-indigo-600">
-                                 {course.prof_name?.[0] || course.authorName?.[0] || 'P'}
-                               </div>
-                               <div className="flex flex-col">
-                                 <span className="text-[10px] text-gray-900 dark:text-gray-200 font-bold leading-none">{course.prof_name || course.authorName || 'Enseignant'}</span>
-                                 <span className="text-[8px] text-gray-400 uppercase font-black mt-1">Espace Cours</span>
-                               </div>
-                             </div>
-                             <div className="flex items-center gap-2">
-                               {course.type === 'image' ? <ImageIcon size={14} className="text-teal-500" /> : <FileText size={14} className="text-orange-500" />}
-                               <span className="text-[8px] font-black text-gray-400 uppercase tracking-widest group-hover:text-indigo-600 transition-colors">Consulter</span>
-                             </div>
-                          </div>
-                        </div>
-                        
-                        <div className="w-14 h-14 rounded-2xl bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-700 flex flex-col items-center justify-center text-gray-400 group-hover:bg-indigo-600 group-hover:text-white group-hover:border-indigo-600 transition-all shadow-sm shrink-0 border-dashed group-hover:border-solid">
-                          <BookOpen size={24} className="group-hover:animate-bounce" />
-                          <span className="text-[7px] font-black mt-1 uppercase">PDF/DOC</span>
-                        </div>
-                      </div>
-                    </motion.div>
-                  )) : (
-                    <div className="py-20 text-center">
-                       <motion.div 
-                         initial={{ scale: 0.8, opacity: 0 }}
-                         animate={{ scale: 1, opacity: 1 }}
-                         className="w-16 h-16 bg-gray-50 dark:bg-gray-900 rounded-3xl flex items-center justify-center mx-auto mb-4 text-gray-200 dark:text-gray-800"
-                        >
-                         <BookOpen size={32} />
-                       </motion.div>
-                       <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Aucun cours disponible pour la matière sélectionnée</p>
-                    </div>
-                  )}
-                </AnimatePresence>
-              </div>
-              
-              {onNavigate && courses.length > 3 && (
-                <button 
-                  onClick={() => onNavigate('classroom')}
-                  className="w-full mt-6 py-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition-all shadow-xl active:scale-95 flex items-center justify-center gap-2"
-                >
-                  <Activity size={14} /> Explorer Toutes les Ressources
-                </button>
-              )}
-            </motion.div>
-
             <motion.div 
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
@@ -570,7 +448,6 @@ export default function StudentDashboard({ onNavigate }: { onNavigate?: (tab: st
                       <Activity size={12} className="text-emerald-500" />
                       Densité de Présence
                     </h3>
-                    <p className="text-[8px] text-gray-300 font-bold uppercase">Écosystème Classe</p>
                   </div>
                   <div className="text-right">
                     <span className="text-xl font-black text-gray-900">{attendanceStats.total > 0 ? Math.round((attendanceStats.presents / attendanceStats.total) * 100) : 0}%</span>
@@ -584,10 +461,6 @@ export default function StudentDashboard({ onNavigate }: { onNavigate?: (tab: st
                   >
                     <div className="absolute inset-0 bg-[linear-gradient(45deg,rgba(255,255,255,.2)_25%,transparent_25%,transparent_50%,rgba(255,255,255,.2)_50%,rgba(255,255,255,.2)_75%,transparent_75%,transparent)] bg-[length:15px_15px] animate-[slide_1s_linear_infinite]" />
                   </motion.div>
-                </div>
-                <div className="flex justify-between items-center mt-2">
-                  <span className="text-[8px] font-bold text-gray-400 uppercase tracking-tighter">Engagement : Moyen</span>
-                  <span className="text-[8px] font-black text-emerald-600 uppercase tracking-tighter">{attendanceStats.presents} Connectés</span>
                 </div>
               </div>
             </motion.div>
