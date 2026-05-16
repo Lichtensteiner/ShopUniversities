@@ -5,6 +5,7 @@ import { collection, query, where, getDocs, doc, getDoc, onSnapshot, addDoc } fr
 import { db } from '../lib/firebase';
 import { User, MessageCircle, GraduationCap, UserPlus, Search, ChevronRight, Mail, Trash2, X, MapPin, Phone, Briefcase, Ban } from 'lucide-react';
 import { deleteDoc } from 'firebase/firestore';
+import { useNotification } from '../contexts/NotificationContext';
 
 interface UserProfile {
   id: string;
@@ -30,6 +31,7 @@ interface DirectoryProps {
 export default function Directory({ onNavigate }: DirectoryProps) {
   const { currentUser } = useAuth();
   const { t } = useLanguage();
+  const { notifySuccess, notifyError, notifyDelete } = useNotification();
   const [activeTab, setActiveTab] = useState<'staff' | 'students'>('staff');
   const [staff, setStaff] = useState<UserProfile[]>([]);
   const [students, setStudents] = useState<UserProfile[]>([]);
@@ -117,13 +119,13 @@ export default function Directory({ onNavigate }: DirectoryProps) {
 
     try {
       await deleteDoc(doc(db, 'users', userId));
-      alert("Utilisateur supprimé avec succès.");
+      notifyDelete("Utilisateur supprimé avec succès.");
       if (viewUser?.id === userId) {
         setViewUser(null);
       }
     } catch (error) {
       console.error("Erreur lors de la suppression de l'utilisateur:", error);
-      alert("Une erreur est survenue lors de la suppression.");
+      notifyError("Une erreur est survenue lors de la suppression.");
     }
   };
 
@@ -139,13 +141,13 @@ export default function Directory({ onNavigate }: DirectoryProps) {
         createdAt: new Date().toISOString(),
         status: 'pending'
       });
-      alert(`Invitation envoyée à ${inviteEmail} en tant que ${inviteRole}`);
+      notifySuccess(`Invitation envoyée à ${inviteEmail} en tant que ${inviteRole}`);
       setShowInviteModal(false);
       setInviteEmail('');
       setInviteRole('enseignant');
     } catch (error) {
       console.error("Erreur lors de l'envoi de l'invitation:", error);
-      alert("Une erreur est survenue lors de l'envoi de l'invitation.");
+      notifyError("Une erreur est survenue lors de l'envoi de l'invitation.");
     }
   };
 

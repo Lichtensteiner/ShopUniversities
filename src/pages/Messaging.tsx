@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useNotification } from '../contexts/NotificationContext';
 import { collection, query, where, getDocs, onSnapshot, addDoc, serverTimestamp, doc, getDoc, updateDoc, increment, setDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { Search, Users, User, Megaphone, Send, Clock, Image, Video, Paperclip, Smile, ChevronRight, MessageCircle } from 'lucide-react';
@@ -27,6 +28,7 @@ interface MessagingProps {
 export default function Messaging({ initialChatTargetId, onClearTarget }: MessagingProps) {
   const { currentUser } = useAuth();
   const { t, tData } = useLanguage();
+  const { notifySuccess, notifyError } = useNotification();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [usersInfo, setUsersInfo] = useState<Record<string, any>>({});
   const [searchQuery, setSearchQuery] = useState('');
@@ -350,9 +352,10 @@ export default function Messaging({ initialChatTargetId, onClearTarget }: Messag
       setActiveModal(null);
       setGroupMessageText('');
       setSelectedUsers([]);
-      alert(t('broadcast_send_success'));
+      notifySuccess(t('broadcast_send_success'));
     } catch (error) {
       console.error("Error sending broadcast:", error);
+      notifyError(t('broadcast_send_error') || "Error sending broadcast");
     }
   };
 
@@ -381,9 +384,10 @@ export default function Messaging({ initialChatTargetId, onClearTarget }: Messag
 
       setActiveModal(null);
       setAnnouncementText('');
-      alert(t('announcement_publish_success'));
+      notifySuccess(t('announcement_publish_success'));
     } catch (error) {
       console.error("Error sending announcement:", error);
+      notifyError(t('announcement_publish_error') || "Error sending announcement");
     } finally {
       setIsSubmittingAnnouncement(false);
     }

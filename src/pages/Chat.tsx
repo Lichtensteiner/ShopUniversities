@@ -30,6 +30,7 @@ interface ChatProps {
 export default function Chat({ conversationId, onBack }: ChatProps) {
   const { currentUser } = useAuth();
   const { t } = useLanguage();
+  const { notifySuccess, notifyError, notifyDelete } = useNotification();
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -109,10 +110,10 @@ export default function Chat({ conversationId, onBack }: ChatProps) {
       });
 
       setShowOptions(false);
-      alert("La conversation a été vidée.");
+      notifySuccess("La conversation a été vidée.");
     } catch (error) {
       console.error("Error clearing chat:", error);
-      alert("Une erreur est survenue lors de la suppression des messages.");
+      notifyError("Une erreur est survenue lors de la suppression des messages.");
     }
   };
 
@@ -411,7 +412,7 @@ export default function Chat({ conversationId, onBack }: ChatProps) {
     if ((!newMessage.trim() && !selectedFile) || !currentUser || !conversationId) return;
 
     if (currentUser.chatBlocked || (!conversationData?.isGroup && currentUser.blockedUsers?.includes(otherUser?.id))) {
-      alert(currentUser.chatBlocked ? t('messaging_blocked_notice') : "Vous avez bloqué cet utilisateur.");
+      notifyError(currentUser.chatBlocked ? t('messaging_blocked_notice') : "Vous avez bloqué cet utilisateur.");
       return;
     }
 

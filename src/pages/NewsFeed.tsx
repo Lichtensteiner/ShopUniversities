@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useNotification } from '../contexts/NotificationContext';
 import { collection, addDoc, query, orderBy, onSnapshot, doc, updateDoc, deleteDoc, serverTimestamp, arrayUnion, arrayRemove, increment, getDocs, where } from 'firebase/firestore';
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '../lib/firebase';
@@ -44,6 +45,7 @@ interface UserInfo {
 export default function NewsFeed() {
   const { currentUser } = useAuth();
   const { language, t } = useLanguage();
+  const { notifySuccess, notifyError, notifyDelete } = useNotification();
   const [posts, setPosts] = useState<Post[]>([]);
   const [newPostContent, setNewPostContent] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -229,9 +231,10 @@ export default function NewsFeed() {
 
       setNewPostContent('');
       clearFile();
+      notifySuccess("Publication partagée avec succès !");
     } catch (error) {
       console.error('Error creating post:', error);
-      alert('Erreur lors de la création de la publication');
+      notifyError('Erreur lors de la création de la publication');
     } finally {
       setIsSubmitting(false);
       setUploadProgress(0);
@@ -287,8 +290,10 @@ export default function NewsFeed() {
     if (window.confirm('Voulez-vous vraiment supprimer cette publication ?')) {
       try {
         await deleteDoc(doc(db, 'posts', postId));
+        notifyDelete("Publication supprimée.");
       } catch (error) {
         console.error('Error deleting post:', error);
+        notifyError("Erreur lors de la suppression de la publication.");
       }
     }
   };
@@ -299,10 +304,12 @@ export default function NewsFeed() {
       await updateDoc(doc(db, 'posts', postId), {
         content: editContent.trim()
       });
+      notifySuccess("Publication mise à jour !");
       setEditingPostId(null);
       setEditContent('');
     } catch (error) {
       console.error('Error updating post:', error);
+      notifyError("Erreur lors de la mise à jour.");
     }
   };
 

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useAuth } from '../contexts/AuthContext';
+import { useNotification } from '../contexts/NotificationContext';
 import { Sparkles, Upload, Send, CheckCircle, AlertCircle, Loader2, Image as ImageIcon, FileText, X, BookOpen, ListChecks, HelpCircle, FileSearch, Copy, Terminal, Trash2, ChevronRight, Search } from 'lucide-react';
 import { createNotification } from '../services/NotificationService';
 import { collection, query, getDocs, where, addDoc, serverTimestamp, onSnapshot, orderBy, deleteDoc, doc } from 'firebase/firestore';
@@ -15,6 +16,7 @@ interface AIAssistantProps {
 export default function AIAssistant({ onNavigate }: AIAssistantProps) {
   const { t, language } = useLanguage();
   const { currentUser } = useAuth();
+  const { notifySuccess, notifyError, notifyUpdate, notifyAdd } = useNotification();
   const [activeTab, setActiveTab] = useState<'grading' | 'preparations' | 'prompts' | 'my_preps'>('grading');
 
   // Grading State
@@ -170,7 +172,7 @@ export default function AIAssistant({ onNavigate }: AIAssistantProps) {
 
     } catch (error: any) {
       console.error("AI Analysis error:", error);
-      alert(`${t('ai_analysis_error')} : ${error.message}`);
+      notifyError(`${t('ai_analysis_error')} : ${error.message}`);
     } finally {
       setIsAnalyzing(false);
     }
@@ -206,7 +208,7 @@ export default function AIAssistant({ onNavigate }: AIAssistantProps) {
       setGeneratedPrep(response.text);
     } catch (error: any) {
       console.error("AI Generation error:", error);
-      alert(`${t('ai_generation_error')} : ${error.message}`);
+      notifyError(`${t('ai_generation_error')} : ${error.message}`);
     } finally {
       setIsGeneratingPrep(false);
     }
@@ -226,14 +228,14 @@ export default function AIAssistant({ onNavigate }: AIAssistantProps) {
         content: generatedPrep,
         createdAt: serverTimestamp()
       });
-      alert(t('prep_saved_success'));
+      notifyAdd(t('prep_saved_success'));
       setGeneratedPrep(null);
       setPrepTopic('');
       setPrepGrade('');
       setPrepSubject('');
     } catch (error) {
       console.error("Error saving preparation:", error);
-      alert(t('save_error'));
+      notifyError(t('save_error'));
     } finally {
       setIsSavingPrep(false);
     }
@@ -251,14 +253,14 @@ export default function AIAssistant({ onNavigate }: AIAssistantProps) {
         type: 'success',
         targetTab: 'student_dashboard'
       });
-      alert(t('feedback_sent_success'));
+      notifySuccess(t('feedback_sent_success'));
       setAiFeedback(null);
       setSuggestedScore(null);
       setSelectedFile(null);
       setPreviewUrl(null);
     } catch (error) {
       console.error("Error sending feedback:", error);
-      alert(t('feedback_send_error'));
+      notifyError(t('feedback_send_error'));
     } finally {
       setIsSending(false);
     }

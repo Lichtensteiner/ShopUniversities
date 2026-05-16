@@ -16,6 +16,7 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useAuth } from '../contexts/AuthContext';
+import { useNotification } from '../contexts/NotificationContext';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import QRCode from 'qrcode';
@@ -44,6 +45,7 @@ interface Student {
 export default function DocumentGenerator() {
   const { t } = useLanguage();
   const { currentUser } = useAuth();
+  const { notifyError } = useNotification();
   const [students, setStudents] = useState<Student[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -426,7 +428,7 @@ export default function DocumentGenerator() {
       }
 
       if (studentGrades.length === 0) {
-        alert(`Aucune donnée de notation disponible pour ${student.prenom} ${student.nom}. Veuillez vérifier que ses notes ont bien été saisies.`);
+        notifyError(`Aucune donnée de notation disponible pour ${student.prenom} ${student.nom}. Veuillez vérifier que ses notes ont bien été saisies.`);
         setGenerating(null);
         return;
       }
@@ -599,7 +601,7 @@ export default function DocumentGenerator() {
       console.log("Report saved successfully");
     } catch (err) {
       console.error("Error generating report card:", err);
-      alert("Une erreur est survenue lors de la génération du bulletin. Veuillez vérifier la console pour plus d'infos.");
+      notifyError("Une erreur est survenue lors de la génération du bulletin. Veuillez vérifier la console pour plus d'infos.");
     } finally {
       setGenerating(null);
       setEditDoc(null);

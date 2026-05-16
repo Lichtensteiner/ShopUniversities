@@ -58,9 +58,12 @@ interface Grade {
   type?: 'interrogation' | 'evaluation';
 }
 
+import { useNotification } from '../contexts/NotificationContext';
+
 const Grades: React.FC = () => {
   const { currentUser } = useAuth();
   const { t, language, tData } = useLanguage();
+  const { notifySuccess, notifyError, notifyUpdate, notifyDelete } = useNotification();
   const [grades, setGrades] = useState<Grade[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedSubject, setSelectedSubject] = useState<string>('all');
@@ -240,7 +243,7 @@ const Grades: React.FC = () => {
                     (currentUser?.role === 'enseignant' && (grade.teacherId === currentUser.id || currentUser.matieres?.includes(grade.subject) || currentUser.matiere === grade.subject));
     
     if (!canManage) {
-      alert(t('insufficient_permissions') || "Vous n'avez pas l'autorisation de supprimer cette note.");
+      notifyError(t('insufficient_permissions') || "Vous n'avez pas l'autorisation de supprimer cette note.");
       return;
     }
 
@@ -269,7 +272,7 @@ const Grades: React.FC = () => {
                     (currentUser?.role === 'enseignant' && (grade.teacherId === currentUser.id || currentUser.matieres?.includes(grade.subject) || currentUser.matiere === grade.subject));
     
     if (!canManage) {
-      alert(t('insufficient_permissions') || "Vous n'avez pas l'autorisation de modifier cette note.");
+      notifyError(t('insufficient_permissions') || "Vous n'avez pas l'autorisation de modifier cette note.");
       return;
     }
 

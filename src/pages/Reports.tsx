@@ -3,9 +3,11 @@ import { FileText, Download, Mail, Printer, Calendar, RefreshCw, Play } from 'lu
 import { collection, getDocs, addDoc, query, where, updateDoc, doc, onSnapshot } from 'firebase/firestore';
 import { db, isFirebaseConfigured } from '../lib/firebase';
 import { useAuth } from '../contexts/AuthContext';
+import { useNotification } from '../contexts/NotificationContext';
 
 export default function Reports() {
   const { currentUser } = useAuth();
+  const { notifySuccess, notifyError } = useNotification();
   const [reports, setReports] = useState<any[]>([]);
   const [selectedReportId, setSelectedReportId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -96,7 +98,7 @@ export default function Reports() {
       // Si enseignant, ne générer que pour ses classes
       if (currentUser?.role === 'enseignant') {
         if (teacherClasses.length === 0) {
-          alert("Vous n'êtes assigné à aucune classe en tant que professeur principal. Veuillez contacter un administrateur.");
+          notifyError("Vous n'êtes assigné à aucune classe en tant que professeur principal. Veuillez contacter un administrateur.");
           setGenerating(false);
           return;
         }
@@ -104,7 +106,7 @@ export default function Reports() {
         users = users.filter(u => teacherClasses.includes(u.classe));
         
         if (users.length === 0) {
-          alert(`Aucun élève n'est assigné à vos classes (${teacherClasses.join(', ')}). Vérifiez la page Utilisateurs.`);
+          notifyError(`Aucun élève n'est assigné à vos classes (${teacherClasses.join(', ')}). Vérifiez la page Utilisateurs.`);
           setGenerating(false);
           return;
         }
@@ -197,10 +199,10 @@ export default function Reports() {
         }
       }
       
-      alert("Les rapports ont été générés et mis à jour avec succès !");
+      notifySuccess("Les rapports ont été générés et mis à jour avec succès !");
     } catch (err: any) {
       console.error(err);
-      alert("Une erreur est survenue lors de la génération des rapports: " + (err.message || err));
+      notifyError("Une erreur est survenue lors de la génération des rapports: " + (err.message || err));
     } finally {
       setGenerating(false);
     }

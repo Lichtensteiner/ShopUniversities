@@ -47,6 +47,7 @@ import { isFirebaseConfigured } from './lib/firebase';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { LanguageProvider } from './contexts/LanguageContext';
 import { ThemeProvider } from './contexts/ThemeContext';
+import { NotificationProvider } from './contexts/NotificationContext';
 import ReloadPrompt from './components/ReloadPrompt';
 import Footer from './components/Footer';
 import { Ban } from 'lucide-react';
@@ -237,8 +238,10 @@ export default function App() {
       <ThemeProvider>
         <LanguageProvider>
           <AuthProvider>
-            <AppContent />
-            <ReloadPrompt />
+            <NotificationProvider>
+              <AppContent />
+              <ReloadPrompt />
+            </NotificationProvider>
           </AuthProvider>
         </LanguageProvider>
       </ThemeProvider>

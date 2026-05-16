@@ -46,6 +46,7 @@ import LiveClock from '../components/LiveClock';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useTheme } from '../contexts/ThemeContext';
+import { useNotification } from '../contexts/NotificationContext';
 import NewUserAnnouncement from '../components/NewUserAnnouncement';
 import PWAPrompt from '../components/PWAPrompt';
 
@@ -84,6 +85,7 @@ const MiniSparkline = ({ data, color }: { data: any[], color: string }) => {
 const AdminDashboard = ({ stats, weeklyData, studentLevelData, userDistribution, classData, recommendation, houses, alerts, ecoStats, mood, handleMoodSelect, t, tData }: any) => {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
+  const { notifyOptimize } = useNotification();
 
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [isOptimizeOpen, setIsOptimizeOpen] = useState(false);
@@ -169,7 +171,7 @@ const AdminDashboard = ({ stats, weeklyData, studentLevelData, userDistribution,
                 </button>
                 <button 
                   onClick={() => {
-                    alert("Optimisation lancée avec succès !");
+                    notifyOptimize();
                     setIsOptimizeOpen(false);
                   }}
                   className="py-4 bg-emerald-600 text-white rounded-2xl font-black shadow-lg shadow-emerald-200 dark:shadow-none hover:bg-emerald-700 transition-all"

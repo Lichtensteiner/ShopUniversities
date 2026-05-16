@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useNotification } from '../contexts/NotificationContext';
 import { auth, db, storage } from '../lib/firebase';
 import { updatePassword, EmailAuthProvider, reauthenticateWithCredential } from 'firebase/auth';
 import { collection, doc, updateDoc, query, where, onSnapshot } from 'firebase/firestore';
@@ -11,6 +12,7 @@ import { resizeImage } from '../lib/imageUtils';
 export default function Profile() {
   const { currentUser } = useAuth();
   const { t, language, tData } = useLanguage();
+  const { notifySuccess, notifyError } = useNotification();
   
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -125,7 +127,7 @@ export default function Profile() {
       // Note: currentUser will be updated via onSnapshot in AuthContext
     } catch (err) {
       console.error("Erreur lors de la mise à jour de la biographie:", err);
-      alert(t('bio_update_error'));
+      notifyError(t('bio_update_error'));
     } finally {
       setSavingBio(false);
     }
@@ -147,7 +149,7 @@ export default function Profile() {
       setIsEditingInfo(false);
     } catch (err) {
       console.error("Erreur lors de la mise à jour des informations:", err);
-      alert(t('info_update_error'));
+      notifyError(t('info_update_error'));
     } finally {
       setSavingInfo(false);
     }
@@ -165,7 +167,7 @@ export default function Profile() {
       setIsEditingMatieres(false);
     } catch (err) {
       console.error("Erreur lors de la mise à jour des matières:", err);
-      alert(t('subjects_update_error'));
+      notifyError(t('subjects_update_error'));
     } finally {
       setSavingMatieres(false);
     }

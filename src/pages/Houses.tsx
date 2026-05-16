@@ -3,6 +3,7 @@ import { collection, query, onSnapshot, addDoc, updateDoc, doc, deleteDoc, getDo
 import { db } from '../lib/firebase';
 import { useAuth, User } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useNotification } from '../contexts/NotificationContext';
 import { Trophy, Shield, AlertTriangle, Plus, Edit2, Trash2, Star, Award, Flag, Medal, Save, RefreshCw } from 'lucide-react';
 
 export interface House {
@@ -31,6 +32,7 @@ export interface HousePointHistory {
 export default function Houses() {
   const { currentUser } = useAuth();
   const { t } = useLanguage();
+  const { notifySuccess, notifyError, notifyDelete } = useNotification();
   const [activeTab, setActiveTab] = useState<'classement' | 'attribuer' | 'historique' | 'affiche' | 'gestion'>('affiche');
   
   const [houses, setHouses] = useState<House[]>([]);
@@ -216,6 +218,7 @@ function ClassementTab({ houses, teachers }: { houses: House[], teachers: User[]
 function AttribuerTab({ houses, students }: { houses: House[], students: User[] }) {
   const { currentUser } = useAuth();
   const { t } = useLanguage();
+  const { notifySuccess, notifyError } = useNotification();
   const [selectedStudent, setSelectedStudent] = useState('');
   const [actionType, setActionType] = useState<'gain' | 'penalty'>('gain');
   const [selectedRule, setSelectedRule] = useState<any>(null);
@@ -242,7 +245,7 @@ function AttribuerTab({ houses, students }: { houses: House[], students: User[] 
 
     const student = students.find(s => s.id === selectedStudent);
     if (!student || !student.house_id) {
-      alert(t('student_no_house_alert'));
+      notifyError(t('student_no_house_alert'));
       return;
     }
 
@@ -255,7 +258,7 @@ function AttribuerTab({ houses, students }: { houses: House[], students: User[] 
     const iconToApply = selectedRule ? selectedRule.rule.icon : (actionType === 'gain' ? '✨' : '⚠️');
 
     if (!reasonToApply) {
-      alert(t('select_rule_reason_alert'));
+      notifyError(t('select_rule_reason_alert'));
       return;
     }
 
@@ -289,14 +292,14 @@ function AttribuerTab({ houses, students }: { houses: House[], students: User[] 
         read: false
       });
 
-      alert(t('points_assigned_success'));
+      notifySuccess(t('points_assigned_success'));
       setSelectedStudent('');
       setSelectedRule(null);
       setCustomReason('');
       setCustomPoints(1);
     } catch (error) {
       console.error("Error adding points:", error);
-      alert(t('error_assigning_points'));
+      notifyError(t('error_assigning_points'));
     } finally {
       setLoading(false);
     }
@@ -669,6 +672,7 @@ function AfficheTab({ houses }: { houses: House[] }) {
 }
 
 function GestionTab({ houses, teachers }: { houses: House[], teachers: User[] }) {
+  const { notifySuccess, notifyError, notifyDelete } = useNotification();
   const [showModal, setShowModal] = useState(false);
   const [editingHouse, setEditingHouse] = useState<House | null>(null);
   const [formData, setFormData] = useState({ nom_maison: '', logo: '', color: '#4F46E5', total_points: 0, responsable_id: '', description: '', animal_nom: '', valeurs: '' });
@@ -705,15 +709,17 @@ function GestionTab({ houses, teachers }: { houses: House[], teachers: User[] })
       }
       if (editingHouse) {
         await updateDoc(doc(db, 'houses', editingHouse.id), dataToSave);
+        notifySuccess("Maison mise à jour avec succès !");
       } else {
         await addDoc(collection(db, 'houses'), dataToSave);
+        notifySuccess("Nouvelle maison créée !");
       }
       setShowModal(false);
       setEditingHouse(null);
       setFormData({ nom_maison: '', logo: '', color: '#4F46E5', total_points: 0, responsable_id: '', description: '', animal_nom: '', valeurs: '' });
     } catch (error) {
       console.error("Error saving house:", error);
-      alert("Erreur lors de l'enregistrement de la maison.");
+      notifyError("Erreur lors de l'enregistrement de la maison.");
     } finally {
       setLoading(false);
     }
@@ -728,11 +734,12 @@ function GestionTab({ houses, teachers }: { houses: House[], teachers: User[] })
     if (!houseToDelete) return;
     try {
       await deleteDoc(doc(db, 'houses', houseToDelete));
+      notifyDelete("Maison supprimée.");
       setShowDeleteModal(false);
       setHouseToDelete(null);
     } catch (error) {
       console.error("Error deleting house:", error);
-      alert("Erreur lors de la suppression.");
+      notifyError("Erreur lors de la suppression.");
     }
   };
 

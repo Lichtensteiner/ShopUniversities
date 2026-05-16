@@ -2,9 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { BookOpen, Plus, Users, Clock, Edit2, Trash2, X, User, GraduationCap, ChevronRight } from 'lucide-react';
 import { collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot } from 'firebase/firestore';
 import { db, isFirebaseConfigured } from '../lib/firebase';
+import { useNotification } from '../contexts/NotificationContext';
 import ClassDetailsView from '../components/ClassDetailsView';
 
 export default function Classes() {
+  const { notifyError } = useNotification();
   const [classes, setClasses] = useState<any[]>([]);
   const [teachers, setTeachers] = useState<any[]>([]);
   const [students, setStudents] = useState<any[]>([]);
@@ -116,7 +118,7 @@ export default function Classes() {
       closeModal();
     } catch (error) {
       console.error("Erreur lors de l'enregistrement:", error);
-      alert("Une erreur est survenue.");
+      notifyError("Une erreur est survenue lors de l'enregistrement.");
     } finally {
       setActionLoading(false);
     }

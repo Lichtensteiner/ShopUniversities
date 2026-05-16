@@ -35,41 +35,56 @@ export default function Scanner() {
     try {
       setError(null);
       
-      // 1. Thoroughly stop any existing stream
+      // 1. Thoroughly stop any existing stream and reset state
       if (stream) {
         stream.getTracks().forEach(track => {
           track.stop();
           console.log(`Stopped track: ${track.label}`);
         });
         setStream(null);
-        // Small delay to let hardware release
-        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+      
+      if (videoRef.current) {
+        videoRef.current.srcObject = null;
       }
 
-      // 2. Try simple constraints first for maximum compatibility
-      console.log("Requesting camera access...");
+      // Small delay to let hardware release properly from OS side
+      await new Promise(resolve => setTimeout(resolve, 300));
+
+      // 2. Try minimal constraints for maximum compatibility
+      console.log("Requesting camera access with minimal constraints...");
       let mediaStream: MediaStream;
       
       try {
-        // Many devices fail with specific width/height in iframes, so start with simple true
+        // Many devices fail with specific width/height in certain frames
         mediaStream = await navigator.mediaDevices.getUserMedia({ 
           video: { 
-            facingMode: 'user'
+            facingMode: 'user',
+            width: { ideal: 640 },
+            height: { ideal: 480 }
           } 
         });
       } catch (e) {
         console.warn("Retrying with absolute minimum constraints", e);
+        // Fallback to absolute minimum
         mediaStream = await navigator.mediaDevices.getUserMedia({ video: true });
       }
 
       setStream(mediaStream);
       if (videoRef.current) {
         videoRef.current.srcObject = mediaStream;
-        // Explicitly call play to handle some browser quirks
+        
+        // Critical: Ensure play() is called after srcObject is set
+        // Some browsers require explicit user interaction for play() unless muted
         try {
           await videoRef.current.play();
         } catch (playErr) {
           console.error("Video play failed:", playErr);
+          // If play failed, it might be an autoplay restriction. 
+          // Retrying once after 500ms
+          setTimeout(async () => {
+             try { await videoRef.current?.play(); } catch(e) {}
+          }, 500);
         }
       }
     } catch (err: any) {

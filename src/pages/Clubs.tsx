@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useNotification } from '../contexts/NotificationContext';
 import { db } from '../lib/firebase';
 import { 
   collection, 
@@ -47,6 +48,7 @@ interface Club {
 const Clubs: React.FC = () => {
   const { currentUser } = useAuth();
   const { t } = useLanguage();
+  const { notifySuccess, notifyError, notifyDelete } = useNotification();
   const [clubs, setClubs] = useState<Club[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -179,9 +181,10 @@ const Clubs: React.FC = () => {
       });
       setShowAddModal(false);
       setNewClub({ name: '', description: '', leaderId: '', category: 'Culturel' });
+      notifySuccess(`Club ${newClub.name} créé avec succès !`);
     } catch (error) {
       console.error("Error creating club:", error);
-      alert("Erreur lors de la création du club");
+      notifyError("Erreur lors de la création du club");
     } finally {
       setIsSaving(false);
     }
@@ -209,10 +212,11 @@ const Clubs: React.FC = () => {
         ...editClubForm,
         leaderName: leader ? `${leader.prenom} ${leader.nom}` : 'Inconnu',
       });
+      notifySuccess("Le club a été mis à jour avec succès !");
       setSelectedClubForEdit(null);
     } catch (error) {
       console.error("Error updating club:", error);
-      alert("Erreur lors de la mise à jour du club");
+      notifyError("Erreur lors de la mise à jour du club");
     } finally {
       setIsSaving(false);
     }
@@ -222,8 +226,10 @@ const Clubs: React.FC = () => {
     if (!window.confirm("Êtes-vous sûr de vouloir supprimer ce club ?")) return;
     try {
       await deleteDoc(doc(db, 'clubs', id));
+      notifyDelete("Le club a été supprimé !");
     } catch (error) {
       console.error("Error deleting club:", error);
+      notifyError("Erreur lors de la suppression du club.");
     }
   };
 
@@ -232,7 +238,7 @@ const Clubs: React.FC = () => {
     
     // Teachers cannot join by themselves, only admin can add them
     if (currentUser.role === 'enseignant') {
-      alert("En tant qu'enseignant, vous devez être ajouté manuellement par un administrateur.");
+      notifyError("En tant qu'enseignant, vous devez être ajouté manuellement par un administrateur.");
       return;
     }
 
@@ -271,9 +277,10 @@ const Clubs: React.FC = () => {
       });
       setUserSearchText('');
       setSearchResults([]);
+      notifySuccess("Membre ajouté au club !");
     } catch (error) {
       console.error("Error adding member:", error);
-      alert("Erreur lors de l'ajout du membre");
+      notifyError("Erreur lors de l'ajout du membre");
     }
   };
 

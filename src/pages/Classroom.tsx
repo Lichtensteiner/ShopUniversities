@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useNotification } from '../contexts/NotificationContext';
 import { collection, query, where, getDocs, addDoc, deleteDoc, doc, onSnapshot, orderBy } from 'firebase/firestore';
 import { ref, uploadBytesResumable, getDownloadURL, deleteObject } from 'firebase/storage';
 import { db, storage, isFirebaseConfigured } from '../lib/firebase';
@@ -98,6 +99,7 @@ const compressImage = (file: File): Promise<Blob> => {
 export default function Classroom() {
   const { currentUser } = useAuth();
   const { t } = useLanguage();
+  const { notifySuccess, notifyError, notifyDelete } = useNotification();
   const [loading, setLoading] = useState(true);
   
   // Data
@@ -227,9 +229,10 @@ export default function Classroom() {
 
       setShowPointModal(false);
       setPointData({ points: 1, reason: '', type: 'positive' });
+      notifySuccess("Points attribués avec succès !");
     } catch (error) {
       const message = handleFirestoreError(error, 'add', 'behavior_points');
-      alert(message);
+      notifyError(message);
     } finally {
       setActionLoading(false);
     }
@@ -345,6 +348,7 @@ export default function Classroom() {
       }
       
       setUploadProgress(100);
+      notifySuccess(`Publication réussie dans ${classesToPublish.length} classe(s) !`);
       
       // Short delay to show 100% success
       setTimeout(() => {
@@ -357,7 +361,7 @@ export default function Classroom() {
       }, 500);
     } catch (error: any) {
       console.error("Publication error detail:", error);
-      alert("Erreur lors de la publication: " + (error.message || "Erreur inconnue"));
+      notifyError("Erreur lors de la publication: " + (error.message || "Erreur inconnue"));
     } finally {
       setActionLoading(false);
       setUploadProgress(null);
@@ -368,8 +372,10 @@ export default function Classroom() {
     if (!window.confirm(t('delete_user_confirm'))) return;
     try {
       await deleteDoc(doc(db, 'behavior_points', pointId));
+      notifyDelete("Point supprimé.");
     } catch (error) {
       console.error("Error deleting point:", error);
+      notifyError("Erreur lors de la suppression du point.");
     }
   };
 
@@ -381,8 +387,10 @@ export default function Classroom() {
         const fileRef = ref(storage, resourceUrl);
         await deleteObject(fileRef).catch(console.error);
       }
+      notifyDelete("Ressource supprimée.");
     } catch (error) {
       console.error("Error deleting resource:", error);
+      notifyError("Erreur lors de la suppression de la ressource.");
     }
   };
 

@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useNotification } from '../contexts/NotificationContext';
 
 interface StaffUser {
   id: string;
@@ -42,6 +43,7 @@ interface StaffUser {
 
 export default function Staff() {
   const { t, tData, language } = useLanguage();
+  const { notifySuccess, notifyError, notifyDelete } = useNotification();
   const [staff, setStaff] = useState<StaffUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -87,9 +89,10 @@ export default function Staff() {
     if (!window.confirm(t('staff_delete_confirm'))) return;
     try {
       await deleteDoc(doc(db, 'users', id));
+      notifyDelete("Personnel administratif supprimé.");
     } catch (error) {
       console.error("Error deleting staff member:", error);
-      alert(t('error_occurred'));
+      notifyError(t('error_occurred'));
     }
   };
 

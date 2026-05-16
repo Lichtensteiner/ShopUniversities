@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useNotification } from '../contexts/NotificationContext';
 import { db, storage } from '../lib/firebase';
 import { recordAuditLog } from '../services/auditService';
 import { collection, query, where, onSnapshot, orderBy, addDoc, serverTimestamp, deleteDoc, doc, updateDoc } from 'firebase/firestore';
@@ -41,6 +42,7 @@ interface HomeworkItem {
 const Homework: React.FC = () => {
   const { currentUser } = useAuth();
   const { t, language } = useLanguage();
+  const { notifySuccess, notifyError, notifyAdd, notifyDelete } = useNotification();
   const [homework, setHomework] = useState<HomeworkItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -220,7 +222,7 @@ const Homework: React.FC = () => {
       }, 500);
     } catch (error) {
       console.error("Error adding homework:", error);
-      alert(t('error_adding_homework') || "Une erreur est survenue lors de l'ajout du devoir.");
+      notifyError(t('error_adding_homework') || "Une erreur est survenue lors de l'ajout du devoir.");
     } finally {
       setUploading(false);
       setUploadProgress(null);

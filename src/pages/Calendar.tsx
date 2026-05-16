@@ -3,6 +3,7 @@ import { collection, query, onSnapshot, addDoc, updateDoc, deleteDoc, doc, serve
 import { db } from '../lib/firebase';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useNotification } from '../contexts/NotificationContext';
 import { Calendar as BigCalendar, dateFnsLocalizer, View, Views } from 'react-big-calendar';
 import { format, parse, startOfWeek, getDay } from 'date-fns';
 import { fr, enUS, es } from 'date-fns/locale';
@@ -40,6 +41,7 @@ interface AppEvent {
 export default function Calendar() {
   const { currentUser } = useAuth();
   const { t, language } = useLanguage();
+  const { notifySuccess, notifyError, notifyDelete, notifyUpdate, notifyAdd } = useNotification();
   const [events, setEvents] = useState<AppEvent[]>([]);
   const [viewMode, setViewMode] = useState<'calendar' | 'list'>('calendar');
   const [calendarView, setCalendarView] = useState<View>(window.innerWidth < 768 ? Views.AGENDA : Views.MONTH);
@@ -160,18 +162,18 @@ export default function Calendar() {
 
       if (selectedEvent) {
         await updateDoc(doc(db, 'events', selectedEvent.id), eventData);
-        alert(t('event_updated_success'));
+        notifyUpdate(t('event_updated_success'));
       } else {
         await addDoc(collection(db, 'events'), {
           ...eventData,
           createdAt: serverTimestamp(),
         });
-        alert(t('event_created_success'));
+        notifyAdd(t('event_created_success'));
       }
       handleCloseModal();
     } catch (error) {
       console.error('Error saving event:', error);
-      alert(t('error_saving_event'));
+      notifyError(t('error_saving_event'));
     }
   };
 
@@ -179,10 +181,11 @@ export default function Calendar() {
     if (window.confirm(t('delete_event') + ' ?')) {
       try {
         await deleteDoc(doc(db, 'events', id));
-        alert(t('event_deleted_success'));
+        notifyDelete(t('event_deleted_success'));
         handleCloseModal();
       } catch (error) {
         console.error('Error deleting event:', error);
+        notifyError(t('delete_error') || "Error deleting event");
       }
     }
   };
@@ -216,7 +219,7 @@ export default function Calendar() {
     link.click();
     document.body.removeChild(link);
     
-    alert(t('event_sync_success'));
+    notifySuccess(t('event_sync_success'));
   };
 
   const eventStyleGetter = (event: AppEvent) => {

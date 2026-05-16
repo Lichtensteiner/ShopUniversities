@@ -25,6 +25,7 @@ import {
   RefreshCw 
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { useNotification } from '../contexts/NotificationContext';
 import { SCHOOL_CLASSES, SCHOOL_SUBJECTS } from '../constants';
 
 interface CoursesSubjectsProps {
@@ -34,6 +35,7 @@ interface CoursesSubjectsProps {
 export default function CoursesSubjects({ initialPrepId }: CoursesSubjectsProps) {
   const { t } = useLanguage();
   const { currentUser } = useAuth();
+  const { notifySuccess, notifyError, notifyDelete, notifyUpdate, notifyAdd } = useNotification();
   const [classes, setClasses] = useState<any[]>([]);
   const [preparations, setPreparations] = useState<any[]>([]);
   const [teachers, setTeachers] = useState<any[]>([]);
@@ -181,7 +183,7 @@ export default function CoursesSubjects({ initialPrepId }: CoursesSubjectsProps)
     }, (error) => {
       console.error("Error fetching subjects:", error);
       if (error.message.includes('permission')) {
-        alert("Erreur de permission Firestore: Impossible de lire les matières.");
+        notifyError("Erreur de permission Firestore: Impossible de lire les matières.");
       }
       setSubjects([]);
     });
@@ -225,9 +227,10 @@ export default function CoursesSubjects({ initialPrepId }: CoursesSubjectsProps)
 
       setNewSubjectName('');
       setNewSubjectTeacherId('');
+      notifyAdd(`La matière ${newSubjectName.trim()}`);
     } catch (error) {
       console.error("Error adding subject:", error);
-      alert("Erreur lors de l'ajout de la matière (Vérifiez vos permissions)");
+      notifyError("Erreur lors de l'ajout de la matière (Vérifiez vos permissions)");
     } finally {
       setIsAddingSubject(false);
     }
@@ -250,9 +253,10 @@ export default function CoursesSubjects({ initialPrepId }: CoursesSubjectsProps)
             category: 'management'
           });
         }
+        notifyDelete(`La matière ${subjToDelete?.name || subjectId}`);
       } catch (error) {
         console.error("Error deleting subject:", error);
-        alert("Erreur lors de la suppression");
+        notifyError("Erreur lors de la suppression");
       }
     }
   };
@@ -282,10 +286,11 @@ export default function CoursesSubjects({ initialPrepId }: CoursesSubjectsProps)
         });
       }
       
+      notifyUpdate(`La matière ${editingSubject.name.trim()}`);
       setEditingSubject(null);
     } catch (error) {
       console.error("Error updating subject:", error);
-      alert("Erreur lors de la mise à jour");
+      notifyError("Erreur lors de la mise à jour");
     }
   };
 
@@ -321,10 +326,11 @@ export default function CoursesSubjects({ initialPrepId }: CoursesSubjectsProps)
       }
 
       console.log("Subject assigned to class successfully");
+      notifySuccess(`Matière ${subjectName} attribuée avec succès à la classe ${cls?.nom}`);
       setAddingSubjectToClass(null);
     } catch (error) {
       console.error("Error adding subject to class:", error);
-      alert("Erreur lors de l'attribution de la matière");
+      notifyError("Erreur lors de l'attribution de la matière");
     }
   };
 
@@ -350,9 +356,10 @@ export default function CoursesSubjects({ initialPrepId }: CoursesSubjectsProps)
           category: 'management'
         });
       }
+      notifySuccess(`Matière ${subjectName} retirée de la classe ${cls.nom}`);
     } catch (error) {
       console.error("Error removing subject from class:", error);
-      alert("Erreur lors de la suppression de la matière");
+      notifyError("Erreur lors de la suppression de la matière");
     }
   };
 
@@ -360,7 +367,7 @@ export default function CoursesSubjects({ initialPrepId }: CoursesSubjectsProps)
     e.preventDefault();
     if (!currentUser) return;
     if (!newCourse.topic || !newCourse.subject || !newCourse.grade) {
-      alert("Veuillez remplir tous les champs obligatoires.");
+      notifyError("Veuillez remplir tous les champs obligatoires.");
       return;
     }
 
@@ -428,6 +435,7 @@ export default function CoursesSubjects({ initialPrepId }: CoursesSubjectsProps)
         category: 'homework'
       });
 
+      notifyAdd(`Le cours ${newCourse.topic}`);
       setUploadProgress(100);
 
       setTimeout(() => {
@@ -439,7 +447,7 @@ export default function CoursesSubjects({ initialPrepId }: CoursesSubjectsProps)
       }, 500);
     } catch (error) {
       console.error("Error adding course:", error);
-      alert("Erreur lors de l'ajout du cours.");
+      notifyError("Erreur lors de l'ajout du cours.");
     } finally {
       setUploading(false);
       setUploadProgress(null);
@@ -476,12 +484,12 @@ export default function CoursesSubjects({ initialPrepId }: CoursesSubjectsProps)
         category: 'homework'
       });
       
-      alert(`Cours publié avec succès aux classes : ${classesToPublish.join(', ')}`);
+      notifySuccess(`Cours publié avec succès aux classes : ${classesToPublish.join(', ')}`);
       setShowPublishSelect(false);
       setClassesToPublish([]);
     } catch (error) {
       console.error("Error publishing course:", error);
-      alert("Erreur lors de la publication du cours.");
+      notifyError("Erreur lors de la publication du cours.");
     } finally {
       setPublishing(false);
     }
@@ -519,10 +527,11 @@ export default function CoursesSubjects({ initialPrepId }: CoursesSubjectsProps)
           });
         }
 
+        notifyDelete(`Le cours ${prepToDelete?.topic || prepId}`);
         if (selectedPrep?.id === prepId) setSelectedPrep(null);
       } catch (error) {
         console.error("Error deleting preparation:", error);
-        alert("Erreur lors de la suppression");
+        notifyError("Erreur lors de la suppression");
       }
     }
   };
@@ -554,11 +563,12 @@ export default function CoursesSubjects({ initialPrepId }: CoursesSubjectsProps)
         });
       }
 
+      notifyUpdate(`Le cours ${editTopic}`);
       setSelectedPrep({ ...selectedPrep, content: editContent, topic: editTopic });
       setIsEditing(false);
     } catch (error) {
       console.error("Error updating preparation:", error);
-      alert("Erreur lors de la mise à jour");
+      notifyError("Erreur lors de la mise à jour");
     }
   };
 

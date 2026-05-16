@@ -10,11 +10,13 @@ import { useLanguage } from '../contexts/LanguageContext';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { resizeImage } from '../lib/imageUtils';
 import SuccessModal from '../components/SuccessModal';
+import { useNotification } from '../contexts/NotificationContext';
 import { motion, AnimatePresence } from 'motion/react';
 
 export default function Users() {
   const { currentUser } = useAuth();
   const { t, tData } = useLanguage();
+  const { notifyDelete, notifyUpdate, notifyAdd, notifySuccess, notifyError } = useNotification();
   const [searchTerm, setSearchTerm] = useState('');
   const [filterRole, setFilterRole] = useState('all');
   const [users, setUsers] = useState<any[]>([]);
@@ -121,10 +123,10 @@ export default function Users() {
     if (!window.confirm(t('confirm_delete_log'))) return;
     try {
       await deleteDoc(doc(db, 'attendance_logs', logId));
-      alert(t('log_deleted_success'));
+      notifyDelete("Le log de pointage");
     } catch (err) {
       console.error("Error deleting log:", err);
-      alert(t('delete_error'));
+      notifyError(t('delete_error'));
     }
   };
 
@@ -267,6 +269,7 @@ export default function Users() {
         title: t('account_created'),
         message: t('user_profile_generated_success').replace('{{name}}', `${newUser.prenom} ${newUser.nom}`)
       });
+      notifyAdd(`${newUser.prenom} ${newUser.nom}`);
       setShowSuccess(true);
     } catch (err: any) {
       console.error(err);
@@ -327,10 +330,11 @@ export default function Users() {
         category: 'security'
       });
 
+      notifyUpdate(`${editUser.prenom} ${editUser.nom}`);
       setEditUser(null);
     } catch (err: any) {
       console.error(err);
-      setError(t('error_updating_user'));
+      notifyError(t('error_updating_user'));
     } finally {
       setActionLoading(false);
     }
@@ -353,10 +357,11 @@ export default function Users() {
         category: 'security'
       });
 
+      notifyDelete(`${deleteUser.prenom} ${deleteUser.nom}`);
       setDeleteUser(null);
     } catch (err: any) {
       console.error(err);
-      setError(t('error_deleting_user'));
+      notifyError(t('error_deleting_user'));
     } finally {
       setActionLoading(false);
     }
@@ -378,10 +383,10 @@ export default function Users() {
       });
 
       const toastMsg = !user.chatBlocked ? t('messaging_blocked') : t('messaging_unblocked');
-      alert(toastMsg.replace('{{name}}', `${user.prenom} ${user.nom}`));
+      notifySuccess(toastMsg.replace('{{name}}', `${user.prenom} ${user.nom}`));
     } catch (err) {
       console.error("Error toggling chat block:", err);
-      alert(t('error_updating_user'));
+      notifyError(t('error_updating_user'));
     }
   };
 
@@ -401,10 +406,10 @@ export default function Users() {
       });
 
       const toastMsg = !user.accessBlocked ? t('access_blocked') : t('access_unblocked');
-      alert(toastMsg.replace('{{name}}', `${user.prenom} ${user.nom}`));
+      notifySuccess(toastMsg.replace('{{name}}', `${user.prenom} ${user.nom}`));
     } catch (err) {
       console.error("Error toggling access block:", err);
-      alert(t('error_updating_user'));
+      notifyError(t('error_updating_user'));
     }
   };
 
@@ -456,7 +461,7 @@ export default function Users() {
       await Promise.all(promises);
       setShowNotificationModal(false);
       setNotificationData({ title: '', message: '', type: 'info' });
-      alert(t('notification_sent_success_to').replace('{{count}}', usersToNotify.length.toString()));
+      notifySuccess(t('notification_sent_success_to').replace('{{count}}', usersToNotify.length.toString()));
     } catch (err: any) {
       console.error(err);
       setError(t('error_sending_notification'));

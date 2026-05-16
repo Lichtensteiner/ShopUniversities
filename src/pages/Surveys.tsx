@@ -21,6 +21,7 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useAuth } from '../contexts/AuthContext';
+import { useNotification } from '../contexts/NotificationContext';
 import { deleteDoc } from 'firebase/firestore';
 
 interface Survey {
@@ -38,6 +39,7 @@ interface Survey {
 export default function Surveys() {
   const { t } = useLanguage();
   const { currentUser } = useAuth();
+  const { notifySuccess, notifyError, notifyDelete } = useNotification();
   const [surveys, setSurveys] = useState<Survey[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
@@ -100,7 +102,7 @@ export default function Surveys() {
 
   const handleVote = async (survey: Survey, optionId: string) => {
     if (survey.voters.includes(currentUser?.id || '')) {
-      alert("Vous avez déjà voté !");
+      notifyError("Vous avez déjà voté !");
       return;
     }
 
