@@ -30,6 +30,7 @@ import {
   RefreshCw,
   LayoutDashboard,
   Users as UsersIcon,
+  Download as DownloadIcon,
 } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -45,10 +46,13 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend 
 } from 'recharts';
 
+import { usePWA } from '../hooks/usePWA';
+
 export default function Settings() {
   const { theme, setTheme } = useTheme();
   const { t, language, setLanguage } = useLanguage();
   const { currentUser } = useAuth();
+  const { isInstallable, installApp, isStandalone } = usePWA();
   
   const [activeTab, setActiveTab] = useState<'appearance' | 'profile' | 'notifications' | 'security' | 'system'>('appearance');
   const [loading, setLoading] = useState(false);
@@ -834,6 +838,61 @@ export default function Settings() {
                               </div>
                             </div>
                          </div>
+                      </div>
+                    </div>
+
+                    {/* PWA Installation */}
+                    <div className="space-y-4">
+                      <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest">Application Progressive (PWA)</h4>
+                      <div className={`p-6 rounded-3xl border shadow-xl relative overflow-hidden group transition-all ${
+                        isStandalone 
+                          ? 'bg-emerald-50 dark:bg-emerald-900/10 border-emerald-100 dark:border-emerald-800' 
+                          : 'bg-gradient-to-br from-indigo-600 to-blue-700 text-white border-none'
+                      }`}>
+                        <div className="relative z-10 flex flex-col sm:flex-row items-center justify-between gap-6">
+                          <div className="text-center sm:text-left flex-1">
+                            <div className="flex items-center justify-center sm:justify-start gap-4 mb-4">
+                               <div className={`w-14 h-14 rounded-2xl flex items-center justify-center ${isStandalone ? 'bg-emerald-500 text-white' : 'bg-white text-indigo-600'}`}>
+                                  <Smartphone size={32} />
+                               </div>
+                               <div>
+                                 <h4 className={`text-xl font-black ${isStandalone ? 'text-gray-900 dark:text-white' : 'text-white'}`}>
+                                   {isStandalone ? 'Application Installée' : 'Installer l\'Application'}
+                                 </h4>
+                                 <p className={`text-sm font-medium ${isStandalone ? 'text-gray-500' : 'text-indigo-100'}`}>
+                                   {isStandalone ? 'Mode standalone activé avec succès' : 'Profitez d\'Edu-Nify directement sur votre écran d\'accueil'}
+                                 </p>
+                               </div>
+                            </div>
+                            
+                            {isStandalone ? (
+                              <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 font-bold text-xs">
+                                <CheckCircle size={16} />
+                                L'APPLICATION EST PRÊTE ET DISPONIBLE DANS VOS APPLICATIONS
+                              </div>
+                            ) : isInstallable ? (
+                               <button 
+                                 onClick={installApp}
+                                 className="w-full sm:w-auto px-10 py-4 bg-white text-indigo-700 rounded-2xl font-black text-lg hover:shadow-2xl hover:scale-105 active:scale-95 transition-all shadow-xl shadow-indigo-900/20"
+                               >
+                                 Installer Edu-Nify
+                               </button>
+                            ) : (
+                               <div className="flex flex-col gap-2">
+                                 <p className="text-xs font-black text-indigo-200 uppercase tracking-widest">VOTRE NAVIGATEUR EST PRÊT</p>
+                                 <p className="text-[10px] font-medium opacity-80 max-w-sm">Si le bouton n'apparait pas, vous pouvez installer manuellement via le menu de votre navigateur (Option "Ajouter à l'écran d'accueil").</p>
+                               </div>
+                            )}
+                          </div>
+                          
+                          <div className="flex-shrink-0 animate-bounce-slow">
+                            <DownloadIcon className={isStandalone ? 'text-emerald-500/20' : 'text-white/20'} size={120} />
+                          </div>
+                        </div>
+                        
+                        {/* Background Patterns */}
+                        <div className="absolute -bottom-12 -right-12 w-64 h-64 bg-white/5 rounded-full blur-3xl" />
+                        {!isStandalone && <div className="absolute top-0 right-0 p-4 opacity-50"><Zap size={40} className="animate-pulse" /></div>}
                       </div>
                     </div>
 
