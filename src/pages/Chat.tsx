@@ -9,6 +9,7 @@ import { fr } from 'date-fns/locale';
 import { ArrowLeft, Image, Video, Paperclip, Smile, Send, Clock, Camera, MoreVertical, X, Users, User, ChevronDown, Trash2, Ban } from 'lucide-react';
 import EmojiPicker, { Theme } from 'emoji-picker-react';
 import { createNotification } from '../services/NotificationService';
+import { useNotification } from '../contexts/NotificationContext';
 
 interface Message {
   id: string;

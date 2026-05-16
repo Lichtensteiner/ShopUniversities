@@ -26,6 +26,7 @@ import Directory from './pages/Directory';
 import Messaging from './pages/Messaging';
 import About from './pages/About';
 import AIAssistant from './pages/AIAssistant';
+import TeacherPlanning from './pages/TeacherPlanning';
 import CoursesSubjects from './pages/CoursesSubjects';
 import ParentDashboard from './pages/ParentDashboard';
 import Grades from './pages/Grades';
@@ -175,6 +176,8 @@ function AppContent() {
         return ['admin', 'enseignant', 'élève'].includes(role) ? <Classroom /> : <Dashboard onNavigate={handleNavigate} />;
       case 'courses_subjects':
         return ['admin', 'enseignant', 'élève'].includes(role) ? <CoursesSubjects initialPrepId={tabParams?.prepId} /> : <Dashboard onNavigate={handleNavigate} />;
+      case 'planning':
+        return ['admin', 'enseignant'].includes(role) ? <TeacherPlanning /> : <Dashboard onNavigate={handleNavigate} />;
       case 'calendar': 
         return ['admin', 'enseignant', 'personnel administratif'].includes(role) ? <Calendar /> : <StudentDashboard onNavigate={handleNavigate} />;
       case 'newsfeed': return <NewsFeed />;

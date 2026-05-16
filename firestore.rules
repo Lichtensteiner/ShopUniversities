@@ -264,5 +264,12 @@ service cloud.firestore {
       allow update: if isAuthenticated() && resource.data.userId == request.auth.uid;
       allow delete: if isAdmin();
     }
+
+    // Teacher Planning Collection
+    match /teacher_planning/{planId} {
+      allow read: if isAuthenticated() && (isAdmin() || isTeacher() || isStaff());
+      allow create: if isTeacher() && incoming().teacherId == request.auth.uid;
+      allow update, delete: if isTeacher() && (existing().teacherId == request.auth.uid);
+    }
   }
 }

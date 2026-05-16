@@ -64,7 +64,7 @@ import { useNotification } from '../contexts/NotificationContext';
 const Grades: React.FC = () => {
   const { currentUser } = useAuth();
   const { t, language, tData } = useLanguage();
-  const { notifySuccess, notifyError, notifyUpdate, notifyDelete } = useNotification();
+  const { notifySuccess, notifyError, notifyUpdate, notifyDelete, notifyAdd } = useNotification();
   const [grades, setGrades] = useState<Grade[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedSubject, setSelectedSubject] = useState<string>('all');

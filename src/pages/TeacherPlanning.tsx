@@ -1,0 +1,552 @@
+import React, { useState, useEffect } from 'react';
+import { useAuth } from '../contexts/AuthContext';
+import { useLanguage } from '../contexts/LanguageContext';
+import { useNotification } from '../contexts/NotificationContext';
+import { db } from '../lib/firebase';
+import { 
+  collection, 
+  query, 
+  where, 
+  onSnapshot, 
+  orderBy, 
+  addDoc, 
+  updateDoc, 
+  deleteDoc, 
+  doc, 
+  serverTimestamp,
+  Timestamp 
+} from 'firebase/firestore';
+import { 
+  Calendar as CalendarIcon, 
+  Plus, 
+  Clock, 
+  MapPin, 
+  BookOpen, 
+  Users, 
+  Trash2, 
+  Edit2, 
+  Search, 
+  X, 
+  MoreVertical,
+  CheckCircle2,
+  AlertCircle,
+  FileText
+} from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
+
+interface PlanningItem {
+  id: string;
+  teacherId: string;
+  teacherName: string;
+  title: string;
+  description: string;
+  startTime: Timestamp;
+  endTime: Timestamp;
+  type: 'cours' | 'réunion' | 'examen' | 'autre';
+  classId?: string;
+  className?: string;
+  subject?: string;
+  createdAt: Timestamp;
+}
+
+const TeacherPlanning: React.FC = () => {
+  const { currentUser } = useAuth();
+  const { t } = useLanguage();
+  const { notifySuccess, notifyError, notifyDelete } = useNotification();
+  
+  const [planning, setPlanning] = useState<PlanningItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [editingItem, setEditingItem] = useState<PlanningItem | null>(null);
+  const [classes, setClasses] = useState<{id: string, name: string}[]>([]);
+  const [subjects, setSubjects] = useState<string[]>([]);
+  
+  // Form state
+  const [formData, setFormData] = useState({
+    title: '',
+    description: '',
+    type: 'cours',
+    classId: '',
+    className: '',
+    subject: '',
+    startDate: new Date().toISOString().split('T')[0],
+    startTime: new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
+    endDate: new Date().toISOString().split('T')[0],
+    endTime: new Date(Date.now() + 3600000).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
+  });
+
+  const isTeacher = currentUser?.role === 'enseignant';
+  const isAdmin = currentUser?.role === 'admin';
+
+  useEffect(() => {
+    if (!currentUser) return;
+
+    // Filter for the last 24 hours + future
+    const yesterday = new Date();
+    yesterday.setHours(yesterday.getHours() - 24);
+
+    let q = query(
+      collection(db, 'teacher_planning'),
+      where('startTime', '>=', yesterday),
+      orderBy('startTime', 'asc')
+    );
+
+    // If teacher, only see their own (or let them see others too? 
+    // User said admin can see, teacher can see his own... 
+    // but usually in schools teachers might want to see the whole school planning? 
+    // User said "enseignant peut... voir SON planning mais pas admin il peut juste voir")
+    // Re-reading: "enseignant peut modifier supprimer et voir son planning mais pas admin il peut juste voir"
+    // I will filter by teacherId if not admin for privacy, but user said "admin peut voir aussi son planning".
+    if (isTeacher) {
+      q = query(
+        collection(db, 'teacher_planning'),
+        where('teacherId', '==', currentUser.id),
+        where('startTime', '>=', yesterday),
+        orderBy('startTime', 'asc')
+      );
+    }
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const items = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })) as PlanningItem[];
+      setPlanning(items);
+      setLoading(false);
+    }, (error) => {
+      console.error("Planning fetch error:", error);
+      setLoading(false);
+    });
+
+    // Fetch classes and teacher's subjects for the form
+    const unsubscribeClasses = onSnapshot(collection(db, 'classes'), (snapshot) => {
+      setClasses(snapshot.docs.map(doc => ({ id: doc.id, name: doc.data().name })));
+    });
+
+    if (isTeacher) {
+      setSubjects(currentUser.matieres || (currentUser.matiere ? [currentUser.matiere] : []));
+    }
+
+    return () => {
+      unsubscribe();
+      unsubscribeClasses();
+    };
+  }, [currentUser, isTeacher, isAdmin]);
+
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!isTeacher) return;
+
+    try {
+      const start = new Date(`${formData.startDate}T${formData.startTime}`);
+      const end = new Date(`${formData.endDate}T${formData.endTime}`);
+
+      if (end <= start) {
+        notifyError("L'heure de fin doit être après l'heure de début.");
+        return;
+      }
+
+      const selectedClass = classes.find(c => c.id === formData.classId);
+
+      const data = {
+        title: formData.title,
+        description: formData.description,
+        type: formData.type,
+        classId: formData.classId,
+        className: selectedClass?.name || '',
+        subject: formData.subject,
+        startTime: Timestamp.fromDate(start),
+        endTime: Timestamp.fromDate(end),
+        teacherId: currentUser.id,
+        teacherName: `${currentUser.prenom} ${currentUser.nom}`,
+        updatedAt: serverTimestamp()
+      };
+
+      if (editingItem) {
+        await updateDoc(doc(db, 'teacher_planning', editingItem.id), data);
+        notifySuccess("Planning mis à jour !");
+      } else {
+        await addDoc(collection(db, 'teacher_planning'), {
+          ...data,
+          createdAt: serverTimestamp()
+        });
+        notifySuccess("Planning ajouté !");
+      }
+
+      setShowAddModal(false);
+      setEditingItem(null);
+      resetForm();
+    } catch (error) {
+      console.error("Save planning error:", error);
+      notifyError("Erreur lors de l'enregistrement.");
+    }
+  };
+
+  const resetForm = () => {
+    setFormData({
+      title: '',
+      description: '',
+      type: 'cours',
+      classId: '',
+      className: '',
+      subject: '',
+      startDate: new Date().toISOString().split('T')[0],
+      startTime: new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
+      endDate: new Date().toISOString().split('T')[0],
+      endTime: new Date(Date.now() + 3600000).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
+    });
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!window.confirm("Supprimer cet élément du planning ?")) return;
+    try {
+      await deleteDoc(doc(db, 'teacher_planning', id));
+      notifyDelete("Élément supprimé");
+    } catch (error) {
+      notifyError("Erreur lors de la suppression");
+    }
+  };
+
+  const openEdit = (item: PlanningItem) => {
+    setEditingItem(item);
+    const start = item.startTime.toDate();
+    const end = item.endTime.toDate();
+    setFormData({
+      title: item.title,
+      description: item.description || '',
+      type: item.type,
+      classId: item.classId || '',
+      className: item.className || '',
+      subject: item.subject || '',
+      startDate: start.toISOString().split('T')[0],
+      startTime: start.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
+      endDate: end.toISOString().split('T')[0],
+      endTime: end.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
+    });
+    setShowAddModal(true);
+  };
+
+  const getBadgeColor = (type: string) => {
+    switch (type) {
+      case 'cours': return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400';
+      case 'réunion': return 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400';
+      case 'examen': return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400';
+      default: return 'bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-400';
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+            <CalendarIcon className="text-indigo-600" />
+            {t('planning')}
+          </h1>
+          <p className="text-gray-500 dark:text-gray-400 text-sm">
+            {isTeacher ? t('teacher_planning_desc') : t('consult_teacher_planning_desc')}
+          </p>
+        </div>
+        
+        {isTeacher && (
+          <button
+            onClick={() => { resetForm(); setEditingItem(null); setShowAddModal(true); }}
+            className="flex items-center justify-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-xl font-medium hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-500/20"
+          >
+            <Plus size={20} />
+            {t('add_activity')}
+          </button>
+        )}
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {/* Statistics or Summary Widgets */}
+        <div className="md:col-span-1 space-y-6">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
+            <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+              <Clock className="text-indigo-500" />
+              Aujourd'hui
+            </h3>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between p-3 bg-indigo-50 dark:bg-indigo-900/20 rounded-xl border border-indigo-100 dark:border-indigo-800">
+                <span className="text-sm font-medium text-indigo-700 dark:text-indigo-300">Total activités</span>
+                <span className="text-2xl font-bold text-indigo-900 dark:text-indigo-100">{planning.length}</span>
+              </div>
+              <p className="text-xs text-gray-500 dark:text-gray-400 italic">
+                * Les activités s'affichent pour 24 heures glissantes.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Planning List */}
+        <div className="md:col-span-2">
+          {loading ? (
+            <div className="flex justify-center py-20">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+            </div>
+          ) : planning.length > 0 ? (
+            <div className="space-y-4">
+              {planning.map((item) => {
+                const now = new Date();
+                const isPast = item.endTime.toDate() < now;
+                const isCurrent = item.startTime.toDate() <= now && item.endTime.toDate() >= now;
+
+                return (
+                  <motion.div
+                    key={item.id}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className={`bg-white dark:bg-gray-800 rounded-2xl p-5 shadow-sm border transition-all ${
+                      isCurrent ? 'ring-2 ring-indigo-500 border-indigo-500' : 'border-gray-100 dark:border-gray-700'
+                    } ${isPast ? 'opacity-60' : ''}`}
+                  >
+                    <div className="flex justify-between items-start mb-3">
+                      <div className="flex items-center gap-3">
+                        <span className={`px-2.5 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${getBadgeColor(item.type)}`}>
+                          {item.type}
+                        </span>
+                        {isCurrent && (
+                          <span className="flex items-center gap-1.5 px-2 py-0.5 bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 rounded-full text-[10px] font-bold animate-pulse">
+                            <span className="w-1.5 h-1.5 bg-green-500 rounded-full"></span>
+                            EN COURS
+                          </span>
+                        )}
+                      </div>
+                      
+                      {isTeacher && item.teacherId === currentUser.id && (
+                        <div className="flex gap-1">
+                          <button 
+                            onClick={() => openEdit(item)}
+                            className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400 rounded-lg transition-colors"
+                          >
+                            <Edit2 size={16} />
+                          </button>
+                          <button 
+                            onClick={() => handleDelete(item.id)}
+                            className="p-1.5 hover:bg-red-50 dark:hover:bg-red-900/30 text-red-500 rounded-lg transition-colors"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                      )}
+                    </div>
+
+                    <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-1 line-clamp-1">{item.title}</h3>
+                    {item.description && (
+                      <p className="text-sm text-gray-600 dark:text-gray-400 mb-4 line-clamp-2">{item.description}</p>
+                    )}
+
+                    <div className="grid grid-cols-2 gap-4 pt-4 border-t border-gray-50 dark:border-gray-700/50 mt-4">
+                      <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+                        <Clock size={16} className="text-indigo-500" />
+                        <span>
+                          {item.startTime.toDate().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })} - {item.endTime.toDate().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      </div>
+                      {item.className && (
+                        <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 justify-end">
+                          <Users size={16} className="text-indigo-500" />
+                          <span className="font-medium text-gray-700 dark:text-gray-300">{item.className}</span>
+                        </div>
+                      )}
+                      <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+                        <CalendarIcon size={16} className="text-indigo-500" />
+                        <span>{item.startTime.toDate().toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}</span>
+                      </div>
+                      {item.subject && (
+                        <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 justify-end">
+                          <BookOpen size={16} className="text-indigo-500" />
+                          <span className="font-medium text-gray-700 dark:text-gray-300">{item.subject}</span>
+                        </div>
+                      )}
+                    </div>
+                    
+                    {isAdmin && (
+                      <div className="mt-4 pt-3 border-t border-dashed border-gray-100 dark:border-gray-700 flex items-center justify-between">
+                         <span className="text-[10px] text-gray-400 uppercase font-medium">Enseignant</span>
+                         <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">{item.teacherName}</span>
+                      </div>
+                    )}
+                  </motion.div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="bg-white dark:bg-gray-800 rounded-2xl p-12 text-center border-2 border-dashed border-gray-200 dark:border-gray-700">
+              <div className="w-20 h-20 bg-gray-50 dark:bg-gray-900/50 text-gray-400 rounded-full flex items-center justify-center mx-auto mb-4">
+                <CalendarIcon size={40} />
+              </div>
+            <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-1">
+              {t('no_activity_planned')}
+            </h3>
+            <p className="text-gray-500 dark:text-gray-400 max-w-xs mx-auto">
+              {isTeacher ? t('add_first_activity_desc') : t('no_planning_recorded')}
+            </p>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Add/Edit Modal */}
+      <AnimatePresence>
+        {showAddModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowAddModal(false)}
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="relative bg-white dark:bg-gray-800 rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden"
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="p-6 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between">
+                <h2 className="text-xl font-bold text-gray-900 dark:text-white">
+                  {editingItem ? t('edit') : t('add_activity')}
+                </h2>
+                <button onClick={() => setShowAddModal(false)} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full text-gray-500 transition-colors">
+                  <X size={20} />
+                </button>
+              </div>
+
+              <form onSubmit={handleSave} className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="col-span-2">
+                    <label className="block text-xs font-semibold text-gray-500 uppercase mb-2 ml-1">{t('activity_title')}</label>
+                    <input
+                      type="text"
+                      required
+                      value={formData.title}
+                      onChange={e => setFormData({...formData, title: e.target.value})}
+                      placeholder="Ex: Cours de Mathématiques, Staff Meeting..."
+                      className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-sm"
+                    />
+                  </div>
+
+                  <div className="col-span-2">
+                    <label className="block text-xs font-semibold text-gray-500 uppercase mb-2 ml-1">{t('activity_type')}</label>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                      {['cours', 'réunion', 'examen', 'autre'].map(type => (
+                        <button
+                          key={type}
+                          type="button"
+                          onClick={() => setFormData({...formData, type: type as any})}
+                          className={`py-2 text-xs font-bold rounded-xl border transition-all ${
+                            formData.type === type 
+                              ? 'bg-indigo-600 border-indigo-600 text-white shadow-md shadow-indigo-500/20' 
+                              : 'bg-white dark:bg-gray-900 border-gray-100 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-indigo-300'
+                          }`}
+                        >
+                          {type === 'cours' ? t('classroom') : type === 'réunion' ? t('event_meeting') : type === 'examen' ? t('event_exam') : t('other')}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="col-span-2">
+                    <label className="block text-xs font-semibold text-gray-500 uppercase mb-2 ml-1">Description (Optionnel)</label>
+                    <textarea
+                      rows={3}
+                      value={formData.description}
+                      onChange={e => setFormData({...formData, description: e.target.value})}
+                      className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-sm resize-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-500 uppercase mb-2 ml-1">Classe</label>
+                    <select
+                      value={formData.classId}
+                      onChange={e => setFormData({...formData, classId: e.target.value})}
+                      className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-sm"
+                    >
+                      <option value="">Sélectionner une classe</option>
+                      {classes.map(c => (
+                        <option key={c.id} value={c.id}>{c.name}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-500 uppercase mb-2 ml-1">Matière</label>
+                    <select
+                      value={formData.subject}
+                      onChange={e => setFormData({...formData, subject: e.target.value})}
+                      className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-sm"
+                    >
+                      <option value="">Sélectionner une matière</option>
+                      {subjects.map((s, idx) => (
+                        <option key={idx} value={s}>{s}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-500 uppercase mb-2 ml-1">Date de début</label>
+                    <input
+                      type="date"
+                      required
+                      value={formData.startDate}
+                      onChange={e => setFormData({...formData, startDate: e.target.value, endDate: e.target.value})}
+                      className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-sm text-center font-bold"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-500 uppercase mb-2 ml-1">Heure de début</label>
+                    <input
+                      type="time"
+                      required
+                      value={formData.startTime}
+                      onChange={e => setFormData({...formData, startTime: e.target.value})}
+                      className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-sm text-center font-bold"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-500 uppercase mb-2 ml-1">Date de fin</label>
+                    <input
+                      type="date"
+                      required
+                      value={formData.endDate}
+                      onChange={e => setFormData({...formData, endDate: e.target.value})}
+                      className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-sm text-center font-bold"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-500 uppercase mb-2 ml-1">Heure de fin</label>
+                    <input
+                      type="time"
+                      required
+                      value={formData.endTime}
+                      onChange={e => setFormData({...formData, endTime: e.target.value})}
+                      className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-sm text-center font-bold"
+                    />
+                  </div>
+                </div>
+
+                <div className="pt-4">
+                  <button
+                    type="submit"
+                    className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-500/25 active:scale-95"
+                  >
+                    {editingItem ? "Enregistrer les modifications" : "Ajouter au planning"}
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+};
+
+export default TeacherPlanning;

@@ -86,9 +86,31 @@ const AdminDashboard = ({ stats, weeklyData, studentLevelData, userDistribution,
   const { theme } = useTheme();
   const isDark = theme === 'dark';
   const { notifyOptimize } = useNotification();
+  const { currentUser } = useAuth();
 
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [isOptimizeOpen, setIsOptimizeOpen] = useState(false);
+  const [teacherPlanning, setTeacherPlanning] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (!currentUser || (currentUser.role !== 'admin' && currentUser.role !== 'personnel administratif')) return;
+
+    const yesterday = new Date();
+    yesterday.setHours(yesterday.getHours() - 24);
+
+    const unsubAdminPlanning = onSnapshot(
+      query(
+        collection(db, 'teacher_planning'),
+        where('startTime', '>=', yesterday),
+        orderBy('startTime', 'asc')
+      ),
+      (snapshot) => {
+        setTeacherPlanning(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      }
+    );
+
+    return () => unsubAdminPlanning();
+  }, [currentUser]);
 
   return (
     <div className="space-y-6">
@@ -222,15 +244,15 @@ const AdminDashboard = ({ stats, weeklyData, studentLevelData, userDistribution,
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* User Ecosystem Chart */}
-        <div className="lg:col-span-1 bg-white dark:bg-gray-800 p-8 rounded-3xl border border-gray-100 dark:border-gray-700 shadow-sm relative overflow-hidden">
+        <div className="lg:col-span-1 bg-white dark:bg-gray-800 p-8 rounded-3xl border border-gray-100 dark:border-gray-700 shadow-sm relative overflow-hidden flex flex-col">
            <h3 className="text-xl font-black text-gray-900 dark:text-white mb-6">Répartition par Secteur</h3>
-           <div className="h-64">
+           <div className="h-48">
              <ResponsiveContainer>
                <PieChart>
                  <Pie 
                    data={userDistribution} 
-                   innerRadius={65} 
-                   outerRadius={85} 
+                   innerRadius={55} 
+                   outerRadius={75} 
                    dataKey="value" 
                    nameKey="name" 
                    paddingAngle={5}
@@ -243,13 +265,37 @@ const AdminDashboard = ({ stats, weeklyData, studentLevelData, userDistribution,
                  <Tooltip 
                     contentStyle={{ borderRadius: '16px', border: 'none', backgroundColor: isDark ? '#1F2937' : '#FFFFFF', color: isDark ? '#F3F4F6' : '#111827', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
                  />
-                 <Legend verticalAlign="bottom" align="center" iconType="circle" wrapperStyle={{ fontSize: '11px', fontWeight: 'bold', paddingTop: '20px' }} />
+                 <Legend verticalAlign="bottom" align="center" iconType="circle" wrapperStyle={{ fontSize: '11px', fontWeight: 'bold', paddingTop: '10px' }} />
                </PieChart>
              </ResponsiveContainer>
            </div>
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-center pointer-events-none mt-2">
+          <div className="absolute top-[45%] left-1/2 -translate-x-1/2 -translate-y-1/2 text-center pointer-events-none mt-2">
               <span className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase">Users</span>
-              <p className="text-3xl font-black text-gray-900 dark:text-white">{Number(stats.total) || 0}</p>
+              <p className="text-2xl font-black text-gray-900 dark:text-white">{Number(stats.total) || 0}</p>
+           </div>
+
+           <div className="mt-auto pt-6 border-t border-gray-100 dark:border-gray-700">
+              <div className="flex items-center justify-between mb-4">
+                <h4 className="text-sm font-black uppercase text-gray-400">Planning du jour</h4>
+                <div className="px-2 py-1 bg-indigo-50 dark:bg-indigo-900/30 rounded-lg text-indigo-600 dark:text-indigo-400 text-[10px] font-black">
+                  {teacherPlanning.length} ACTIVITÉS
+                </div>
+              </div>
+              <div className="space-y-3 max-h-48 overflow-y-auto pr-2 custom-scrollbar">
+                {teacherPlanning.length > 0 ? teacherPlanning.slice(0, 5).map((plan) => (
+                  <div key={plan.id} className="flex gap-3 items-start p-2 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                    <div className="text-[9px] font-black text-indigo-500 bg-indigo-50 dark:bg-indigo-900/30 px-1.5 py-0.5 rounded h-fit">
+                      {plan.startTime?.toDate?.().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-bold text-gray-900 dark:text-white truncate">{plan.title}</p>
+                      <p className="text-[10px] text-gray-400 truncate">{plan.teacherName}</p>
+                    </div>
+                  </div>
+                )) : (
+                  <p className="text-xs text-gray-400 italic text-center py-4">Aucune activité prévue aujourd'hui</p>
+                )}
+              </div>
            </div>
         </div>
 
@@ -439,6 +485,7 @@ const TeacherDashboard = ({ currentUser, t, tData, onNavigate }: any) => {
   const [recentAssignments, setRecentAssignments] = useState<any[]>([]);
   const [myTasks, setMyTasks] = useState<any[]>([]);
   const [schedule, setSchedule] = useState<any[]>([]);
+  const [personalPlanning, setPersonalPlanning] = useState<any[]>([]);
   const [myStats, setMyStats] = useState({ presenceRate: 98, lessonsGiven: 124, pendingGrading: 0 });
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
   const [newTaskTitle, setNewTaskTitle] = useState('');
@@ -523,12 +570,30 @@ const TeacherDashboard = ({ currentUser, t, tData, onNavigate }: any) => {
       (error) => console.error("Index or permission error in schedule:", error)
     );
 
+    // Listen to personal planning entries (real-time)
+    const yesterday = new Date();
+    yesterday.setHours(yesterday.getHours() - 24);
+
+    const unsubPersonalPlanning = onSnapshot(
+      query(
+        collection(db, 'teacher_planning'),
+        where('teacherId', '==', currentUser.id),
+        where('startTime', '>=', yesterday),
+        orderBy('startTime', 'asc')
+      ),
+      (snapshot) => {
+        setPersonalPlanning(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data(), isPersonal: true })));
+      },
+      (error) => console.error("Personal planning fetch error:", error)
+    );
+
     return () => {
       unsubClasses();
       unsubStudents();
       unsubHomework();
       unsubTasks();
       unsubSchedule();
+      unsubPersonalPlanning();
     };
   }, [currentUser]);
 
@@ -761,18 +826,86 @@ const TeacherDashboard = ({ currentUser, t, tData, onNavigate }: any) => {
         <div className="space-y-6">
            {/* Schedule */}
            <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-6">
-             <h3 className="text-sm font-black mb-6 uppercase tracking-widest text-gray-400">Planning du jour</h3>
+             <div className="flex items-center justify-between mb-6">
+               <h3 className="text-sm font-black uppercase tracking-widest text-gray-400">{t('planning')}</h3>
+               <button 
+                 onClick={() => onNavigate('planning')}
+                 className="p-1.5 hover:bg-indigo-50 text-indigo-600 rounded-lg transition-colors"
+                 title="Gérer le planning"
+               >
+                 <Plus size={16} />
+               </button>
+             </div>
              <div className="space-y-4">
-                {schedule.length > 0 ? schedule.map((slot, idx) => (
-                  <div key={idx} className="flex gap-4">
-                    <div className="text-xs font-bold text-gray-400 w-10 shrink-0">{slot.heure_debut}</div>
-                    <div className="flex-1 pb-4 border-l-2 border-gray-50 pl-4 relative">
-                      <div className={`absolute left-[-5px] top-1 w-2 h-2 rounded-full ${slot.color || 'bg-gray-400'}`} />
-                      <p className="text-xs font-black text-gray-900">{slot.matiere || slot.subject}</p>
-                      <p className="text-[10px] text-gray-500 font-bold">{slot.classe || slot.class_nom}</p>
+                {/* Fixed Schedule from Timetables */}
+                {schedule.length > 0 && (
+                  <div className="mb-4">
+                    <p className="text-[10px] font-bold text-gray-400 uppercase mb-3 ml-1 tracking-tighter">Emploi du temps fixe</p>
+                    <div className="space-y-3">
+                      {schedule.map((slot, idx) => (
+                        <div key={`fixed-${idx}`} className="flex gap-4">
+                          <div className="text-[10px] font-bold text-gray-400 w-8 shrink-0">{slot.heure_debut}</div>
+                          <div className="flex-1 pb-2 border-l-2 border-gray-50 pl-4 relative">
+                            <div className={`absolute left-[-5px] top-1 w-2 h-2 rounded-full ${slot.color || 'bg-gray-300'}`} />
+                            <p className="text-xs font-black text-gray-900 leading-tight">{slot.matiere || slot.subject}</p>
+                            <p className="text-[10px] text-gray-500 font-bold">{slot.classe || slot.class_nom}</p>
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   </div>
-                )) : (
+                )}
+
+                {/* Dynamic/Personal Planning Entries */}
+                <div className="pt-2 border-t border-gray-50">
+                  <p className="text-[10px] font-bold text-indigo-500 uppercase mb-3 ml-1 tracking-tighter">Activités & Planning</p>
+                  {personalPlanning.length > 0 ? (
+                    <div className="space-y-4">
+                      {personalPlanning.map((item, idx) => {
+                        const start = item.startTime?.toDate?.() || new Date();
+                        const end = item.endTime?.toDate?.() || new Date();
+                        const isCurrent = start <= new Date() && end >= new Date();
+                        
+                        return (
+                          <div key={item.id} className={`flex gap-4 group p-2 rounded-xl transition-all ${isCurrent ? 'bg-indigo-50/50 ring-1 ring-indigo-100' : ''}`}>
+                            <div className="text-[10px] font-bold text-gray-400 w-8 shrink-0">
+                              {start.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+                            </div>
+                            <div className="flex-1 relative pl-4 border-l-2 border-indigo-100">
+                              <div className={`absolute left-[-5px] top-1 w-2 h-2 rounded-full ${isCurrent ? 'bg-indigo-600 animate-pulse' : 'bg-indigo-300'}`} />
+                              <div className="flex justify-between items-start gap-2">
+                                <p className="text-xs font-black text-gray-900 leading-tight">{item.title}</p>
+                                <span className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded-full ${
+                                  item.type === 'cours' ? 'bg-blue-100 text-blue-700' : 
+                                  item.type === 'réunion' ? 'bg-purple-100 text-purple-700' : 
+                                  item.type === 'examen' ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-700'
+                                }`}>
+                                  {item.type}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-2 mt-1">
+                                {item.className && <p className="text-[9px] text-indigo-600 font-black tracking-tight">{item.className}</p>}
+                                {item.subject && <p className="text-[9px] text-gray-400 font-medium italic">({item.subject})</p>}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="text-center py-6">
+                       <p className="text-[10px] text-gray-400 italic font-medium">Aucune activité ajoutée aujourd'hui</p>
+                       <button 
+                         onClick={() => onNavigate('planning')}
+                         className="mt-2 text-[10px] font-black text-indigo-600 hover:underline"
+                       >
+                         + Ajouter au planning
+                       </button>
+                    </div>
+                  )}
+                </div>
+
+                {schedule.length === 0 && personalPlanning.length === 0 && (
                   <div className="text-center py-6 text-gray-400 text-xs italic">
                     Aucun cours programmé aujourd'hui
                   </div>
