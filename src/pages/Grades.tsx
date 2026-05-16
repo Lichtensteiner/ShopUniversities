@@ -372,17 +372,18 @@ const Grades: React.FC = () => {
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
-          <button className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors shadow-sm">
-            <Download size={18} />
-            {t('export_pdf')}
+        <div className="flex flex-wrap items-center gap-2">
+          <button className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors shadow-sm whitespace-nowrap">
+            <Download size={16} className="sm:w-[18px]" />
+            <span className="hidden xs:inline">{t('export_pdf')}</span>
+            <span className="xs:hidden">PDF</span>
           </button>
           {(currentUser?.role === 'enseignant' || currentUser?.role === 'admin') && (
             <button 
               onClick={() => setShowAddModal(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-xl text-sm font-medium hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-500/20"
+              className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-indigo-600 text-white rounded-xl text-xs sm:text-sm font-medium hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-500/20 whitespace-nowrap"
             >
-              <Plus size={18} />
+              <Plus size={16} className="sm:w-[18px]" />
               {t('enter_grades')}
             </button>
           )}
@@ -398,25 +399,27 @@ const Grades: React.FC = () => {
           animate={{ opacity: 1, y: 0 }}
           className="lg:col-span-2 bg-white dark:bg-gray-800 p-6 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-700"
         >
-          <div className="flex items-center justify-between mb-8">
-            <div>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-8 gap-4">
+            <div className="flex-1 min-w-0">
               <h2 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                <Activity size={20} className="text-indigo-600" />
-                {t('academic_progression_curve')}
+                <Activity size={20} className="text-indigo-600 shrink-0" />
+                <span className="truncate">{t('academic_progression_curve')}</span>
               </h2>
-              <p className="text-xs text-gray-500 dark:text-gray-400">{t('average_evolution_desc')}</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{t('average_evolution_desc')}</p>
             </div>
             {(currentUser?.role === 'enseignant' || currentUser?.role === 'admin') && (
-              <select
-                value={selectedStudentId}
-                onChange={(e) => setSelectedStudentId(e.target.value)}
-                className="text-xs font-bold px-3 py-2 bg-gray-50 dark:bg-gray-700/50 border border-gray-100 dark:border-gray-700 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
-              >
-                <option value="">{t('all_students')}</option>
-                {students.map(s => (
-                  <option key={s.id} value={s.id}>{s.prenom} {s.nom}</option>
-                ))}
-              </select>
+              <div className="w-full sm:w-auto">
+                <select
+                  value={selectedStudentId}
+                  onChange={(e) => setSelectedStudentId(e.target.value)}
+                  className="w-full sm:w-48 text-xs font-bold px-3 py-2.5 bg-gray-50 dark:bg-gray-700/50 border border-gray-100 dark:border-gray-700 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 transition-all appearance-none cursor-pointer"
+                >
+                  <option value="">{t('all_students')}</option>
+                  {students.map(s => (
+                    <option key={s.id} value={s.id}>{s.prenom} {s.nom}</option>
+                  ))}
+                </select>
+              </div>
             )}
           </div>
 
@@ -613,29 +616,34 @@ const Grades: React.FC = () => {
       </div>
 
       {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-4">
+      <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
           <input
             type="text"
             placeholder={t('search_evaluation_placeholder')}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+            className="w-full pl-10 pr-4 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-sm"
           />
         </div>
-        <div className="flex items-center gap-2">
-          <Filter className="text-gray-400" size={20} />
-          <select
-            value={selectedSubject}
-            onChange={(e) => setSelectedSubject(e.target.value)}
-            className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-2 outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
-          >
-            <option value="all">{t('all_subjects')}</option>
-            {subjects.map(subject => (
-              <option key={subject} value={subject}>{subject}</option>
-            ))}
-          </select>
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          <div className="relative flex-1 sm:flex-none">
+            <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={16} />
+            <select
+              value={selectedSubject}
+              onChange={(e) => setSelectedSubject(e.target.value)}
+              className="w-full sm:w-48 pl-9 pr-4 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-sm appearance-none"
+            >
+              <option value="all">{t('all_subjects')}</option>
+              {subjects.map(subject => (
+                <option key={subject} value={subject}>{subject}</option>
+              ))}
+            </select>
+            <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
+              <ChevronRight size={14} className="rotate-90" />
+            </div>
+          </div>
         </div>
       </div>
 

@@ -142,6 +142,24 @@
         "status": { "type": "string", "enum": ["sent", "read"] },
         "timestamp": { "type": "string", "format": "date-time" }
       }
+    },
+    "user_sessions": {
+      "title": "User Sessions",
+      "description": "Active and past user login sessions with device and location info",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "device": { "type": "string" },
+        "os": { "type": "string" },
+        "browser": { "type": "string" },
+        "location": { "type": "string" },
+        "ip": { "type": "string" },
+        "lastActive": { "type": "string", "format": "date-time" },
+        "userAgent": { "type": "string" },
+        "isMobile": { "type": "boolean" },
+        "status": { "type": "string", "enum": ["active", "inactive"] }
+      }
     }
   },
   "firestore": {
@@ -153,6 +171,7 @@
     "/sanctions/{sanctionId}": { "schema": "sanctions", "description": "Discipline entries" },
     "/homework/{homeworkId}": { "schema": "homework", "description": "Homework assignments" },
     "/preparations/{prepId}": { "schema": "preparations", "description": "Lesson plans and courses" },
-    "/notifications/{notifId}": { "schema": "notifications", "description": "User notifications" }
+    "/notifications/{notifId}": { "schema": "notifications", "description": "User notifications" },
+    "/user_sessions/{sessionId}": { "schema": "user_sessions", "description": "Real-time user sessions" }
   }
 }

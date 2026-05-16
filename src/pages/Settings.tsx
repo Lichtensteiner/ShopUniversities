@@ -15,6 +15,9 @@ import {
   Smartphone,
   CheckCircle2,
   AlertCircle,
+  AlertTriangle,
+  CheckCircle,
+  Trash2,
   Zap,
   Clock,
   Camera,
@@ -48,11 +51,12 @@ export default function Settings() {
   const [latency, setLatency] = useState<number>(0);
   const [lastSaved, setLastSaved] = useState<string>('À l\'instant');
   const [sessionLogs, setSessionLogs] = useState<{ id: string; event: string; time: string; type: 'info' | 'auth' | 'system' }[]>([]);
-  const [activeSessions, setActiveSessions] = useState<{ id: string; device: string; location: string; current: boolean; date: string }[]>([]);
+  const [activeSessions, setActiveSessions] = useState<{ id: string; device: string; location: string; current: boolean; date: string; os?: string; browser?: string }[]>([]);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [uploadingCover, setUploadingCover] = useState(false);
   const [storageUsage, setStorageUsage] = useState({ used: 0, total: 5, percentage: 0 });
   const [density, setDensity] = useState(0);
+  const [notifications, setNotifications] = useState<{ id: string; title: string; message: string; timestamp: string; read: boolean; type?: string }[]>([]);
   const [notifPreferences, setNotifPreferences] = useState({
     push: true,
     email: false,
@@ -65,6 +69,27 @@ export default function Settings() {
   const [formCover, setFormCover] = useState(currentUser?.cover_photo || '');
   const [saving, setSaving] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+
+  const handleTerminateSession = async (sessionId: string) => {
+    try {
+      await updateDoc(doc(db, 'user_sessions', sessionId), {
+        status: 'inactive'
+      });
+      addLog('Session terminée à distance', 'system');
+    } catch (error) {
+      console.error('Error terminating session:', error);
+    }
+  };
+
+  const handleDeleteNotification = async (id: string) => {
+    try {
+      const { deleteDoc, doc } = await import('firebase/firestore');
+      await deleteDoc(doc(db, 'notifications', id));
+      addLog('Notification supprimée', 'info');
+    } catch (error) {
+      console.error('Error deleting notification:', error);
+    }
+  };
 
   useEffect(() => {
     if (currentUser) {
@@ -202,11 +227,36 @@ export default function Settings() {
         { id: '3', event: 'Cache applicatif synchronisé', time: new Date(Date.now() - 1500).toLocaleTimeString(), type: 'info' }
       ]);
 
-      // 2. Mock Active Sessions Explorer
-      setActiveSessions([
-        { id: 's1', device: 'Chrome / MacOS', location: 'Yaoundé, CM', current: true, date: 'Aujourd\'hui' },
-        { id: 's2', device: 'iOS / App Mobile', location: 'Douala, CM', current: false, date: 'Hier, 14:20' }
-      ]);
+      // 2. Real-time Active Sessions Explorer
+      const sessionsQuery = query(
+        collection(db, 'user_sessions'),
+        where('userId', '==', currentUser?.id),
+        where('status', '==', 'active')
+      );
+
+      const unsubSessions = onSnapshot(sessionsQuery, (snapshot) => {
+        const sessions = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        })) as any[];
+        
+        // Sort sessions: current one first, then by lastActive
+        const sortedSessions = sessions.sort((a, b) => {
+          if (a.userAgent === navigator.userAgent) return -1;
+          if (b.userAgent === navigator.userAgent) return 1;
+          return (b.lastActive?.seconds || 0) - (a.lastActive?.seconds || 0);
+        });
+
+        setActiveSessions(sortedSessions.map(s => ({
+          id: s.id,
+          device: s.device,
+          location: s.location || 'Libreville, GA',
+          current: s.userAgent === navigator.userAgent,
+          date: s.lastActive?.toDate ? s.lastActive.toDate().toLocaleString() : 'En ligne',
+          os: s.os,
+          browser: s.browser
+        })));
+      });
 
       // 3. Real-time User Density
       const unsubDensity = onSnapshot(collection(db, 'attendance'), (snapshot) => {
@@ -216,7 +266,28 @@ export default function Settings() {
         setDensity(Math.min(100, Math.round((presents / 50) * 100)));
       });
 
-      return () => unsubDensity();
+      // 4. Real-time Notifications List
+      const notifsQuery = query(
+        collection(db, 'notifications'),
+        where('user_id', '==', currentUser?.id)
+      );
+
+      const unsubNotifs = onSnapshot(notifsQuery, (snapshot) => {
+        const notifs = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        })) as any[];
+        
+        // Sort by timestamp
+        notifs.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+        setNotifications(notifs);
+      });
+
+      return () => {
+        unsubSessions();
+        unsubDensity();
+        unsubNotifs();
+      };
     };
 
     fetchProMetrics();
@@ -488,33 +559,74 @@ export default function Settings() {
                     <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Contrôlez comment l'établissement communique avec vous.</p>
                   </div>
 
-                  <div className="space-y-4">
-                    {[
-                      { key: 'push', icon: Monitor, label: 'Notifications Push', desc: 'Alertes en temps réel sur cet appareil' },
-                      { key: 'email', icon: Globe, label: 'Email Hebdomadaire', desc: 'Résumé de l\'activité et des notes' },
-                      { key: 'sms', icon: Smartphone, label: 'Alertes SMS', desc: 'Retards, absences ou urgences importantes' },
-                      { key: 'urgent', icon: Zap, label: 'Alertes Système', desc: 'Maintenance et mises à jour critiques' }
-                    ].map((pref) => (
-                      <div key={pref.key} className="flex items-center justify-between p-4 rounded-2xl border border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-900/30 transition-colors">
-                        <div className="flex items-center gap-4">
-                          <div className="w-10 h-10 bg-gray-100 dark:bg-gray-700 rounded-xl flex items-center justify-center text-gray-500">
-                            <pref.icon size={20} />
+                    <div className="space-y-4">
+                      {[
+                        { key: 'push', icon: Monitor, label: 'Notifications Push', desc: 'Alertes en temps réel sur cet appareil' },
+                        { key: 'email', icon: Globe, label: 'Email Hebdomadaire', desc: 'Résumé de l\'activité et des notes' },
+                        { key: 'sms', icon: Smartphone, label: 'Alertes SMS', desc: 'Retards, absences ou urgences importantes' },
+                        { key: 'urgent', icon: Zap, label: 'Alertes Système', desc: 'Maintenance et mises à jour critiques' }
+                      ].map((pref) => (
+                        <div key={pref.key} className="flex items-center justify-between p-4 rounded-2xl border border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-900/30 transition-colors">
+                          <div className="flex items-center gap-4">
+                            <div className="w-10 h-10 bg-gray-100 dark:bg-gray-700 rounded-xl flex items-center justify-center text-gray-500">
+                              <pref.icon size={20} />
+                            </div>
+                            <div>
+                              <p className="font-bold text-sm text-gray-900 dark:text-white">{pref.label}</p>
+                              <p className="text-xs text-gray-500 dark:text-gray-400">{pref.desc}</p>
+                            </div>
                           </div>
-                          <div>
-                            <p className="font-bold text-sm text-gray-900 dark:text-white">{pref.label}</p>
-                            <p className="text-xs text-gray-500 dark:text-gray-400">{pref.desc}</p>
-                          </div>
+                          <button 
+                            onClick={() => togglePreference(pref.key as any)}
+                            className={`w-12 h-6 rounded-full transition-all relative ${notifPreferences[pref.key as keyof typeof notifPreferences] ? 'bg-indigo-600 shadow-inner' : 'bg-gray-200 dark:bg-gray-700'}`}
+                          >
+                            <div className={`absolute top-1 bottom-1 w-4 bg-white rounded-full transition-all ${notifPreferences[pref.key as keyof typeof notifPreferences] ? 'right-1' : 'left-1'}`} />
+                          </button>
                         </div>
-                        <button 
-                          onClick={() => togglePreference(pref.key as any)}
-                          className={`w-12 h-6 rounded-full transition-all relative ${notifPreferences[pref.key as keyof typeof notifPreferences] ? 'bg-indigo-600 shadow-inner' : 'bg-gray-200 dark:bg-gray-700'}`}
-                        >
-                          <div className={`absolute top-1 bottom-1 w-4 bg-white rounded-full transition-all ${notifPreferences[pref.key as keyof typeof notifPreferences] ? 'right-1' : 'left-1'}`} />
-                        </button>
+                      ))}
+                    </div>
+
+                    <div className="pt-8 border-t border-gray-100 dark:border-gray-700">
+                      <div className="flex items-center justify-between mb-4">
+                        <h4 className="text-sm font-black text-gray-900 dark:text-white uppercase tracking-widest">Journal des Alertes Récentes</h4>
+                        <span className="text-[10px] font-black px-2 py-1 bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 rounded uppercase">Actualisation en temps réel</span>
                       </div>
-                    ))}
+                      
+                      <div className="space-y-3">
+                        {notifications.length > 0 ? (
+                          notifications.slice(0, 5).map(notif => (
+                            <div key={notif.id} className={`p-4 rounded-2xl border ${notif.read ? 'border-gray-100 dark:border-gray-700 bg-gray-50/30' : 'border-indigo-100 bg-indigo-50/30 dark:bg-indigo-900/10 shadow-sm shadow-indigo-100/50'} flex justify-between items-center group transition-all hover:border-indigo-300`}>
+                               <div className="flex items-center gap-4">
+                                  <div className={`p-2.5 rounded-xl ${notif.type === 'warning' ? 'bg-amber-100 text-amber-600' : notif.type === 'success' ? 'bg-emerald-100 text-emerald-600' : 'bg-indigo-100 text-indigo-600'}`}>
+                                     {notif.type === 'warning' ? <AlertTriangle size={18} /> : notif.type === 'success' ? <CheckCircle2 size={18} /> : <Bell size={18} />}
+                                  </div>
+                                  <div>
+                                     <p className="text-[13px] font-black text-gray-900 dark:text-white">
+                                       {notif.title}
+                                       {!notif.read && <span className="w-2 h-2 bg-indigo-600 rounded-full inline-block ml-2 mb-0.5" />}
+                                     </p>
+                                     <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-1">{notif.message}</p>
+                                     <p className="text-[10px] text-gray-400 font-bold uppercase mt-1">
+                                       {new Date(notif.timestamp).toLocaleString()}
+                                     </p>
+                                  </div>
+                               </div>
+                               <button 
+                                 onClick={() => handleDeleteNotification(notif.id)}
+                                 className="text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity p-2 hover:bg-red-50 hover:text-red-500 rounded-lg"
+                               >
+                                 <Trash2 size={16} />
+                               </button>
+                            </div>
+                          ))
+                        ) : (
+                          <div className="py-8 text-center bg-gray-50 dark:bg-gray-900/50 rounded-2xl border border-dashed border-gray-200 dark:border-gray-700">
+                             <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Aucune alerte récente</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
                   </div>
-                </div>
               )}
 
               {activeTab === 'system' && (
@@ -573,23 +685,41 @@ export default function Settings() {
                     <h4 className="text-sm font-black text-gray-900 dark:text-white uppercase tracking-widest">Explorateur de Sessions Actives</h4>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                        {activeSessions.map(session => (
-                         <div key={session.id} className={`p-4 rounded-2xl border ${session.current ? 'border-indigo-600 bg-indigo-50/10' : 'border-gray-100 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-900/50'} flex justify-between items-center group`}>
+                         <div key={session.id} className={`p-4 rounded-2xl border ${session.current ? 'border-indigo-600 bg-indigo-50/10 shadow-sm shadow-indigo-100 dark:shadow-none' : 'border-gray-100 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-900/50'} flex justify-between items-center group transition-all hover:border-indigo-300`}>
                             <div className="flex items-center gap-4">
-                               <div className={`p-2 rounded-lg ${session.current ? 'bg-indigo-600 text-white' : 'bg-gray-200 dark:bg-gray-800 text-gray-500'}`}>
-                                  {session.device.includes('iPhone') || session.device.includes('Mobile') ? <Smartphone size={16} /> : <Monitor size={16} />}
+                               <div className={`p-3 rounded-xl ${session.current ? 'bg-indigo-600 text-white' : 'bg-gray-200 dark:bg-gray-800 text-gray-500'}`}>
+                                  {session.device?.includes('iPhone') || session.device?.includes('Mobile') ? <Smartphone size={18} /> : <Monitor size={18} />}
                                </div>
                                <div>
-                                  <p className="text-xs font-black text-gray-900 dark:text-white">{session.device} {session.current && <span className="text-[8px] px-1.5 py-0.5 bg-emerald-500 text-white rounded-full ml-1">THIS</span>}</p>
-                                  <p className="text-[10px] text-gray-500 dark:text-gray-400 font-bold uppercase">{session.location} • {session.date}</p>
+                                  <p className="text-[13px] font-black text-gray-900 dark:text-white flex items-center gap-2">
+                                    {session.device}
+                                    {session.current && <span className="text-[8px] px-2 py-0.5 bg-emerald-500 text-white rounded-full font-black tracking-widest uppercase">ACTUELLE</span>}
+                                  </p>
+                                  <p className="text-[10px] text-gray-500 dark:text-gray-400 font-bold uppercase mt-0.5">
+                                    {session.location} • {session.date}
+                                  </p>
+                                  <div className="flex items-center gap-2 mt-1.5 overflow-hidden">
+                                    <span className="text-[9px] font-black px-1.5 py-0.5 bg-gray-100 dark:bg-gray-800 text-gray-400 rounded uppercase">{session.os || 'N/A'}</span>
+                                    <span className="text-[9px] font-black px-1.5 py-0.5 bg-gray-100 dark:bg-gray-800 text-gray-400 rounded uppercase">{session.browser || 'N/A'}</span>
+                                  </div>
                                </div>
                             </div>
                             {!session.current && (
-                              <button className="text-red-500 opacity-0 group-hover:opacity-100 transition-opacity p-2 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg">
-                                <LogOut size={16} />
+                              <button 
+                                onClick={() => handleTerminateSession(session.id)}
+                                className="text-red-500 opacity-0 group-hover:opacity-100 transition-opacity p-2.5 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl"
+                                title="Terminer cette session"
+                              >
+                                <LogOut size={18} />
                               </button>
                             )}
                          </div>
                        ))}
+                       {activeSessions.length === 0 && (
+                         <div className="col-span-full py-8 text-center bg-gray-50 dark:bg-gray-900/50 rounded-2xl border border-dashed border-gray-200 dark:border-gray-700">
+                           <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Aucune session active détectée</p>
+                         </div>
+                       )}
                     </div>
                   </div>
 

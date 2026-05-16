@@ -7,6 +7,7 @@ import {
   onAuthStateChanged 
 } from 'firebase/auth';
 import { db, auth, isFirebaseConfigured } from '../lib/firebase';
+import { initSessionTracking, stopSessionTracking } from '../lib/sessionTracker';
 
 export interface User {
   id: string;
@@ -38,6 +39,7 @@ export interface User {
   lastSeen?: any;
   chatBlocked?: boolean;
   accessBlocked?: boolean;
+  blockedUsers?: string[];
   notifications?: {
     push: boolean;
     email: boolean;
@@ -201,6 +203,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     document.addEventListener('visibilitychange', handleVisibilityChange);
     window.addEventListener('beforeunload', handleBeforeUnload);
 
+    // Initialize real-time session tracking
+    if (currentUser) {
+      initSessionTracking(currentUser);
+    }
+
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('beforeunload', handleBeforeUnload);
@@ -314,6 +321,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         }, { merge: true });
       }
       await signOut(auth);
+      await stopSessionTracking();
       setCurrentUser(null);
     } finally {
       setLoading(false);
