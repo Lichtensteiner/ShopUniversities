@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useNotification } from '../contexts/NotificationContext';
-import { db } from '../lib/firebase';
+import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { 
   collection, 
   query, 
@@ -108,7 +108,7 @@ const TeacherPlanning: React.FC = () => {
       setPlanning(items);
       setLoading(false);
     }, (error) => {
-      console.error("Planning fetch error:", error);
+      handleFirestoreError(error, OperationType.GET, 'teacher_planning');
       setLoading(false);
     });
 
@@ -185,8 +185,7 @@ const TeacherPlanning: React.FC = () => {
       setEditingItem(null);
       resetForm();
     } catch (error) {
-      console.error("Save planning error:", error);
-      notifyError("Erreur lors de l'enregistrement.");
+      handleFirestoreError(error, OperationType.WRITE, 'teacher_planning');
     }
   };
 
@@ -211,7 +210,7 @@ const TeacherPlanning: React.FC = () => {
       await deleteDoc(doc(db, 'teacher_planning', id));
       notifyDelete(t('activity_deleted'));
     } catch (error) {
-      notifyError(t('error_saving'));
+      handleFirestoreError(error, OperationType.DELETE, `teacher_planning/${id}`);
     }
   };
 

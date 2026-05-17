@@ -41,7 +41,7 @@ import {
   Cell 
 } from 'recharts';
 import { collection, getDocs, query, where, onSnapshot, limit, orderBy, updateDoc, doc, serverTimestamp, addDoc, Timestamp } from 'firebase/firestore';
-import { db, isFirebaseConfigured } from '../lib/firebase';
+import { db, isFirebaseConfigured, handleFirestoreError, OperationType } from '../lib/firebase';
 import LiveClock from '../components/LiveClock';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -109,7 +109,7 @@ const AdminDashboard = ({ stats, weeklyData, studentLevelData, userDistribution,
         setTeacherPlanning(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
       },
       (error) => {
-        console.error("Admin planning fetch error:", error);
+        handleFirestoreError(error, OperationType.GET, 'teacher_planning');
       }
     );
 
@@ -590,8 +590,7 @@ const TeacherDashboard = ({ currentUser, t, tData, onNavigate }: any) => {
         setPersonalPlanning(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data(), isPersonal: true })));
       },
       (error) => {
-        console.error("Personal planning fetch error:", error);
-        // Fallback or retry logic can go here if needed
+        handleFirestoreError(error, OperationType.GET, 'teacher_planning');
       }
     );
 
@@ -1018,7 +1017,8 @@ export default function Dashboard({ onNavigate }: any) {
             };
           });
           setWeeklyData(history);
-        }
+        },
+        (error) => handleFirestoreError(error, OperationType.GET, 'attendance')
       );
 
       const unsubDashboard = onSnapshot(collection(db, 'users'), (userSnapshot) => {
@@ -1085,11 +1085,15 @@ export default function Dashboard({ onNavigate }: any) {
             }
           });
           setStats({ presents: prToday, retards: reToday, absents: Math.max(0, expectedTotal - (prToday + reToday)), total: expectedTotal });
-        });
+        },
+        (error) => handleFirestoreError(error, OperationType.GET, 'attendance')
+      );
 
         setLoading(false);
         return () => unsubTodayAtt();
-      });
+      },
+      (error) => handleFirestoreError(error, OperationType.GET, 'users')
+    );
       return () => { unsubEco(); unsubWellbeing(); unsubHouses(); unsubDashboard(); unsubWeeklyAtt(); };
     } else {
       setLoading(false);
