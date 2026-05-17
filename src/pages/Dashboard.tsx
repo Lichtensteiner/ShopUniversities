@@ -40,7 +40,7 @@ import {
   Pie, 
   Cell 
 } from 'recharts';
-import { collection, getDocs, query, where, onSnapshot, limit, orderBy, updateDoc, doc, serverTimestamp, addDoc } from 'firebase/firestore';
+import { collection, getDocs, query, where, onSnapshot, limit, orderBy, updateDoc, doc, serverTimestamp, addDoc, Timestamp } from 'firebase/firestore';
 import { db, isFirebaseConfigured } from '../lib/firebase';
 import LiveClock from '../components/LiveClock';
 import { useAuth } from '../contexts/AuthContext';
@@ -97,16 +97,19 @@ const AdminDashboard = ({ stats, weeklyData, studentLevelData, userDistribution,
     if (!currentUser || (currentUser.role !== 'admin' && currentUser.role !== 'personnel administratif')) return;
 
     const yesterday = new Date();
-    yesterday.setHours(yesterday.getHours() - 24);
+    yesterday.setHours(yesterday.getHours() - 24, 0, 0, 0);
 
     const unsubAdminPlanning = onSnapshot(
       query(
         collection(db, 'teacher_planning'),
-        where('startTime', '>=', yesterday),
+        where('startTime', '>=', Timestamp.fromDate(yesterday)),
         orderBy('startTime', 'asc')
       ),
       (snapshot) => {
         setTeacherPlanning(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      },
+      (error) => {
+        console.error("Admin planning fetch error:", error);
       }
     );
 
@@ -286,11 +289,14 @@ const AdminDashboard = ({ stats, weeklyData, studentLevelData, userDistribution,
                 {teacherPlanning.length > 0 ? teacherPlanning.slice(0, 5).map((plan) => (
                   <div key={plan.id} className="flex gap-3 items-start p-2 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
                     <div className="text-[9px] font-black text-indigo-500 bg-indigo-50 dark:bg-indigo-900/30 px-1.5 py-0.5 rounded h-fit">
-                      {plan.startTime?.toDate?.().toLocaleTimeString(language === 'fr' ? 'fr-FR' : language, { hour: '2-digit', minute: '2-digit' })}
+                      {plan.startTime?.toDate?.().toLocaleTimeString(language === 'fr' ? 'fr-FR' : language, { hour: '2-digit', minute: '2-digit' }) || '--:--'}
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-xs font-bold text-gray-900 dark:text-white truncate">{plan.title}</p>
-                      <p className="text-[10px] text-gray-400 truncate">{plan.teacherName}</p>
+                      <p className="text-[10px] text-gray-400 truncate">
+                        {(plan.className || plan.class_nom) ? <span className="text-indigo-600 font-bold">{plan.className || plan.class_nom} • </span> : ''}
+                        {plan.teacherName}
+                      </p>
                     </div>
                   </div>
                 )) : (
@@ -570,20 +576,23 @@ const TeacherDashboard = ({ currentUser, t, tData, onNavigate }: any) => {
     );
 
     // Listen to personal planning entries (real-time)
-    const yesterday = new Date();
-    yesterday.setHours(yesterday.getHours() - 24);
+    const planningStartLimit = new Date();
+    planningStartLimit.setHours(0, 0, 0, 0); // Start of today
 
     const unsubPersonalPlanning = onSnapshot(
       query(
         collection(db, 'teacher_planning'),
         where('teacherId', '==', currentUser.id),
-        where('startTime', '>=', yesterday),
+        where('startTime', '>=', Timestamp.fromDate(planningStartLimit)),
         orderBy('startTime', 'asc')
       ),
       (snapshot) => {
         setPersonalPlanning(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data(), isPersonal: true })));
       },
-      (error) => console.error("Personal planning fetch error:", error)
+      (error) => {
+        console.error("Personal planning fetch error:", error);
+        // Fallback or retry logic can go here if needed
+      }
     );
 
     return () => {

@@ -82,26 +82,20 @@ const TeacherPlanning: React.FC = () => {
     if (!currentUser) return;
 
     // Filter for the last 24 hours + future
-    const yesterday = new Date();
-    yesterday.setHours(yesterday.getHours() - 24);
+    const startLimit = new Date();
+    startLimit.setHours(0, 0, 0, 0); // Use start of today for more stable query
 
     let q = query(
       collection(db, 'teacher_planning'),
-      where('startTime', '>=', yesterday),
+      where('startTime', '>=', Timestamp.fromDate(startLimit)),
       orderBy('startTime', 'asc')
     );
 
-    // If teacher, only see their own (or let them see others too? 
-    // User said admin can see, teacher can see his own... 
-    // but usually in schools teachers might want to see the whole school planning? 
-    // User said "enseignant peut... voir SON planning mais pas admin il peut juste voir")
-    // Re-reading: "enseignant peut modifier supprimer et voir son planning mais pas admin il peut juste voir"
-    // I will filter by teacherId if not admin for privacy, but user said "admin peut voir aussi son planning".
     if (isTeacher) {
       q = query(
         collection(db, 'teacher_planning'),
         where('teacherId', '==', currentUser.id),
-        where('startTime', '>=', yesterday),
+        where('startTime', '>=', Timestamp.fromDate(startLimit)),
         orderBy('startTime', 'asc')
       );
     }
@@ -120,7 +114,7 @@ const TeacherPlanning: React.FC = () => {
 
     // Fetch classes and teacher's subjects for the form
     const unsubscribeClasses = onSnapshot(collection(db, 'classes'), (snapshot) => {
-      setClasses(snapshot.docs.map(doc => ({ id: doc.id, name: doc.data().name })));
+      setClasses(snapshot.docs.map(doc => ({ id: doc.id, name: doc.data().nom || doc.data().name })));
     });
 
     if (isTeacher) {
@@ -138,8 +132,22 @@ const TeacherPlanning: React.FC = () => {
     if (!isTeacher) return;
 
     try {
-      const start = new Date(`${formData.startDate}T${formData.startTime}`);
-      const end = new Date(`${formData.endDate}T${formData.endTime}`);
+      // Validate time and date inputs
+      if (!formData.startDate || !formData.startTime || !formData.endDate || !formData.endTime) {
+        notifyError("Veuillez remplir toutes les dates et heures.");
+        return;
+      }
+
+      const startString = `${formData.startDate}T${formData.startTime}`;
+      const endString = `${formData.endDate}T${formData.endTime}`;
+      
+      const start = new Date(startString);
+      const end = new Date(endString);
+
+      if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+        notifyError("Format de date ou heure invalide.");
+        return;
+      }
 
       if (end <= start) {
         notifyError(t('end_before_start_error'));
@@ -209,8 +217,8 @@ const TeacherPlanning: React.FC = () => {
 
   const openEdit = (item: PlanningItem) => {
     setEditingItem(item);
-    const start = item.startTime.toDate();
-    const end = item.endTime.toDate();
+    const start = item.startTime?.toDate?.() || new Date();
+    const end = item.endTime?.toDate?.() || new Date();
     setFormData({
       title: item.title,
       description: item.description || '',
@@ -287,90 +295,96 @@ const TeacherPlanning: React.FC = () => {
             </div>
           ) : planning.length > 0 ? (
             <div className="space-y-4">
-              {planning.map((item) => {
+              {(() => {
                 const now = new Date();
-                const isPast = item.endTime.toDate() < now;
-                const isCurrent = item.startTime.toDate() <= now && item.endTime.toDate() >= now;
+                return planning.map((item) => {
+                  const start = item.startTime?.toDate?.() || new Date();
+                  const end = item.endTime?.toDate?.() || new Date();
+                  const isPast = end < now;
+                  const isCurrent = start <= now && end >= now;
 
-                return (
-                  <motion.div
-                    key={item.id}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className={`bg-white dark:bg-gray-800 rounded-2xl p-5 shadow-sm border transition-all ${
-                      isCurrent ? 'ring-2 ring-indigo-500 border-indigo-500' : 'border-gray-100 dark:border-gray-700'
-                    } ${isPast ? 'opacity-60' : ''}`}
-                  >
-                    <div className="flex justify-between items-start mb-3">
-                      <div className="flex items-center gap-3">
-                        <span className={`px-2.5 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${getBadgeColor(item.type)}`}>
-                          {item.type}
-                        </span>
-                        {isCurrent && (
-                          <span className="flex items-center gap-1.5 px-2 py-0.5 bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 rounded-full text-[10px] font-bold animate-pulse">
-                            <span className="w-1.5 h-1.5 bg-green-500 rounded-full"></span>
-                            {t('in_progress_caps')}
+                  return (
+                    <motion.div
+                      key={item.id}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className={`bg-white dark:bg-gray-800 rounded-2xl p-5 shadow-sm border transition-all ${
+                        isCurrent ? 'ring-2 ring-indigo-500 border-indigo-500' : 'border-gray-100 dark:border-gray-700'
+                      } ${isPast ? 'opacity-60' : ''}`}
+                    >
+                      <div className="flex justify-between items-start mb-3">
+                        <div className="flex items-center gap-3">
+                          <span className={`px-2.5 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${getBadgeColor(item.type)}`}>
+                            {item.type}
                           </span>
+                          {isCurrent && (
+                            <span className="flex items-center gap-1.5 px-2 py-0.5 bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 rounded-full text-[10px] font-bold animate-pulse">
+                              <span className="w-1.5 h-1.5 bg-green-500 rounded-full"></span>
+                              {t('in_progress_caps')}
+                            </span>
+                          )}
+                        </div>
+                        
+                        {isTeacher && item.teacherId === currentUser.id && (
+                          <div className="flex gap-1">
+                            <button 
+                              onClick={() => openEdit(item)}
+                              className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400 rounded-lg transition-colors"
+                            >
+                              <Edit2 size={16} />
+                            </button>
+                            <button 
+                              onClick={() => handleDelete(item.id)}
+                              className="p-1.5 hover:bg-red-50 dark:hover:bg-red-900/30 text-red-500 rounded-lg transition-colors"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
+                        )}
+                      </div>
+
+                      <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-1 line-clamp-1">{item.title}</h3>
+                      {item.description && (
+                        <p className="text-sm text-gray-600 dark:text-gray-400 mb-4 line-clamp-2">{item.description}</p>
+                      )}
+
+                      <div className="grid grid-cols-2 gap-4 pt-4 border-t border-gray-50 dark:border-gray-700/50 mt-4">
+                        <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+                          <Clock size={16} className="text-indigo-500" />
+                          <span>
+                            {item.startTime?.toDate?.().toLocaleTimeString(language === 'fr' ? 'fr-FR' : language, { hour: '2-digit', minute: '2-digit' }) || '--:--'} - {item.endTime?.toDate?.().toLocaleTimeString(language === 'fr' ? 'fr-FR' : language, { hour: '2-digit', minute: '2-digit' }) || '--:--'}
+                          </span>
+                        </div>
+                        {(item.className || (item as any).class_nom) && (
+                          <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 justify-end">
+                            <Users size={16} className="text-indigo-500" />
+                            <span className="font-medium text-gray-700 dark:text-gray-300">
+                              {item.className || (item as any).class_nom}
+                            </span>
+                          </div>
+                        )}
+                        <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+                          <CalendarIcon size={16} className="text-indigo-500" />
+                          <span>{item.startTime?.toDate?.().toLocaleDateString(language === 'fr' ? 'fr-FR' : language, { day: 'numeric', month: 'short' }) || 'N/A'}</span>
+                        </div>
+                        {item.subject && (
+                          <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 justify-end">
+                            <BookOpen size={16} className="text-indigo-500" />
+                            <span className="font-medium text-gray-700 dark:text-gray-300">{item.subject}</span>
+                          </div>
                         )}
                       </div>
                       
-                      {isTeacher && item.teacherId === currentUser.id && (
-                        <div className="flex gap-1">
-                          <button 
-                            onClick={() => openEdit(item)}
-                            className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400 rounded-lg transition-colors"
-                          >
-                            <Edit2 size={16} />
-                          </button>
-                          <button 
-                            onClick={() => handleDelete(item.id)}
-                            className="p-1.5 hover:bg-red-50 dark:hover:bg-red-900/30 text-red-500 rounded-lg transition-colors"
-                          >
-                            <Trash2 size={16} />
-                          </button>
+                      {isAdmin && (
+                        <div className="mt-4 pt-3 border-t border-dashed border-gray-100 dark:border-gray-700 flex items-center justify-between">
+                           <span className="text-[10px] text-gray-400 uppercase font-medium">{t('teacher')}</span>
+                           <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">{item.teacherName}</span>
                         </div>
                       )}
-                    </div>
-
-                    <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-1 line-clamp-1">{item.title}</h3>
-                    {item.description && (
-                      <p className="text-sm text-gray-600 dark:text-gray-400 mb-4 line-clamp-2">{item.description}</p>
-                    )}
-
-                    <div className="grid grid-cols-2 gap-4 pt-4 border-t border-gray-50 dark:border-gray-700/50 mt-4">
-                      <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
-                        <Clock size={16} className="text-indigo-500" />
-                        <span>
-                          {item.startTime.toDate().toLocaleTimeString(language === 'fr' ? 'fr-FR' : language, { hour: '2-digit', minute: '2-digit' })} - {item.endTime.toDate().toLocaleTimeString(language === 'fr' ? 'fr-FR' : language, { hour: '2-digit', minute: '2-digit' })}
-                        </span>
-                      </div>
-                      {item.className && (
-                        <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 justify-end">
-                          <Users size={16} className="text-indigo-500" />
-                          <span className="font-medium text-gray-700 dark:text-gray-300">{item.className}</span>
-                        </div>
-                      )}
-                      <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
-                        <CalendarIcon size={16} className="text-indigo-500" />
-                        <span>{item.startTime.toDate().toLocaleDateString(language === 'fr' ? 'fr-FR' : language, { day: 'numeric', month: 'short' })}</span>
-                      </div>
-                      {item.subject && (
-                        <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 justify-end">
-                          <BookOpen size={16} className="text-indigo-500" />
-                          <span className="font-medium text-gray-700 dark:text-gray-300">{item.subject}</span>
-                        </div>
-                      )}
-                    </div>
-                    
-                    {isAdmin && (
-                      <div className="mt-4 pt-3 border-t border-dashed border-gray-100 dark:border-gray-700 flex items-center justify-between">
-                         <span className="text-[10px] text-gray-400 uppercase font-medium">{t('teacher')}</span>
-                         <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">{item.teacherName}</span>
-                      </div>
-                    )}
-                  </motion.div>
-                );
-              })}
+                    </motion.div>
+                  );
+                });
+              })()}
             </div>
           ) : (
             <div className="bg-white dark:bg-gray-800 rounded-2xl p-12 text-center border-2 border-dashed border-gray-200 dark:border-gray-700">
