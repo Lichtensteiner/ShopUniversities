@@ -51,7 +51,7 @@ interface PlanningItem {
 
 const TeacherPlanning: React.FC = () => {
   const { currentUser } = useAuth();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const { notifySuccess, notifyError, notifyDelete } = useNotification();
   
   const [planning, setPlanning] = useState<PlanningItem[]>([]);

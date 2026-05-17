@@ -83,6 +83,7 @@ const MiniSparkline = ({ data, color }: { data: any[], color: string }) => {
 };
 
 const AdminDashboard = ({ stats, weeklyData, studentLevelData, userDistribution, classData, recommendation, houses, alerts, ecoStats, mood, handleMoodSelect, t, tData }: any) => {
+  const { language } = useLanguage();
   const { theme } = useTheme();
   const isDark = theme === 'dark';
   const { notifyOptimize } = useNotification();
@@ -867,7 +868,7 @@ const TeacherDashboard = ({ currentUser, t, tData, onNavigate }: any) => {
                         return (
                           <div key={item.id} className={`flex gap-4 group p-2 rounded-xl transition-all ${isCurrent ? 'bg-indigo-50/50 ring-1 ring-indigo-100' : ''}`}>
                             <div className="text-[10px] font-bold text-gray-400 w-8 shrink-0">
-                              {start.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+                              {start.toLocaleTimeString(language === 'fr' ? 'fr-FR' : language, { hour: '2-digit', minute: '2-digit' })}
                             </div>
                             <div className="flex-1 relative pl-4 border-l-2 border-indigo-100">
                               <div className={`absolute left-[-5px] top-1 w-2 h-2 rounded-full ${isCurrent ? 'bg-indigo-600 animate-pulse' : 'bg-indigo-300'}`} />
